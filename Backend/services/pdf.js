@@ -105,15 +105,29 @@ async function localImage(url, convertWebp = false) {
     if (!url) return null;
 
     try {
-        const pathname = new URL(url, "http://localhost").pathname;
-        if (!pathname.startsWith("/uploads/")) return null;
+        const parsedUrl = new URL(url, "http://localhost");
+        let buffer;
 
-        const relativePath = decodeURIComponent(pathname.slice("/uploads/".length));
-        const absolutePath = path.resolve(UPLOADS_DIRECTORY, relativePath);
-        const uploadsRoot = `${path.resolve(UPLOADS_DIRECTORY)}${path.sep}`;
-        if (!absolutePath.startsWith(uploadsRoot)) return null;
+        if (parsedUrl.hostname === "res.cloudinary.com") {
+            const response = await fetch(parsedUrl, {
+                signal: AbortSignal.timeout(10_000),
+            });
+            if (!response.ok) return null;
+            const contentLength = Number(response.headers.get("content-length") || 0);
+            if (contentLength > 10 * 1024 * 1024) return null;
+            buffer = Buffer.from(await response.arrayBuffer());
+            if (buffer.length > 10 * 1024 * 1024) return null;
+        } else {
+            const pathname = parsedUrl.pathname;
+            if (!pathname.startsWith("/uploads/")) return null;
 
-        const buffer = await readFile(absolutePath);
+            const relativePath = decodeURIComponent(pathname.slice("/uploads/".length));
+            const absolutePath = path.resolve(UPLOADS_DIRECTORY, relativePath);
+            const uploadsRoot = `${path.resolve(UPLOADS_DIRECTORY)}${path.sep}`;
+            if (!absolutePath.startsWith(uploadsRoot)) return null;
+
+            buffer = await readFile(absolutePath);
+        }
         return convertWebp ? sharp(buffer).png().toBuffer() : buffer;
     } catch {
         return null;

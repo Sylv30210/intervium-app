@@ -174,10 +174,19 @@ function authError(message) {
     box.classList.remove("hidden");
 }
 
+function formFromSubmitEvent(event) {
+    const form = event?.currentTarget;
+    if (!(form instanceof HTMLFormElement)) {
+        throw new TypeError("Le formulaire HTML est indisponible.");
+    }
+    return form;
+}
+
 async function handleLogin(event) {
     event.preventDefault();
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const button = event.currentTarget.querySelector("button[type='submit']");
+    const form = formFromSubmitEvent(event);
+    const values = Object.fromEntries(new FormData(form));
+    const button = form.querySelector("button[type='submit']");
     await withBusy(button, async () => {
         try {
             await api("/auth/login", { method: "POST", body: JSON.stringify(values) });
@@ -188,8 +197,9 @@ async function handleLogin(event) {
 
 async function handleRegister(event) {
     event.preventDefault();
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const button = event.currentTarget.querySelector("button[type='submit']");
+    const form = formFromSubmitEvent(event);
+    const values = Object.fromEntries(new FormData(form));
+    const button = form.querySelector("button[type='submit']");
     await withBusy(button, async () => {
         try {
             await api("/auth/register", { method: "POST", body: JSON.stringify(values) });
@@ -451,7 +461,14 @@ function openSettings() {
 
 async function saveCompanyReportSettings(event) {
     event.preventDefault();
-    const button = event.currentTarget.querySelector('button[type="submit"]');
+    // currentTarget n'est garanti que pendant l'exécution synchrone du listener.
+    // On conserve donc le formulaire avant le premier await.
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) {
+        toast("Le formulaire de paramètres est indisponible. Rechargez la page.", true);
+        return;
+    }
+    const button = form.querySelector('button[type="submit"]');
     await withBusy(button, async () => {
         try {
             const logoFile = document.getElementById("company-logo-file")?.files[0];
@@ -461,8 +478,8 @@ async function saveCompanyReportSettings(event) {
                 const logoResult = await api("/uploads/company-logo", { method: "POST", body: logoData });
                 currentEntreprise = logoResult.entreprise;
             }
-            const values = Object.fromEntries(new FormData(event.currentTarget));
-            values.show_intervium = event.currentTarget.elements.show_intervium.checked;
+            const values = Object.fromEntries(new FormData(form));
+            values.show_intervium = form.elements.show_intervium.checked;
             const result = await api("/auth/company", {
                 method: "PUT",
                 body: JSON.stringify({ report_settings: values }),
@@ -702,8 +719,9 @@ function updateDocumentTotals() {
 
 async function saveDocument(event) {
     event.preventDefault();
-    const button = event.currentTarget.querySelector("button[type='submit']");
-    const payload = Object.fromEntries(new FormData(event.currentTarget));
+    const form = formFromSubmitEvent(event);
+    const button = form.querySelector("button[type='submit']");
+    const payload = Object.fromEntries(new FormData(form));
     payload.lignes = documentLines();
     await withBusy(button, async () => {
         try {
@@ -827,10 +845,11 @@ function openNewIntervention() {
     });
     document.getElementById("intervention-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const button = event.currentTarget.querySelector("button[type='submit'], button:not([type])");
-        const values = Object.fromEntries(new FormData(event.currentTarget));
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector("button[type='submit'], button:not([type])");
+        const values = Object.fromEntries(new FormData(form));
         for (const key of Object.keys(values)) if (values[key] === "") values[key] = null;
-        values.donnees_rapport = collectReportData(event.currentTarget);
+        values.donnees_rapport = collectReportData(form);
         await withBusy(button, async () => {
             try {
                 await api("/interventions", { method: "POST", body: JSON.stringify(values) });
@@ -956,8 +975,9 @@ function reportDataSummary(item) {
 
 async function submitForm(event, path, view) {
     event.preventDefault();
-    const submitButton = event.currentTarget.querySelector("button[type='submit'], button:not([type])");
-    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const form = formFromSubmitEvent(event);
+    const submitButton = form.querySelector("button[type='submit'], button:not([type])");
+    const values = Object.fromEntries(new FormData(form));
     for (const key of Object.keys(values)) if (values[key] === "") values[key] = null;
     await withBusy(submitButton, async () => {
         try {
@@ -998,11 +1018,12 @@ function openIntervention(id) {
 
     document.getElementById("edit-intervention-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const submitButton = event.currentTarget.querySelector("button[type='submit'], button:not([type])");
-        const values = Object.fromEntries(new FormData(event.currentTarget));
+        const form = formFromSubmitEvent(event);
+        const submitButton = form.querySelector("button[type='submit'], button:not([type])");
+        const values = Object.fromEntries(new FormData(form));
         if (values.modele_rapport_id === "__snapshot__") delete values.modele_rapport_id;
         for (const key of Object.keys(values)) if (values[key] === "") values[key] = null;
-        if (event.currentTarget.querySelector("[data-report-key]")) values.donnees_rapport = collectReportData(event.currentTarget);
+        if (form.querySelector("[data-report-key]")) values.donnees_rapport = collectReportData(form);
         await withBusy(submitButton, async () => {
             try {
                 await api(`/interventions/${id}`, { method: "PUT", body: JSON.stringify(values) });

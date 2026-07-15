@@ -2,7 +2,7 @@ import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { generateInterventionPdf } from "../services/pdf.js";
-import { removeLocalUpload } from "../services/storage.js";
+import { removeStoredUpload } from "../services/storage.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -522,7 +522,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
         await client.query("COMMIT");
 
         const mediaUrls = mediaResult.rows.flatMap((row) => [row.signature_url, row.photo_url]);
-        await Promise.all(mediaUrls.map(removeLocalUpload));
+        await Promise.all(mediaUrls.map(removeStoredUpload));
         return res.status(204).send();
     } catch (error) {
         if (client) await client.query("ROLLBACK");

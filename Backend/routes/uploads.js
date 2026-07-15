@@ -3,7 +3,7 @@ import multer from "multer";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import {
-    removeLocalUpload,
+    removeStoredUpload,
     uploadCompressedPhoto,
     uploadCompanyLogo,
     uploadSignatureBase64,
@@ -74,13 +74,13 @@ router.post("/company-logo", verifyToken, requireRole(["ADMIN"]), receiveLogo, a
             [logoUrl, req.user.entreprise_id]
         );
         if (!result.rowCount) {
-            await removeLocalUpload(relativeUrl);
+            await removeStoredUpload(relativeUrl);
             return res.status(404).json({ error: "Entreprise introuvable." });
         }
-        await removeLocalUpload(previousResult.rows[0].logo_url);
+        await removeStoredUpload(previousResult.rows[0].logo_url);
         return res.json({ entreprise: result.rows[0] });
     } catch (error) {
-        if (relativeUrl) await removeLocalUpload(relativeUrl);
+        if (relativeUrl) await removeStoredUpload(relativeUrl);
         if (error instanceof TypeError) return res.status(400).json({ error: error.message });
         console.error("Échec de l'upload du logo", error);
         return res.status(500).json({ error: "Impossible d'enregistrer le logo." });
@@ -97,7 +97,7 @@ router.delete("/company-logo", verifyToken, requireRole(["ADMIN"]), async (req, 
             [req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Entreprise introuvable." });
-        await removeLocalUpload(previousResult.rows[0].logo_url);
+        await removeStoredUpload(previousResult.rows[0].logo_url);
         return res.json({ entreprise: { ...result.rows[0], logo_url: null } });
     } catch (error) {
         console.error("Échec de la suppression du logo", error);
@@ -160,7 +160,7 @@ router.post("/photo/:intervention_id", verifyToken, receivePhoto, async (req, re
 
         return res.status(201).json({ photo: result.rows[0] });
     } catch (error) {
-        if (relativeUrl) await removeLocalUpload(relativeUrl);
+        if (relativeUrl) await removeStoredUpload(relativeUrl);
         if (error instanceof TypeError) {
             return res.status(400).json({ error: error.message });
         }
@@ -198,13 +198,13 @@ router.post("/signature/:intervention_id", verifyToken, async (req, res) => {
             [signatureUrl, interventionId, req.user.entreprise_id]
         );
 
-        await removeLocalUpload(intervention.signature_url);
+        await removeStoredUpload(intervention.signature_url);
         return res.json({
             intervention_id: result.rows[0].id,
             signature_url: result.rows[0].signature_url,
         });
     } catch (error) {
-        if (relativeUrl) await removeLocalUpload(relativeUrl);
+        if (relativeUrl) await removeStoredUpload(relativeUrl);
         if (error instanceof TypeError || error instanceof RangeError) {
             return res.status(400).json({ error: error.message });
         }
@@ -238,7 +238,7 @@ router.delete("/photo/:id", verifyToken, async (req, res) => {
         );
         if (deleted.rowCount === 0) return res.status(404).json({ error: "Photo introuvable." });
 
-        const fileDeleted = await removeLocalUpload(photo.url);
+        const fileDeleted = await removeStoredUpload(photo.url);
         return res.json({ id: photo.id, file_deleted: fileDeleted });
     } catch (error) {
         console.error("Échec de la suppression photo", error);
@@ -268,7 +268,7 @@ router.delete("/signature/:intervention_id", verifyToken, async (req, res) => {
         );
         if (updated.rowCount === 0) return res.status(404).json({ error: "Intervention introuvable." });
 
-        const fileDeleted = await removeLocalUpload(intervention.signature_url);
+        const fileDeleted = await removeStoredUpload(intervention.signature_url);
         return res.json({ intervention_id: interventionId, signature_url: null, file_deleted: fileDeleted });
     } catch (error) {
         console.error("Échec de la suppression signature", error);

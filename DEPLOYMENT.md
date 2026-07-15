@@ -13,7 +13,9 @@ Gérées ou facultatives :
 
 - `PORT` : injecté automatiquement par Render ; `5000` par défaut en local
 - `DB_POOL_MAX=10`
-- `UPLOADS_DIRECTORY=/var/data/uploads` sur Render avec disque persistant
+- `STORAGE_DRIVER=cloudinary` sur Render
+- `CLOUDINARY_URL` : URL secrète fournie par Cloudinary
+- `UPLOADS_DIRECTORY` : uniquement pour le stockage local en développement
 - `FRONTEND_ORIGIN` : seulement si le frontend est hébergé sur un autre domaine ; plusieurs origines peuvent être séparées par des virgules
 - `DB_SSL` et `DB_SSL_REJECT_UNAUTHORIZED` : uniquement pour une configuration PostgreSQL sans paramètres SSL dans l'URL
 
@@ -33,13 +35,14 @@ Gérées ou facultatives :
 1. Pousser le projet dans un dépôt GitHub ou GitLab privé.
 2. Dans Render, choisir **New > Blueprint** et sélectionner le dépôt.
 3. Render détecte `render.yaml`. Renseigner les deux URL Neon lorsqu'elles sont demandées.
-4. Laisser Render générer `JWT_SECRET`.
-5. Créer le service. Le démarrage exécute `npm run migrate`, puis lance Express.
-6. Vérifier `https://<service>.onrender.com/api/health`, puis créer le premier compte ADMIN.
+4. Renseigner `CLOUDINARY_URL` avec la valeur secrète du tableau de bord Cloudinary.
+5. Laisser Render générer `JWT_SECRET`.
+6. Créer le service. Le serveur applique les migrations avant d'écouter les connexions.
+7. Vérifier `https://<service>.onrender.com/api/health`, puis créer le premier compte ADMIN.
 
-Le Blueprint utilise un service `starter` avec un disque persistant de 1 Go. C'est
-nécessaire avec le stockage local actuel : sans disque, les photos, signatures et
-logos disparaissent lors d'un redéploiement ou redémarrage Render.
+Le Blueprint utilise le plan gratuit et envoie photos, signatures et logos vers
+Cloudinary. Aucun média utilisateur ne dépend donc du système de fichiers éphémère
+de Render.
 
 ## Fly.io (alternative)
 

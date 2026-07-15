@@ -8,6 +8,14 @@ const backendDirectory = path.resolve(
     ".."
 );
 
+export const STORAGE_DRIVER = String(
+    process.env.STORAGE_DRIVER || (process.env.CLOUDINARY_URL ? "cloudinary" : "local")
+).toLowerCase();
+
+if (!["local", "cloudinary"].includes(STORAGE_DRIVER)) {
+    throw new Error("STORAGE_DRIVER doit valoir 'local' ou 'cloudinary'.");
+}
+
 export const UPLOADS_DIRECTORY = process.env.UPLOADS_DIRECTORY
     ? path.resolve(process.env.UPLOADS_DIRECTORY)
     : path.join(backendDirectory, "uploads");

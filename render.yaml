@@ -2,16 +2,12 @@ services:
   - type: web
     name: intervium
     runtime: node
-    plan: starter
+    plan: free
     region: frankfurt
     buildCommand: cd Backend && npm ci --omit=dev
     startCommand: cd Backend && npm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
-    disk:
-      name: intervium-uploads
-      mountPath: /var/data/uploads
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -23,5 +19,7 @@ services:
         generateValue: true
       - key: DB_POOL_MAX
         value: "10"
-      - key: UPLOADS_DIRECTORY
-        value: /var/data/uploads
+      - key: STORAGE_DRIVER
+        value: cloudinary
+      - key: CLOUDINARY_URL
+        sync: false

@@ -40,7 +40,7 @@ app.use(
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'", "'unsafe-inline'"],
                 styleSrc: ["'self'", "'unsafe-inline'"],
-                imgSrc: ["'self'", "data:", "blob:"],
+                imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
                 connectSrc: ["'self'", ...allowedOrigins],
                 fontSrc: ["'self'", "data:"],
                 objectSrc: ["'none'"],
