@@ -6,118 +6,151 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const { Pool } = pg;
-const migrationsDirectory = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "migrations"
-);
-const connectionString =
-    process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
+const migrationFilename = fileURLToPath(import.meta.url);
+const migrationsDirectory = path.join(path.dirname(migrationFilename), "migrations");
+const ADVISORY_LOCK_ID = 845_031_572;
 
-if (!connectionString && !process.env.DB_HOST) {
-    throw new Error(
-        "DATABASE_URL, MIGRATION_DATABASE_URL ou les variables DB_* sont requises."
-    );
+function migrationPoolConfig() {
+    const connectionString =
+        process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
+
+    if (!connectionString && !process.env.DB_HOST) {
+        throw new Error(
+            "DATABASE_URL, MIGRATION_DATABASE_URL ou les variables DB_* sont requises."
+        );
+    }
+
+    const ssl =
+        process.env.DB_SSL === undefined
+            ? undefined
+            : process.env.DB_SSL === "true"
+              ? {
+                    rejectUnauthorized:
+                        process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
+                }
+              : false;
+
+    return {
+        ...(connectionString
+            ? { connectionString }
+            : {
+                  host: process.env.DB_HOST,
+                  port: Number.parseInt(process.env.DB_PORT ?? "5432", 10),
+                  user: process.env.DB_USER,
+                  password: process.env.DB_PASSWORD,
+                  database: process.env.DB_NAME,
+              }),
+        max: 1,
+        connectionTimeoutMillis: 15_000,
+        ...(ssl === undefined ? {} : { ssl }),
+    };
 }
 
-const ssl =
-    process.env.DB_SSL === undefined
-        ? undefined
-        : process.env.DB_SSL === "true"
-          ? {
-                rejectUnauthorized:
-                    process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
-            }
-          : false;
+export async function runMigrations() {
+    const migrationPool = new Pool(migrationPoolConfig());
+    let client;
 
-const pool = new Pool({
-    ...(connectionString
-        ? { connectionString }
-        : {
-              host: process.env.DB_HOST,
-              port: Number.parseInt(process.env.DB_PORT ?? "5432", 10),
-              user: process.env.DB_USER,
-              password: process.env.DB_PASSWORD,
-              database: process.env.DB_NAME,
-          }),
-    max: 1,
-    connectionTimeoutMillis: 15_000,
-    ...(ssl === undefined ? {} : { ssl }),
-});
+    try {
+        client = await migrationPool.connect();
 
-const client = await pool.connect();
+        // Une seule instance Intervium migre la base à la fois.
+        await client.query("SELECT pg_advisory_lock($1)", [ADVISORY_LOCK_ID]);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                filename TEXT PRIMARY KEY,
+                checksum TEXT NOT NULL,
+                applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `);
 
-try {
-    // Verrou propre à Intervium : une seule instance migre à la fois.
-    await client.query("SELECT pg_advisory_lock($1)", [845_031_572]);
-    await client.query(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            filename TEXT PRIMARY KEY,
-            checksum TEXT NOT NULL,
-            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-    `);
+        const filenames = (await readdir(migrationsDirectory))
+            .filter((filename) => /^\d{3}_.+\.sql$/.test(filename))
+            .sort((left, right) => left.localeCompare(right));
 
-    const filenames = (await readdir(migrationsDirectory))
-        .filter((filename) => /^\d{3}_.+\.sql$/.test(filename))
-        .sort((left, right) => left.localeCompare(right));
-
-    const { rows: migrationRows } = await client.query(
-        "SELECT filename, checksum FROM schema_migrations"
-    );
-    const applied = new Map(
-        migrationRows.map((row) => [row.filename, row.checksum])
-    );
-
-    // Une base locale créée auparavant via schema.sql reçoit 001 comme baseline.
-    if (!applied.has("001_initial_schema.sql")) {
-        const { rows } = await client.query(
-            "SELECT to_regclass('public.entreprises') AS entreprises"
+        const { rows: migrationRows } = await client.query(
+            "SELECT filename, checksum FROM schema_migrations"
         );
-        if (rows[0].entreprises) {
+        const applied = new Map(
+            migrationRows.map((row) => [row.filename, row.checksum])
+        );
+
+        // Une base créée auparavant via schema.sql reçoit 001 comme baseline.
+        if (!applied.has("001_initial_schema.sql")) {
+            const { rows } = await client.query(
+                "SELECT to_regclass('public.entreprises') AS entreprises"
+            );
+            if (rows[0].entreprises) {
+                const sql = await readFile(
+                    path.join(migrationsDirectory, "001_initial_schema.sql"),
+                    "utf8"
+                );
+                const checksum = crypto
+                    .createHash("sha256")
+                    .update(sql)
+                    .digest("hex");
+                await client.query(
+                    `INSERT INTO schema_migrations (filename, checksum)
+                     VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                    ["001_initial_schema.sql", checksum]
+                );
+                applied.set("001_initial_schema.sql", checksum);
+                console.log("Migration 001 enregistrée comme baseline existante.");
+            }
+        }
+
+        for (const filename of filenames) {
             const sql = await readFile(
-                path.join(migrationsDirectory, "001_initial_schema.sql"),
+                path.join(migrationsDirectory, filename),
                 "utf8"
             );
-            const checksum = crypto.createHash("sha256").update(sql).digest("hex");
-            await client.query(
-                `INSERT INTO schema_migrations (filename, checksum)
-                 VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                ["001_initial_schema.sql", checksum]
-            );
-            applied.set("001_initial_schema.sql", checksum);
-            console.log("Migration 001 enregistrée comme baseline existante.");
-        }
-    }
+            const checksum = crypto
+                .createHash("sha256")
+                .update(sql)
+                .digest("hex");
 
-    for (const filename of filenames) {
-        const sql = await readFile(path.join(migrationsDirectory, filename), "utf8");
-        const checksum = crypto.createHash("sha256").update(sql).digest("hex");
-
-        if (applied.has(filename)) {
-            if (applied.get(filename) !== checksum) {
-                console.warn(`Migration déjà appliquée mais modifiée : ${filename}`);
+            if (applied.has(filename)) {
+                if (applied.get(filename) !== checksum) {
+                    console.warn(
+                        `Migration déjà appliquée mais modifiée : ${filename}`
+                    );
+                }
+                continue;
             }
-            continue;
+
+            await client.query("BEGIN");
+            try {
+                await client.query(sql);
+                await client.query(
+                    `INSERT INTO schema_migrations (filename, checksum)
+                     VALUES ($1, $2)`,
+                    [filename, checksum]
+                );
+                await client.query("COMMIT");
+                console.log(`Migration appliquée : ${filename}`);
+            } catch (error) {
+                await client.query("ROLLBACK");
+                throw error;
+            }
         }
 
-        await client.query("BEGIN");
-        try {
-            await client.query(sql);
-            await client.query(
-                "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)",
-                [filename, checksum]
-            );
-            await client.query("COMMIT");
-            console.log(`Migration appliquée : ${filename}`);
-        } catch (error) {
-            await client.query("ROLLBACK");
-            throw error;
+        console.log("Base de données à jour.");
+    } finally {
+        if (client) {
+            await client
+                .query("SELECT pg_advisory_unlock($1)", [ADVISORY_LOCK_ID])
+                .catch(() => {});
+            client.release();
         }
+        await migrationPool.end();
     }
+}
 
-    console.log("Base de données à jour.");
-} finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [845_031_572]).catch(() => {});
-    client.release();
-    await pool.end();
+const launchedDirectly =
+    process.argv[1] && path.resolve(process.argv[1]) === path.resolve(migrationFilename);
+
+if (launchedDirectly) {
+    runMigrations().catch((error) => {
+        console.error("Erreur lors de la migration :", error);
+        process.exitCode = 1;
+    });
 }

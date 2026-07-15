@@ -15,6 +15,7 @@ import documents from "./routes/documents.js";
 import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
 import pool from "./config/database.js";
+import { runMigrations } from "./database/migrate.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "5000", 10);
@@ -86,7 +87,15 @@ app.use((error, _req, res, _next) => {
     res.status(500).json({ error: "Erreur interne du serveur." });
 });
 
-await ensureUploadDirectories();
+try {
+    console.log("Vérification des migrations PostgreSQL...");
+    await runMigrations();
+    await ensureUploadDirectories();
+} catch (error) {
+    console.error("Erreur lors de la migration ou de l'initialisation :", error);
+    await pool.end().catch(() => {});
+    process.exit(1);
+}
 
 const server = app.listen(port, "0.0.0.0", () => {
     console.log(`Intervium écoute sur le port ${port}`);

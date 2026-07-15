@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "migrate": "node database/migrate.js",
-    "start": "npm run migrate && node server.js",
+    "start": "node server.js",
     "start:server": "node server.js",
     "dev": "nodemon server.js"
   },
