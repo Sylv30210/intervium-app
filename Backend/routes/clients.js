@@ -11,10 +11,17 @@ function positiveId(value) {
     return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function optionalText(value) {
+function optionalText(value, maxLength = 2000) {
     if (value === undefined) return undefined;
     if (value === null) return null;
-    return typeof value === "string" ? value.trim() || null : undefined;
+    if (typeof value !== "string") return undefined;
+    const text = value.trim();
+    if (text.length > maxLength) return undefined;
+    return text || null;
+}
+
+function validEmail(value) {
+    return value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 async function validClientUser(utilisateurId, entrepriseId) {
@@ -25,6 +32,34 @@ async function validClientUser(utilisateurId, entrepriseId) {
         [utilisateurId, entrepriseId]
     );
     return result.rowCount === 1;
+}
+
+async function accessibleClient(clientId, user) {
+    const values = [clientId, user.entreprise_id];
+    let accessFilter = "";
+    if (user.role === "TECHNICIEN") {
+        values.push(user.id);
+        accessFilter = `AND EXISTS (
+            SELECT 1 FROM interventions i
+            WHERE i.client_id = c.id AND i.entreprise_id = c.entreprise_id
+              AND i.technicien_id = $3
+        )`;
+    } else if (user.role === "CLIENT") {
+        values.push(user.id);
+        accessFilter = "AND c.utilisateur_id = $3";
+    }
+
+    const result = await pool.query(
+        `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email,
+                c.telephone, c.adresse, c.created_at, c.updated_at,
+                u.nom AS utilisateur_nom
+         FROM clients c
+         LEFT JOIN utilisateurs u
+           ON u.id = c.utilisateur_id AND u.entreprise_id = c.entreprise_id
+         WHERE c.id = $1 AND c.entreprise_id = $2 ${accessFilter}`,
+        values
+    );
+    return result.rows[0] || null;
 }
 
 router.get("/", async (req, res) => {
@@ -61,12 +96,108 @@ router.get("/", async (req, res) => {
     }
 });
 
+router.get("/:id", async (req, res) => {
+    const id = positiveId(req.params.id);
+    if (!id) return res.status(400).json({ error: "Identifiant client invalide." });
+
+    const requestedLimit = Number(req.query.limit ?? 25);
+    const requestedOffset = Number(req.query.offset ?? 0);
+    const limit = Number.isSafeInteger(requestedLimit)
+        ? Math.min(50, Math.max(1, requestedLimit))
+        : 25;
+    const offset = Number.isSafeInteger(requestedOffset)
+        ? Math.max(0, requestedOffset)
+        : 0;
+
+    try {
+        const client = await accessibleClient(id, req.user);
+        if (!client) return res.status(404).json({ error: "Client introuvable." });
+
+        const interventionValues = [id, req.user.entreprise_id, limit, offset];
+        const technicianFilter = req.user.role === "TECHNICIEN"
+            ? `AND i.technicien_id = $5`
+            : "";
+        if (req.user.role === "TECHNICIEN") interventionValues.push(req.user.id);
+
+        const [equipmentResult, interventionResult, documentResult] = await Promise.all([
+            pool.query(
+                `SELECT e.id, e.client_id, e.type, e.modele, e.numero_serie,
+                        e.date_installation, e.created_at, e.updated_at,
+                        last_i.id AS derniere_intervention_id,
+                        last_i.titre AS derniere_intervention_titre,
+                        last_i.date_intervention AS derniere_intervention_date,
+                        last_i.statut AS derniere_intervention_statut
+                 FROM equipements e
+                 LEFT JOIN LATERAL (
+                    SELECT i.id, i.titre, i.date_intervention, i.statut
+                    FROM interventions i
+                    WHERE i.equipement_id = e.id
+                      AND i.client_id = e.client_id
+                      AND i.entreprise_id = e.entreprise_id
+                    ORDER BY i.date_intervention DESC NULLS LAST, i.id DESC
+                    LIMIT 1
+                 ) last_i ON TRUE
+                 WHERE e.client_id = $1 AND e.entreprise_id = $2
+                 ORDER BY e.type ASC NULLS LAST, e.modele ASC NULLS LAST, e.id ASC`,
+                [id, req.user.entreprise_id]
+            ),
+            pool.query(
+                `SELECT i.id, i.titre, i.description, i.compte_rendu, i.statut,
+                        i.date_intervention, i.heure, i.created_at,
+                        u.nom AS technicien_nom,
+                        e.type AS equipement_type, e.modele AS equipement_modele,
+                        COUNT(*) OVER()::INTEGER AS total_count
+                 FROM interventions i
+                 LEFT JOIN utilisateurs u
+                   ON u.id = i.technicien_id AND u.entreprise_id = i.entreprise_id
+                 LEFT JOIN equipements e
+                   ON e.id = i.equipement_id AND e.entreprise_id = i.entreprise_id
+                 WHERE i.client_id = $1 AND i.entreprise_id = $2 ${technicianFilter}
+                 ORDER BY i.date_intervention DESC NULLS LAST, i.id DESC
+                 LIMIT $3 OFFSET $4`,
+                interventionValues
+            ),
+            req.user.role === "ADMIN"
+                ? pool.query(
+                    `SELECT d.id, d.numero, d.date_emission, d.date_echeance,
+                            d.total_ttc, d.devise, d.statut, d.created_at,
+                            COUNT(*) OVER()::INTEGER AS total_count
+                     FROM documents_commerciaux d
+                     WHERE d.client_id = $1 AND d.entreprise_id = $2
+                       AND d.type = 'DEVIS'
+                     ORDER BY d.date_emission DESC, d.id DESC
+                     LIMIT $3 OFFSET $4`,
+                    [id, req.user.entreprise_id, limit, offset]
+                )
+                : Promise.resolve({ rows: [] }),
+        ]);
+
+        return res.json({
+            client,
+            equipements: equipmentResult.rows,
+            devis: documentResult.rows,
+            interventions: interventionResult.rows,
+            pagination: {
+                limit,
+                offset,
+                devis_total: Number(documentResult.rows[0]?.total_count || 0),
+                interventions_total: Number(
+                    interventionResult.rows[0]?.total_count || 0
+                ),
+            },
+        });
+    } catch (error) {
+        console.error("Échec du chargement de la fiche client", error);
+        return res.status(500).json({ error: "Impossible de charger la fiche client." });
+    }
+});
+
 router.post("/", requireRole(["ADMIN"]), async (req, res) => {
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const utilisateurId =
         req.body.utilisateur_id == null ? null : positiveId(req.body.utilisateur_id);
 
-    if (!nom) return res.status(400).json({ error: "Le nom du client est requis." });
+    if (!nom || nom.length > 150) return res.status(400).json({ error: "Le nom du client est requis et limité à 150 caractères." });
     if (req.body.utilisateur_id != null && !utilisateurId) {
         return res.status(400).json({ error: "utilisateur_id invalide." });
     }
@@ -75,6 +206,13 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
         if (!(await validClientUser(utilisateurId, req.user.entreprise_id))) {
             return res.status(400).json({ error: "Compte client invalide pour cette entreprise." });
         }
+
+        const email = optionalText(req.body.email, 254) ?? null;
+        const telephone = optionalText(req.body.telephone, 30) ?? null;
+        const adresse = optionalText(req.body.adresse, 2000) ?? null;
+        if (!validEmail(email) || (req.body.email !== undefined && email === null && String(req.body.email).trim())) return res.status(400).json({ error: "Adresse email invalide ou trop longue." });
+        if (req.body.telephone !== undefined && telephone === null && String(req.body.telephone).trim()) return res.status(400).json({ error: "Téléphone invalide ou trop long." });
+        if (req.body.adresse !== undefined && adresse === null && String(req.body.adresse).trim()) return res.status(400).json({ error: "Adresse invalide ou trop longue." });
 
         const result = await pool.query(
             `INSERT INTO clients
@@ -85,9 +223,9 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
                 req.user.entreprise_id,
                 utilisateurId,
                 nom,
-                optionalText(req.body.email) ?? null,
-                optionalText(req.body.telephone) ?? null,
-                optionalText(req.body.adresse) ?? null,
+                email,
+                telephone,
+                adresse,
             ]
         );
         return res.status(201).json(result.rows[0]);
@@ -122,11 +260,15 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
             }
         } else if (field === "nom") {
             value = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
-            if (!value) return res.status(400).json({ error: "Le nom ne peut pas être vide." });
+            if (!value || value.length > 150) return res.status(400).json({ error: "Le nom doit contenir entre 1 et 150 caractères." });
         } else {
-            value = optionalText(req.body[field]);
+            const limits = { email: 254, telephone: 30, adresse: 2000 };
+            value = optionalText(req.body[field], limits[field]);
             if (value === undefined) {
                 return res.status(400).json({ error: `Champ ${field} invalide.` });
+            }
+            if (field === "email" && !validEmail(value)) {
+                return res.status(400).json({ error: "Adresse email invalide." });
             }
         }
         values.push(value);

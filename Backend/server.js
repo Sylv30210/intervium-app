@@ -65,7 +65,19 @@ if (allowedOrigins.length > 0) {
     );
 }
 app.use(express.json({ limit: "4mb" }));
-app.use("/uploads", express.static(UPLOADS_DIRECTORY, { fallthrough: false }));
+app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store, private");
+    res.set("Pragma", "no-cache");
+    next();
+});
+app.use(
+    "/uploads",
+    (_req, res, next) => {
+        res.set("Cache-Control", "no-store, private");
+        next();
+    },
+    express.static(UPLOADS_DIRECTORY, { fallthrough: false })
+);
 
 app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
@@ -79,7 +91,20 @@ app.use("/api/uploads", uploads);
 app.use("/api/modeles", modeles);
 app.use("/api/documents", documents);
 
-app.use(express.static(frontendDirectory));
+app.get("/sw.js", (_req, res) => {
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.set("Service-Worker-Allowed", "/");
+    res.sendFile(path.join(frontendDirectory, "sw.js"));
+});
+app.use(
+    express.static(frontendDirectory, {
+        setHeaders(res, filePath) {
+            if (filePath.endsWith("index.html") || filePath.endsWith("manifest.webmanifest")) {
+                res.setHeader("Cache-Control", "no-cache");
+            }
+        },
+    })
+);
 app.get("/", (_req, res) => res.sendFile(path.join(frontendDirectory, "index.html")));
 
 app.use((error, _req, res, _next) => {

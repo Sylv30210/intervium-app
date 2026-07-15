@@ -13,6 +13,9 @@ let reportTemplates = [];
 let commercialDocuments = [];
 let planningCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let templateDraftSections = [];
+let currentView = "dashboard";
+let deferredInstallPrompt = null;
+let serviceWorkerRegistration = null;
 
 const app = document.getElementById("app");
 const THEME_STORAGE_KEY = "intervium_visual_theme";
@@ -55,10 +58,92 @@ html[data-theme="dark"] .theme-option-card,html.theme-dark .theme-option-card{ba
 .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:18px}.quick-actions button{text-align:left;padding:14px}.calendar-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px}.calendar-head h2{min-width:190px;text-align:center}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.calendar-weekday{text-align:center;color:#64748b;font-size:12px;font-weight:800;padding:6px}.calendar-day{min-height:92px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:8px;text-align:left;overflow:hidden}.calendar-day.outside{opacity:.42}.calendar-day.today{outline:2px solid #2563eb}.calendar-number{font-weight:800;font-size:12px}.calendar-event{display:block;width:100%;min-height:0;margin-top:5px;padding:5px;border:0;border-radius:7px;background:#dbeafe;color:#1e40af;font-size:10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.template-list,.document-list{display:grid;gap:10px}.template-card,.document-card{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fff}.template-fields{display:grid;gap:8px}.template-field-row,.document-line{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(90px,1fr)) auto;gap:8px;align-items:end;padding:10px;border:1px solid #e2e8f0;border-radius:10px}.template-field-row{grid-template-columns:1fr auto;align-items:center}.builder-palette{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.money-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.money-summary div{padding:12px;border-radius:10px;background:#eff6ff}.more-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}.more-menu button{width:100%}
 .template-field-row{display:block;min-width:0}.template-field-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.template-field-toolbar strong{white-space:nowrap}.template-field-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.template-field-config .full{grid-column:1/-1}.template-field-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:8px}.template-field-actions button{min-height:38px}.template-preview{margin-top:16px}.template-preview summary{cursor:pointer;font-weight:800}.template-preview>[inert]{margin-top:10px}.report-fields-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.report-field{min-width:0}.report-field.full,.report-section-title,.report-page-break{grid-column:1/-1}.field-help{display:block;color:#64748b;font-size:12px;line-height:1.4}.checkbox-options{display:grid;gap:8px;margin-top:4px}.checkbox-options label{display:flex;align-items:center;gap:8px;font-weight:500}.report-table{grid-column:1/-1;overflow-x:auto}.report-table table{min-width:540px}.report-table input{min-width:90px}.report-table-actions{display:flex;justify-content:flex-end;margin-top:8px}.report-table .danger{min-height:36px;padding:7px 10px}.report-table-total{text-align:right;font-weight:800;margin-top:8px}
 @media(max-width:768px){.calendar-day{min-height:67px;padding:5px}.calendar-grid{gap:3px}.calendar-event{font-size:0;height:7px;padding:0}.calendar-event::after{content:""}.document-line{grid-template-columns:1fr 1fr}.document-line .line-description{grid-column:1/-1}.money-summary{grid-template-columns:1fr}.template-card,.document-card{align-items:flex-start;flex-direction:column}.more-menu{grid-template-columns:1fr}.template-field-config,.report-fields-grid{grid-template-columns:1fr}.template-field-config .full,.report-field.full,.report-section-title,.report-page-break{grid-column:1}.template-field-actions{display:grid;grid-template-columns:1fr 1fr}.template-field-actions label{grid-column:1/-1}.template-field-actions .danger{grid-column:1/-1}}
+.install-button[hidden]{display:none!important}.offline-card{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));text-align:center}.offline-card>div{width:min(440px,100%);padding:28px;border-radius:20px;background:#fff;border:1px solid #dbe3ee;box-shadow:0 18px 50px #10233f18}.client-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px}.client-tabs button{white-space:nowrap}.client-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.detail-box{min-width:0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.detail-box strong{display:block;margin-bottom:5px}.related-list{display:grid;gap:9px}.related-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:inherit;text-align:left}.related-card>span{min-width:0}.related-card small{display:block;color:#64748b;margin-top:4px}.logo-preview-pending{outline:3px solid #2563eb35;outline-offset:2px}.pwa-help{padding:14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a5f}.pwa-help p{margin:6px 0 0}.modal,.main,.panel,.related-card{max-width:100%}body{overflow-x:hidden}
+html[data-theme="dark"] :is(.detail-box,.related-card,.offline-card>div),html.theme-dark :is(.detail-box,.related-card,.offline-card>div){background:#111c2e;border-color:#26364e;color:#e5edf8}html[data-theme="dark"] .pwa-help,html.theme-dark .pwa-help{background:#15243a;border-color:#2b3d58;color:#dbeafe}
+@media(max-width:768px){.client-detail-grid{grid-template-columns:1fr}.client-tabs{margin-inline:-4px}.related-card{min-height:58px}.mobile-header{padding-top:env(safe-area-inset-top);padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right));height:calc(54px + env(safe-area-inset-top))}.main{padding-top:calc(70px + env(safe-area-inset-top));padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}.bottom-nav{padding-left:calc(4px + env(safe-area-inset-left));padding-right:calc(4px + env(safe-area-inset-right))}}
 `;
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 
-document.addEventListener("DOMContentLoaded", initApp);
+document.addEventListener("DOMContentLoaded", async () => {
+    initPwa();
+    await initApp();
+});
+
+function isStandaloneMode() {
+    return window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+}
+
+function isIosDevice() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function updateInstallUi() {
+    const canInstall = Boolean(deferredInstallPrompt) && !isStandaloneMode();
+    document.querySelectorAll("[data-install-app]").forEach((button) => {
+        button.hidden = !canInstall;
+    });
+}
+
+async function installIntervium() {
+    if (!deferredInstallPrompt || isStandaloneMode()) return;
+    const prompt = deferredInstallPrompt;
+    deferredInstallPrompt = null;
+    await prompt.prompt();
+    await prompt.userChoice.catch(() => null);
+    updateInstallUi();
+}
+
+function initPwa() {
+    window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        updateInstallUi();
+    });
+    window.addEventListener("appinstalled", () => {
+        deferredInstallPrompt = null;
+        updateInstallUi();
+        toast("Intervium est installé sur cet appareil.");
+    });
+    window.addEventListener("online", () => {
+        if (document.querySelector(".offline-card")) initApp();
+        else toast("Connexion rétablie.");
+    });
+    window.addEventListener("offline", () => toast("Connexion perdue. Les données privées ne sont pas mises en cache.", true));
+    window.addEventListener("popstate", (event) => {
+        if (!currentUser) return;
+        renderMain(event.state?.view || viewFromLocation());
+    });
+
+    if ("serviceWorker" in navigator && window.isSecureContext) {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => {
+            serviceWorkerRegistration = registration;
+            registration.update().catch(() => {});
+            if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            registration.addEventListener("updatefound", () => {
+                const worker = registration.installing;
+                worker?.addEventListener("statechange", () => {
+                    if (worker.state === "installed" && navigator.serviceWorker.controller) {
+                        worker.postMessage({ type: "SKIP_WAITING" });
+                    }
+                });
+            });
+        }).catch((error) => console.error("Service worker non enregistré", error));
+    }
+}
+
+function viewFromLocation() {
+    const view = location.hash.replace(/^#/, "");
+    return ["dashboard", "interventions", "planning", "clients", "equipements", "modeles", "documents", "equipe"].includes(view)
+        ? view
+        : "dashboard";
+}
+
+function navigateTo(view, replace = false) {
+    const method = replace ? "replaceState" : "pushState";
+    history[method]({ view }, "", `#${view}`);
+    renderMain(view);
+}
 
 async function api(path, options = {}) {
     const headers = new Headers(options.headers || {});
@@ -81,9 +166,23 @@ async function api(path, options = {}) {
         throw new Error("Votre session a expiré.");
     }
 
-    const data = response.status === 204 ? null : await response.json().catch(() => null);
-    if (!response.ok) throw new Error(data?.error || "Une erreur est survenue.");
+    let data = null;
+    if (response.status !== 204) {
+        const text = await response.text();
+        if (text) {
+            try { data = JSON.parse(text); }
+            catch { data = response.ok ? text : null; }
+        }
+    }
+    if (!response.ok) {
+        throw new Error(data?.error || `La requête a échoué (${response.status}).`);
+    }
     return data;
+}
+
+function showOfflineScreen(message = "Les données sécurisées nécessitent une connexion au serveur.") {
+    app.innerHTML = `<main class="offline-card"><div>${logoLockup("auth-logo")}<h1>Mode hors connexion</h1><p class="muted">${escapeHtml(message)}</p><button class="primary" id="offline-retry">Réessayer</button></div></main>`;
+    document.getElementById("offline-retry").addEventListener("click", initApp);
 }
 
 async function initApp() {
@@ -93,9 +192,11 @@ async function initApp() {
         currentUser = session.user;
         currentEntreprise = session.entreprise;
         await loadAllData();
-        renderMain("dashboard");
+        navigateTo(viewFromLocation(), true);
     } catch (error) {
-        if (!currentUser) showAuth();
+        if (!navigator.onLine || /connexion|serveur inaccessible/i.test(error.message)) {
+            showOfflineScreen(error.message);
+        } else if (!currentUser) showAuth();
         else {
             renderMain("dashboard");
             toast(error.message, true);
@@ -260,23 +361,26 @@ async function loadAllData() {
 }
 
 function renderMain(view = "dashboard") {
+    currentView = view;
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
         <nav class="nav">${navButton("dashboard", "Tableau de bord", view)}${navButton("interventions", currentUser.role === "CLIENT" ? "Rapports" : "Interventions", view)}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view)}${navButton("clients", "Clients", view)}${navButton("equipements", "Équipements", view)}${navButton("modeles", "Modèles de rapport", view)}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view)}${navButton("equipe", "Équipe", view)}` : ""}</nav>
-        <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button id="desktop-settings" class="icon-button">⚙ Paramètres</button><button id="desktop-logout" class="secondary">Déconnexion</button></div></div>
+        <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>Installer Intervium</button><button id="desktop-settings" class="icon-button">⚙ Paramètres</button><button id="desktop-logout" class="secondary">Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings" aria-label="Ouvrir les paramètres" title="Paramètres">⚙</button><button id="mobile-logout" class="mobile-logout" aria-label="Se déconnecter" title="Déconnexion">↪</button></div></header>
       <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div>${adminButtonFor(view)}</header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale">${mobileNavButton("dashboard", "⌂", "Accueil", view)}${mobileNavButton("interventions", "▣", currentUser.role === "CLIENT" ? "Rapports" : "Missions", view)}${currentUser.role === "CLIENT" ? "" : `${mobileNavButton("planning", "▦", "Planning", view)}${mobileNavButton("clients", "♙", "Clients", view)}<button id="mobile-more" aria-label="Plus de rubriques"><span class="nav-icon" aria-hidden="true">•••</span><span class="nav-label">Plus</span></button>`}</nav>
     </div><div id="modal-root"></div>`;
 
-    document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => renderMain(button.dataset.view)));
+    document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.view)));
+    document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     document.getElementById("desktop-logout").addEventListener("click", logout);
     document.getElementById("mobile-logout").addEventListener("click", logout);
     document.getElementById("desktop-settings").addEventListener("click", openSettings);
     document.getElementById("mobile-settings").addEventListener("click", openSettings);
     document.getElementById("mobile-more")?.addEventListener("click", openMoreMenu);
     bindMainActions(view);
+    updateInstallUi();
 }
 
 function navButton(view, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}">${label}</button>`; }
@@ -343,7 +447,7 @@ function interventionTable(items, actions) {
 
 function renderClients() {
     if (!clients.length) return `<section class="panel"><div class="empty">Aucun client.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Adresse</th><th></th></tr></thead><tbody>${clients.map((c) => `<tr><td data-label="Nom">${escapeHtml(c.nom)}</td><td data-label="Email">${escapeHtml(c.email || "—")}</td><td data-label="Téléphone">${escapeHtml(c.telephone || "—")}</td><td data-label="Adresse">${escapeHtml(c.adresse || "—")}</td><td data-label="Actions">${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-client="${c.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
+    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Adresse</th><th></th></tr></thead><tbody>${clients.map((c) => `<tr><td data-label="Nom"><strong>${escapeHtml(c.nom)}</strong></td><td data-label="Email">${escapeHtml(c.email || "—")}</td><td data-label="Téléphone">${escapeHtml(c.telephone || "—")}</td><td data-label="Adresse">${escapeHtml(c.adresse || "—")}</td><td data-label="Actions" class="actions"><button class="secondary" data-open-client="${c.id}">Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-client="${c.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 function renderEquipements() {
@@ -368,7 +472,7 @@ function bindMainActions(view) {
         if (view === "modeles") openTemplateEditor();
         if (view === "documents") openDocumentEditor();
     });
-    document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => renderMain(button.dataset.quickView)));
+    document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.quickView)));
     document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", openNewIntervention);
     document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); });
     document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
@@ -376,6 +480,7 @@ function bindMainActions(view) {
     document.querySelectorAll("[data-edit-template]").forEach((button) => button.addEventListener("click", () => openTemplateEditor(button.dataset.editTemplate)));
     document.querySelectorAll("[data-delete-template]").forEach((button) => button.addEventListener("click", () => deleteTemplate(button.dataset.deleteTemplate, button)));
     document.querySelectorAll("[data-open-document]").forEach((button) => button.addEventListener("click", () => openDocumentDetails(button.dataset.openDocument)));
+    document.querySelectorAll("[data-open-client]").forEach((button) => button.addEventListener("click", () => openClientDetails(button.dataset.openClient)));
     document.querySelectorAll("[data-delete-document]").forEach((button) => button.addEventListener("click", () => deleteDocument(button.dataset.deleteDocument, button)));
     bindDeletes("intervention", "/interventions", "interventions");
     bindDeletes("client", "/clients", "clients");
@@ -390,7 +495,7 @@ function openMoreMenu() {
         ...(currentUser.role === "ADMIN" ? [["documents", "€ Devis & factures"], ["equipe", "♟ Équipe"]] : []),
     ];
     modal("Plus de rubriques", `<div class="more-menu">${items.map(([view, label]) => `<button class="secondary" data-more-view="${view}">${label}</button>`).join("")}</div>`);
-    document.querySelectorAll("[data-more-view]").forEach((button) => button.addEventListener("click", () => renderMain(button.dataset.moreView)));
+    document.querySelectorAll("[data-more-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.moreView)));
 }
 
 function bindDeletes(name, path, view) {
@@ -414,6 +519,11 @@ function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
     const reportSettings = currentEntreprise?.report_settings || {};
+    const pwaSettings = isStandaloneMode()
+        ? `<div class="pwa-help"><strong>Intervium est installée</strong><p>L'application fonctionne actuellement en mode autonome.</p></div>`
+        : isIosDevice()
+          ? `<div class="pwa-help"><strong>Installer sur iPhone ou iPad</strong><p>Dans Safari, touchez Partager puis « Ajouter à l'écran d'accueil ».</p></div>`
+          : `<div class="pwa-help"><strong>Application installable</strong><p>Installez Intervium pour l'ouvrir comme une application.</p><button class="primary install-button" type="button" data-install-app hidden>Installer Intervium</button></div>`;
     const companySettings = currentUser.role === "ADMIN" ? `
         <form id="company-report-settings" class="company-branding">
           <div class="panel-head"><div><h2>Identité des rapports PDF</h2><p class="muted">Ces informations remplacent entièrement la marque Intervium dans vos documents.</p></div></div>
@@ -440,6 +550,7 @@ function openSettings() {
             <label class="theme-option"><input type="radio" name="visual-theme" value="dark" ${activeTheme === "dark" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon" aria-hidden="true">☾</span><span>Sombre</span></span></label>
         </div>
         <p class="muted">Cette préférence visuelle est enregistrée uniquement sur cet appareil.</p>
+        ${pwaSettings}
         ${companySettings}
     `);
 
@@ -447,7 +558,29 @@ function openSettings() {
         const theme = setTheme(event.target.value);
         toast(({ classic: "Thème classique activé.", glass: "Mode Liquid Glass activé.", dark: "Thème sombre activé." })[theme]);
     }));
+    document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
+    updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
+    document.getElementById("company-logo-file")?.addEventListener("change", (event) => {
+        const input = event.currentTarget;
+        const file = input.files?.[0];
+        input.setCustomValidity("");
+        if (!file) return;
+        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+            input.setCustomValidity("Utilisez une image PNG, JPEG ou WebP.");
+            input.reportValidity();
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            input.setCustomValidity("Le logo dépasse la limite de 5 Mo.");
+            input.reportValidity();
+            return;
+        }
+        const preview = document.querySelector(".company-logo-preview");
+        const objectUrl = URL.createObjectURL(file);
+        preview.classList.add("logo-preview-pending");
+        preview.innerHTML = `<img src="${objectUrl}" alt="Aperçu du nouveau logo"><span class="muted">Aperçu avant enregistrement</span>`;
+    });
     document.getElementById("remove-company-logo")?.addEventListener("click", (event) => withBusy(event.currentTarget, async () => {
         if (!confirm("Supprimer le logo des prochains rapports PDF ?")) return;
         try {
@@ -473,6 +606,12 @@ async function saveCompanyReportSettings(event) {
         try {
             const logoFile = document.getElementById("company-logo-file")?.files[0];
             if (logoFile) {
+                if (!["image/png", "image/jpeg", "image/webp"].includes(logoFile.type)) {
+                    throw new Error("Format refusé. Utilisez une image PNG, JPEG ou WebP.");
+                }
+                if (logoFile.size > 5 * 1024 * 1024) {
+                    throw new Error("Le logo dépasse la limite de 5 Mo.");
+                }
                 const logoData = new FormData();
                 logoData.append("logo", logoFile);
                 const logoResult = await api("/uploads/company-logo", { method: "POST", body: logoData });
@@ -752,6 +891,97 @@ async function deleteDocument(id, button) {
 function openNewClient() {
     modal("Nouveau client", `<form id="client-form">${field("Nom", "nom", "text", true)}${field("Email", "email", "email")}${field("Téléphone", "telephone")}${field("Adresse", "adresse")}<button class="primary wide">Créer le client</button></form>`);
     document.getElementById("client-form").addEventListener("submit", async (event) => submitForm(event, "/clients", "clients"));
+}
+
+async function openClientDetails(id, tab = "info") {
+    modal("Fiche client", `<div class="empty"><span class="spinner" aria-hidden="true"></span> Chargement de la fiche…</div>`);
+    try {
+        const detail = await api(`/clients/${id}?limit=25&offset=0`);
+        renderClientDetail(detail, tab);
+    } catch (error) {
+        closeModal();
+        toast(error.message, true);
+    }
+}
+
+function renderClientDetail(detail, activeTab = "info") {
+    const client = detail.client;
+    const tabs = [
+        ["info", "Informations"],
+        ["equipements", `Équipements (${detail.equipements.length})`],
+        ...(currentUser.role === "ADMIN" ? [["devis", `Devis (${detail.pagination.devis_total})`]] : []),
+        ["interventions", `Interventions (${detail.pagination.interventions_total})`],
+    ];
+
+    let content;
+    if (activeTab === "equipements") {
+        content = `<div class="panel-head"><h2>Équipements associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.modele].filter(Boolean).join(" · ") || `Équipement ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Installé le ${formatDate(equipment.date_installation)}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun équipement associé à ce client.</div>`}</div>`;
+    } else if (activeTab === "devis" && currentUser.role === "ADMIN") {
+        content = `<div class="related-list">${detail.devis.length ? detail.devis.map((document) => `<button class="related-card" data-client-document="${document.id}"><span><strong>${escapeHtml(document.numero || `Devis ${document.id}`)}</strong><small>${formatDate(document.date_emission)} · Échéance ${formatDate(document.date_echeance)} · ${escapeHtml(document.statut)}</small></span><strong>${formatMoney(document.total_ttc, document.devise)}</strong></button>`).join("") : `<div class="empty">Aucun devis pour ce client.</div>`}</div>${detail.pagination.devis_total > detail.devis.length ? `<p class="muted">Les ${detail.devis.length} devis les plus récents sont affichés sur ${detail.pagination.devis_total}.</p>` : ""}`;
+    } else if (activeTab === "interventions") {
+        content = `<div class="related-list">${detail.interventions.length ? detail.interventions.map((item) => `<button class="related-card" data-client-intervention="${item.id}"><span><strong>${escapeHtml(item.titre || `Intervention ${item.id}`)}</strong><small>${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0, 5) || "")} · ${statusLabel(item.statut)}</small><small>${escapeHtml(item.technicien_nom || "Non assigné")} · ${escapeHtml([item.equipement_type, item.equipement_modele].filter(Boolean).join(" · ") || "Sans équipement")}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucune intervention pour ce client.</div>`}</div>${detail.pagination.interventions_total > detail.interventions.length ? `<p class="muted">Les ${detail.interventions.length} interventions les plus récentes sont affichées sur ${detail.pagination.interventions_total}.</p>` : ""}`;
+    } else {
+        content = `<div class="panel-head"><h2>Informations générales</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-edit-client="${client.id}">Modifier</button>` : ""}</div><div class="client-detail-grid"><div class="detail-box"><strong>Nom ou raison sociale</strong>${escapeHtml(client.nom)}</div><div class="detail-box"><strong>Contact lié</strong>${escapeHtml(client.utilisateur_nom || "Aucun compte client")}</div><div class="detail-box"><strong>E-mail</strong>${client.email ? `<a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a>` : "—"}</div><div class="detail-box"><strong>Téléphone</strong>${client.telephone ? `<a href="tel:${escapeHtml(client.telephone)}">${escapeHtml(client.telephone)}</a>` : "—"}</div><div class="detail-box"><strong>Adresse</strong>${escapeHtml(client.adresse || "—")}</div><div class="detail-box"><strong>Créé le</strong>${formatDate(client.created_at)}</div><div class="detail-box"><strong>Dernière modification</strong>${formatDate(client.updated_at)}</div></div>`;
+    }
+
+    modal(client.nom, `<div class="client-tabs" role="tablist">${tabs.map(([value, label]) => `<button class="${value === activeTab ? "primary" : "secondary"}" data-client-tab="${value}" role="tab" aria-selected="${value === activeTab}">${label}</button>`).join("")}</div><section>${content}</section>`);
+    document.querySelectorAll("[data-client-tab]").forEach((button) => button.addEventListener("click", () => renderClientDetail(detail, button.dataset.clientTab)));
+    document.querySelector("[data-edit-client]")?.addEventListener("click", () => openEditClient(detail));
+    document.querySelector("[data-add-client-equipment]")?.addEventListener("click", () => openClientEquipmentForm(detail));
+    document.querySelectorAll("[data-client-equipment]").forEach((button) => button.addEventListener("click", () => openClientEquipmentDetail(detail, button.dataset.clientEquipment)));
+    document.querySelectorAll("[data-client-document]").forEach((button) => button.addEventListener("click", () => {
+        const document = commercialDocuments.find((item) => String(item.id) === String(button.dataset.clientDocument));
+        if (!document) return toast("Le détail de ce devis n'est pas disponible.", true);
+        openDocumentDetails(document.id);
+    }));
+    document.querySelectorAll("[data-client-intervention]").forEach((button) => button.addEventListener("click", () => openIntervention(button.dataset.clientIntervention)));
+}
+
+function openEditClient(detail) {
+    const client = detail.client;
+    modal(`Modifier ${client.nom}`, `<form id="edit-client-form">${field("Nom ou raison sociale", "nom", "text", true, client.nom)}${field("E-mail", "email", "email", false, client.email || "")}${field("Téléphone", "telephone", "tel", false, client.telephone || "")}<div class="field"><label for="edit-client-address">Adresse</label><textarea id="edit-client-address" name="adresse" rows="3">${escapeHtml(client.adresse || "")}</textarea></div><button class="primary wide" type="submit">Enregistrer les modifications</button></form>`);
+    document.getElementById("edit-client-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"]');
+        await withBusy(button, async () => {
+            try {
+                const values = Object.fromEntries(new FormData(form));
+                const updated = await api(`/clients/${client.id}`, { method: "PUT", body: JSON.stringify(values) });
+                detail.client = { ...detail.client, ...updated };
+                clients = clients.map((item) => String(item.id) === String(updated.id) ? { ...item, ...updated } : item);
+                renderClientDetail(detail, "info");
+                toast("Fiche client mise à jour.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
+}
+
+function openClientEquipmentForm(detail) {
+    modal(`Nouvel équipement — ${detail.client.nom}`, `<form id="client-equipment-form">${field("Type", "type")}${field("Modèle", "modele")}${field("Numéro de série", "numero_serie")}${field("Date d’installation", "date_installation", "date")}<button class="primary wide" type="submit">Créer l’équipement</button></form>`);
+    document.getElementById("client-equipment-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"]');
+        await withBusy(button, async () => {
+            try {
+                const values = Object.fromEntries(new FormData(form));
+                values.client_id = detail.client.id;
+                const equipment = await api("/equipements", { method: "POST", body: JSON.stringify(values) });
+                equipements.push({ ...equipment, client_nom: detail.client.nom });
+                creationEquipements.push(equipment);
+                await openClientDetails(detail.client.id, "equipements");
+                toast("Équipement associé au client.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
+}
+
+function openClientEquipmentDetail(detail, equipmentId) {
+    const equipment = detail.equipements.find((item) => String(item.id) === String(equipmentId));
+    if (!equipment) return;
+    modal("Détail de l’équipement", `<div class="client-detail-grid"><div class="detail-box"><strong>Type</strong>${escapeHtml(equipment.type || "—")}</div><div class="detail-box"><strong>Modèle</strong>${escapeHtml(equipment.modele || "—")}</div><div class="detail-box"><strong>Numéro de série</strong>${escapeHtml(equipment.numero_serie || "—")}</div><div class="detail-box"><strong>Date d’installation</strong>${formatDate(equipment.date_installation)}</div><div class="detail-box"><strong>Dernière intervention</strong>${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</div></div><button class="secondary wide" id="back-to-client">Retour à la fiche client</button>`);
+    document.getElementById("back-to-client").addEventListener("click", () => renderClientDetail(detail, "equipements"));
 }
 
 function openNewEquipment() {

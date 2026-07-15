@@ -10,6 +10,14 @@ import {
 } from "../services/storage.js";
 
 const router = express.Router();
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+class UnsupportedImageTypeError extends Error {
+    constructor() {
+        super("Format refusé. Utilisez une image PNG, JPEG ou WebP.");
+        this.name = "UnsupportedImageTypeError";
+    }
+}
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -18,8 +26,8 @@ const upload = multer({
         files: 1,
     },
     fileFilter: (_req, file, callback) => {
-        if (!file.mimetype?.startsWith("image/")) {
-            return callback(new multer.MulterError("LIMIT_UNEXPECTED_FILE", file.fieldname));
+        if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+            return callback(new UnsupportedImageTypeError());
         }
         return callback(null, true);
     },
@@ -37,6 +45,9 @@ function receivePhoto(req, res, next) {
             return res.status(400).json({ error: message });
         }
 
+        if (error instanceof UnsupportedImageTypeError) {
+            return res.status(415).json({ error: error.message });
+        }
         return next(error);
     });
 }
@@ -46,6 +57,9 @@ function receiveLogo(req, res, next) {
         if (!error) return next();
         if (error instanceof multer.MulterError) {
             return res.status(400).json({ error: error.code === "LIMIT_FILE_SIZE" ? "Le logo dépasse la limite de 5 Mo." : "Fichier logo invalide." });
+        }
+        if (error instanceof UnsupportedImageTypeError) {
+            return res.status(415).json({ error: error.message });
         }
         return next(error);
     });
@@ -57,32 +71,56 @@ function parseInterventionId(value) {
 }
 
 function absoluteUploadUrl(req, relativePath) {
+    if (/^https:\/\//i.test(relativePath)) return relativePath;
     return new URL(relativePath, `${req.protocol}://${req.get("host")}`).href;
+}
+
+function safeStorageError(error) {
+    return {
+        name: error?.name,
+        message: error?.message,
+        http_code: error?.http_code,
+        code: error?.code,
+    };
 }
 
 router.post("/company-logo", verifyToken, requireRole(["ADMIN"]), receiveLogo, async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Aucun logo fourni dans le champ 'logo'." });
-    let relativeUrl;
+    let storedUrl;
+    let databaseUpdated = false;
     try {
         const previousResult = await pool.query("SELECT logo_url FROM entreprises WHERE id = $1", [req.user.entreprise_id]);
         if (!previousResult.rowCount) return res.status(404).json({ error: "Entreprise introuvable." });
-        relativeUrl = await uploadCompanyLogo(req.file.buffer);
-        const logoUrl = absoluteUploadUrl(req, relativeUrl);
+        storedUrl = await uploadCompanyLogo(req.file.buffer);
+        const logoUrl = absoluteUploadUrl(req, storedUrl);
         const result = await pool.query(
             `UPDATE entreprises SET logo_url = $1, updated_at = NOW()
              WHERE id = $2 RETURNING id, nom, logo_url, report_settings`,
             [logoUrl, req.user.entreprise_id]
         );
         if (!result.rowCount) {
-            await removeStoredUpload(relativeUrl);
+            await removeStoredUpload(storedUrl).catch((cleanupError) => {
+                console.error("Échec du nettoyage du nouveau logo", safeStorageError(cleanupError));
+            });
             return res.status(404).json({ error: "Entreprise introuvable." });
         }
-        await removeStoredUpload(previousResult.rows[0].logo_url);
+        databaseUpdated = true;
+        await removeStoredUpload(previousResult.rows[0].logo_url).catch((cleanupError) => {
+            // Le nouveau logo reste valide même si l'ancien média n'a pas pu être purgé.
+            console.error("Ancien logo Cloudinary non supprimé", safeStorageError(cleanupError));
+        });
         return res.json({ entreprise: result.rows[0] });
     } catch (error) {
-        if (relativeUrl) await removeStoredUpload(relativeUrl);
+        if (storedUrl && !databaseUpdated) {
+            await removeStoredUpload(storedUrl).catch(() => {});
+        }
         if (error instanceof TypeError) return res.status(400).json({ error: error.message });
-        console.error("Échec de l'upload du logo", error);
+        console.error("Échec technique de l'upload du logo", safeStorageError(error));
+        if (error?.http_code || error?.name === "TimeoutError") {
+            return res.status(502).json({
+                error: "Le service de stockage distant est temporairement indisponible.",
+            });
+        }
         return res.status(500).json({ error: "Impossible d'enregistrer le logo." });
     }
 });
@@ -97,7 +135,9 @@ router.delete("/company-logo", verifyToken, requireRole(["ADMIN"]), async (req, 
             [req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Entreprise introuvable." });
-        await removeStoredUpload(previousResult.rows[0].logo_url);
+        await removeStoredUpload(previousResult.rows[0].logo_url).catch((cleanupError) => {
+            console.error("Logo Cloudinary non supprimé", safeStorageError(cleanupError));
+        });
         return res.json({ entreprise: { ...result.rows[0], logo_url: null } });
     } catch (error) {
         console.error("Échec de la suppression du logo", error);
