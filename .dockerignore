@@ -1,0 +1,9 @@
+.git
+.gitignore
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+Backend/uploads
+tmp
+npm-debug.log*

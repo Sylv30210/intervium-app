@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: intervium
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: cd Backend && npm ci --omit=dev
+    startCommand: cd Backend && npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    disk:
+      name: intervium-uploads
+      mountPath: /var/data/uploads
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_POOL_MAX
+        value: "10"
+      - key: UPLOADS_DIRECTORY
+        value: /var/data/uploads
