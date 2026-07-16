@@ -320,6 +320,13 @@ router.get("/:id/pdf", async (req, res) => {
     const id = positiveId(req.params.id);
     if (!id) return res.status(400).json({ error: "Identifiant intervention invalide." });
 
+    const requestedPhotoIds = req.query.photo_ids === undefined
+        ? null
+        : String(req.query.photo_ids).split(",").filter(Boolean).map(positiveId);
+    if (requestedPhotoIds?.some((photoId) => !photoId)) {
+        return res.status(400).json({ error: "Sélection de photos invalide." });
+    }
+
     try {
         const result = await pool.query(
             `SELECT i.*, e.nom AS entreprise_nom,
@@ -359,17 +366,25 @@ router.get("/:id/pdf", async (req, res) => {
                 [intervention.equipement_id, intervention.client_id, req.user.entreprise_id]
             ),
             pool.query(
-                `SELECT url FROM photos
+                `SELECT id, url FROM photos
                  WHERE intervention_id = $1 AND entreprise_id = $2
                  ORDER BY created_at ASC, id ASC`,
                 [id, req.user.entreprise_id]
             ),
         ]);
 
+        const availablePhotos = photoResult.rows;
+        const selectedPhotos = requestedPhotoIds === null
+            ? availablePhotos
+            : availablePhotos.filter((photo) => requestedPhotoIds.includes(Number(photo.id)));
+        if (requestedPhotoIds && selectedPhotos.length !== new Set(requestedPhotoIds).size) {
+            return res.status(400).json({ error: "Une photo sélectionnée n’appartient pas à ce rapport." });
+        }
+
         const pdf = await generateInterventionPdf({
             intervention,
             equipments: equipmentResult.rows,
-            photos: photoResult.rows,
+            photos: selectedPhotos,
         });
         const filename = `rapport-intervention-${id}.pdf`;
         res.set({
