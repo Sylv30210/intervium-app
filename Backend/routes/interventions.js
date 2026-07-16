@@ -251,7 +251,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
         ? req.user.id
         : req.body.technicien_id == null ? null : positiveId(req.body.technicien_id);
     const titre = typeof req.body.titre === "string" ? req.body.titre.trim() : "";
-    const statut = req.body.statut === undefined ? "PLANIFIEE" : normalizeStatus(req.body.statut);
+    const statut = req.body.statut === undefined ? "TERMINEE" : normalizeStatus(req.body.statut);
     const modeleRapportId = req.body.modele_rapport_id == null ? null : positiveId(req.body.modele_rapport_id);
     const donneesRapport = req.body.donnees_rapport == null ? {} : reportData(req.body.donnees_rapport);
 
@@ -303,9 +303,9 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                 template ? JSON.stringify(reportSnapshot(template)) : null,
             ]
         );
-        await logActivity({ user: req.user, action: "CREATE", resourceType: "intervention", resourceId: result.rows[0].id, summary: `Intervention « ${result.rows[0].titre} » créée.` });
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "intervention", resourceId: result.rows[0].id, summary: `Rapport « ${result.rows[0].titre} » créé.` });
         if (result.rows[0].technicien_id && Number(result.rows[0].technicien_id) !== Number(req.user.id)) {
-            await createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_ASSIGNED", title: "Nouvelle intervention", message: `L’intervention « ${result.rows[0].titre} » vous a été assignée.`, resourceType: "intervention", resourceId: result.rows[0].id });
+            await createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_ASSIGNED", title: "Nouveau rapport", message: `Le rapport « ${result.rows[0].titre} » vous a été assigné.`, resourceType: "intervention", resourceId: result.rows[0].id });
         }
         return res.status(201).json(result.rows[0]);
     } catch (error) {

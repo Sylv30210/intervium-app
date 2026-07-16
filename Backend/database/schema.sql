@@ -74,6 +74,22 @@ CREATE TABLE equipements (
         UNIQUE (entreprise_id, numero_serie)
 );
 
+CREATE TABLE contacts_clients (
+    id BIGSERIAL PRIMARY KEY,
+    entreprise_id BIGINT NOT NULL,
+    client_id BIGINT NOT NULL,
+    nom VARCHAR(150) NOT NULL CHECK (btrim(nom) <> ''),
+    fonction VARCHAR(150),
+    email VARCHAR(254),
+    telephone VARCHAR(30),
+    destinataire_rapport BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (entreprise_id) REFERENCES entreprises(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id, entreprise_id) REFERENCES clients(id, entreprise_id) ON DELETE CASCADE,
+    UNIQUE (id, entreprise_id)
+);
+
 CREATE TABLE modeles_rapport (
     id BIGSERIAL PRIMARY KEY,
     entreprise_id BIGINT NOT NULL,
@@ -213,6 +229,7 @@ CREATE INDEX interventions_planning_idx
     ON interventions (entreprise_id, date_intervention, heure);
 CREATE INDEX photos_intervention_idx ON photos (entreprise_id, intervention_id);
 CREATE INDEX modeles_rapport_entreprise_idx ON modeles_rapport (entreprise_id, actif, nom);
+CREATE INDEX contacts_clients_client_idx ON contacts_clients (entreprise_id, client_id, nom);
 CREATE INDEX documents_client_idx ON documents_commerciaux (entreprise_id, client_id);
 CREATE INDEX documents_date_idx ON documents_commerciaux (entreprise_id, date_emission DESC);
 CREATE INDEX activites_tenant_date_idx ON activites (entreprise_id, created_at DESC, id DESC);

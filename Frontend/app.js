@@ -1462,13 +1462,16 @@ function renderClientDetail(detail, activeTab = "info") {
     const client = detail.client;
     const tabs = [
         ["info", "Informations"],
+        ["contacts", `Contacts (${(detail.contacts || []).length})`],
         ["equipements", `Équipements (${detail.equipements.length})`],
         ...(currentUser.role === "ADMIN" ? [["devis", `Devis (${detail.pagination.devis_total})`]] : []),
         ["interventions", `Interventions (${detail.pagination.interventions_total})`],
     ];
 
     let content;
-    if (activeTab === "equipements") {
+    if (activeTab === "contacts") {
+        content = `<div class="panel-head"><div><h2>Contacts du client</h2><p class="muted">Personnes à contacter et futurs destinataires des rapports.</p></div>${currentUser.role === "ADMIN" ? '<button class="primary" data-add-client-contact>+ Ajouter</button>' : ""}</div><div class="related-list">${(detail.contacts || []).length ? detail.contacts.map((contact) => `<article class="related-card"><span><strong>${escapeHtml(contact.nom)}</strong><small>${escapeHtml(contact.fonction || "Fonction non renseignée")}</small><small>${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>` : "Pas d’e-mail"}${contact.telephone ? ` · <a href="tel:${escapeHtml(contact.telephone)}">${escapeHtml(contact.telephone)}</a>` : ""}</small>${contact.destinataire_rapport ? '<span class="badge">Destinataire des rapports</span>' : ""}</span>${currentUser.role === "ADMIN" ? `<span class="actions"><button class="secondary" data-edit-client-contact="${contact.id}">Modifier</button><button class="danger" data-delete-client-contact="${contact.id}">Supprimer</button></span>` : ""}</article>`).join("") : '<div class="empty">Aucun contact associé à ce client.</div>'}</div>`;
+    } else if (activeTab === "equipements") {
         content = `<div class="panel-head"><h2>Équipements associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.marque, equipment.modele].filter(Boolean).join(" · ") || `Équipement ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Année : ${escapeHtml(equipment.annee_installation || "—")}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun équipement associé à ce client.</div>`}</div>`;
     } else if (activeTab === "devis" && currentUser.role === "ADMIN") {
         content = `<div class="related-list">${detail.devis.length ? detail.devis.map((document) => `<button class="related-card" data-client-document="${document.id}"><span><strong>${escapeHtml(document.numero || `Devis ${document.id}`)}</strong><small>${formatDate(document.date_emission)} · Échéance ${formatDate(document.date_echeance)} · ${escapeHtml(document.statut)}</small></span><strong>${formatMoney(document.total_ttc, document.devise)}</strong></button>`).join("") : `<div class="empty">Aucun devis pour ce client.</div>`}</div>${detail.pagination.devis_total > detail.devis.length ? `<p class="muted">Les ${detail.devis.length} devis les plus récents sont affichés sur ${detail.pagination.devis_total}.</p>` : ""}`;
@@ -1481,6 +1484,9 @@ function renderClientDetail(detail, activeTab = "info") {
     modal(client.nom, `<div class="client-tabs" role="tablist">${tabs.map(([value, label]) => `<button class="${value === activeTab ? "primary" : "secondary"}" data-client-tab="${value}" role="tab" aria-selected="${value === activeTab}">${label}</button>`).join("")}</div><section>${content}</section>`);
     document.querySelectorAll("[data-client-tab]").forEach((button) => button.addEventListener("click", () => renderClientDetail(detail, button.dataset.clientTab)));
     document.querySelector("[data-edit-client]")?.addEventListener("click", () => openEditClient(detail));
+    document.querySelector("[data-add-client-contact]")?.addEventListener("click", () => openClientContactForm(detail));
+    document.querySelectorAll("[data-edit-client-contact]").forEach((button) => button.addEventListener("click", () => openClientContactForm(detail, (detail.contacts || []).find((contact) => String(contact.id) === String(button.dataset.editClientContact)))));
+    document.querySelectorAll("[data-delete-client-contact]").forEach((button) => button.addEventListener("click", () => deleteClientContact(detail, button.dataset.deleteClientContact, button)));
     document.querySelector("[data-add-client-equipment]")?.addEventListener("click", () => openClientEquipmentForm(detail));
     document.querySelectorAll("[data-client-equipment]").forEach((button) => button.addEventListener("click", () => openClientEquipmentDetail(detail, button.dataset.clientEquipment)));
     document.querySelectorAll("[data-client-document]").forEach((button) => button.addEventListener("click", () => {
@@ -1489,6 +1495,43 @@ function renderClientDetail(detail, activeTab = "info") {
         openDocumentDetails(document.id);
     }));
     document.querySelectorAll("[data-client-intervention]").forEach((button) => button.addEventListener("click", () => openIntervention(button.dataset.clientIntervention)));
+}
+
+function clientContactFields(contact = {}) {
+    return `${field("Nom complet", "nom", "text", true, contact.nom || "")}${field("Fonction", "fonction", "text", false, contact.fonction || "")}${field("E-mail", "email", "email", false, contact.email || "")}${field("Téléphone", "telephone", "tel", false, contact.telephone || "")}<label class="setting-check"><input name="destinataire_rapport" type="checkbox" ${contact.destinataire_rapport ? "checked" : ""}> Proposer ce contact comme destinataire des rapports</label>`;
+}
+
+function openClientContactForm(detail, contact = null) {
+    modal(contact ? "Modifier le contact" : "Nouveau contact", `<form id="client-contact-form">${clientContactFields(contact || {})}<button class="primary wide" type="submit">Enregistrer le contact</button></form>`);
+    document.getElementById("client-contact-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"]');
+        const values = Object.fromEntries(new FormData(form));
+        values.destinataire_rapport = form.elements.destinataire_rapport.checked;
+        await withBusy(button, async () => {
+            try {
+                const path = contact ? `/clients/${detail.client.id}/contacts/${contact.id}` : `/clients/${detail.client.id}/contacts`;
+                const saved = await api(path, { method: contact ? "PUT" : "POST", body: JSON.stringify(values) });
+                detail.contacts = contact ? detail.contacts.map((item) => String(item.id) === String(saved.id) ? saved : item) : [...(detail.contacts || []), saved];
+                renderClientDetail(detail, "contacts");
+                toast(contact ? "Contact modifié." : "Contact ajouté.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
+}
+
+async function deleteClientContact(detail, contactId, button) {
+    const contact = (detail.contacts || []).find((item) => String(item.id) === String(contactId));
+    if (!confirm(`Supprimer le contact « ${contact?.nom || "sélectionné"} » ?`)) return;
+    await withBusy(button, async () => {
+        try {
+            await api(`/clients/${detail.client.id}/contacts/${contactId}`, { method: "DELETE" });
+            detail.contacts = detail.contacts.filter((item) => String(item.id) !== String(contactId));
+            renderClientDetail(detail, "contacts");
+            toast("Contact supprimé.");
+        } catch (error) { toast(error.message, true); }
+    });
 }
 
 function openEditClient(detail) {
@@ -1834,7 +1877,7 @@ function openIntervention(id) {
     const item = interventions.find((entry) => String(entry.id) === String(id));
     if (!item) return;
     if (currentUser.role === "CLIENT") {
-        modal("Rapport d’intervention", `<p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p><p><span class="badge">${statusLabel(item.statut)}</span></p><div class="field"><label>Description</label><p>${escapeHtml(item.description || "Aucune description.")}</p></div><div class="field"><label>Compte-rendu</label><p>${escapeHtml(item.compte_rendu || "Compte-rendu non disponible.")}</p></div>${reportDataSummary(item)}${mediaGallery(item)}${pdfButton(item)}`);
+        modal("Rapport", `<p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p><div class="field"><label>Description</label><p>${escapeHtml(item.description || "Aucune description.")}</p></div><div class="field"><label>Compte-rendu</label><p>${escapeHtml(item.compte_rendu || "Compte-rendu non disponible.")}</p></div>${reportDataSummary(item)}${mediaGallery(item)}${pdfButton(item)}`);
         bindPdfDownload();
         return;
     }
@@ -1849,7 +1892,7 @@ function openIntervention(id) {
     modal("Rapport d’intervention", `<form id="edit-intervention-form" data-intervention-id="${item.id}">
       <p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p>
       ${adminFields}
-      <div class="field"><label>Statut</label><select name="statut">${["PLANIFIEE","EN_COURS","TERMINEE","ANNULEE"].map((s) => `<option value="${s}" ${s === item.statut ? "selected" : ""}>${statusLabel(s)}</option>`).join("")}</select></div>
+      <input type="hidden" name="statut" value="${escapeHtml(item.statut || "TERMINEE")}">
       <div class="field"><label>Compte-rendu</label><textarea name="compte_rendu" rows="5">${escapeHtml(item.compte_rendu || "")}</textarea></div>
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
@@ -2158,7 +2201,7 @@ function bindReportEmail(item) {
 function openReportEmail(item) {
     const selectedPhotoIds = [...document.querySelectorAll("[data-pdf-photo-id]:checked")].map((input) => Number(input.dataset.pdfPhotoId));
     const client = clients.find((entry) => String(entry.id) === String(item.client_id));
-    const savedEmails = [...new Set([...(client?.report_emails || []), client?.email].filter(Boolean))];
+    const savedEmails = [...new Set([...(client?.report_emails || []), ...(client?.contact_report_emails || []), client?.email].filter(Boolean))];
     modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${escapeHtml(item.titre)} ».\n\nCordialement,\n${escapeHtml(currentEntreprise?.report_settings?.display_name || currentEntreprise?.nom || "")}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
     document.getElementById("report-email-form").addEventListener("submit", async (event) => {
         event.preventDefault();

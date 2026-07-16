@@ -88,6 +88,9 @@ router.get("/", async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email, c.report_emails,
+                    COALESCE((SELECT JSON_AGG(cc.email ORDER BY cc.nom) FROM contacts_clients cc
+                              WHERE cc.client_id = c.id AND cc.entreprise_id = c.entreprise_id
+                                AND cc.destinataire_rapport = TRUE AND cc.email IS NOT NULL), '[]'::json) AS contact_report_emails,
                     c.telephone, c.adresse, c.created_at, c.updated_at,
                     u.nom AS utilisateur_nom
              FROM clients c
@@ -127,7 +130,7 @@ router.get("/:id", async (req, res) => {
             : "";
         if (req.user.role === "TECHNICIEN") interventionValues.push(req.user.id);
 
-        const [equipmentResult, interventionResult, documentResult] = await Promise.all([
+        const [equipmentResult, interventionResult, documentResult, contactResult] = await Promise.all([
             pool.query(
                 `SELECT e.id, e.client_id, e.type, e.marque, e.modele, e.numero_serie,
                         e.date_installation, e.annee_installation, e.created_at, e.updated_at,
@@ -178,6 +181,12 @@ router.get("/:id", async (req, res) => {
                     [id, req.user.entreprise_id, limit, offset]
                 )
                 : Promise.resolve({ rows: [] }),
+            pool.query(
+                `SELECT id, client_id, nom, fonction, email, telephone, destinataire_rapport, created_at, updated_at
+                 FROM contacts_clients WHERE client_id = $1 AND entreprise_id = $2
+                 ORDER BY nom ASC, id ASC`,
+                [id, req.user.entreprise_id]
+            ),
         ]);
 
         return res.json({
@@ -185,6 +194,7 @@ router.get("/:id", async (req, res) => {
             equipements: equipmentResult.rows,
             devis: documentResult.rows,
             interventions: interventionResult.rows,
+            contacts: contactResult.rows,
             pagination: {
                 limit,
                 offset,
@@ -197,6 +207,71 @@ router.get("/:id", async (req, res) => {
     } catch (error) {
         console.error("Échec du chargement de la fiche client", error);
         return res.status(500).json({ error: "Impossible de charger la fiche client." });
+    }
+});
+
+function contactPayload(body) {
+    const nom = optionalText(body.nom, 150);
+    const fonction = optionalText(body.fonction, 150);
+    const email = optionalText(body.email, 254);
+    const telephone = optionalText(body.telephone, 30);
+    if (!nom || fonction === undefined || email === undefined || telephone === undefined || !validEmail(email)) return null;
+    return { nom, fonction, email, telephone, destinataireRapport: body.destinataire_rapport === true };
+}
+
+router.post("/:id/contacts", requireRole(["ADMIN"]), async (req, res) => {
+    const clientId = positiveId(req.params.id);
+    const payload = contactPayload(req.body);
+    if (!clientId || !payload) return res.status(400).json({ error: "Coordonnées du contact invalides." });
+    try {
+        if (!(await accessibleClient(clientId, req.user))) return res.status(404).json({ error: "Client introuvable." });
+        const result = await pool.query(
+            `INSERT INTO contacts_clients (entreprise_id, client_id, nom, fonction, email, telephone, destinataire_rapport)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [req.user.entreprise_id, clientId, payload.nom, payload.fonction, payload.email, payload.telephone, payload.destinataireRapport]
+        );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "contact_client", resourceId: result.rows[0].id, summary: `Contact « ${payload.nom} » ajouté.` });
+        return res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error("Échec de la création du contact", error);
+        return res.status(500).json({ error: "Impossible de créer le contact." });
+    }
+});
+
+router.put("/:clientId/contacts/:contactId", requireRole(["ADMIN"]), async (req, res) => {
+    const clientId = positiveId(req.params.clientId);
+    const contactId = positiveId(req.params.contactId);
+    const payload = contactPayload(req.body);
+    if (!clientId || !contactId || !payload) return res.status(400).json({ error: "Coordonnées du contact invalides." });
+    try {
+        const result = await pool.query(
+            `UPDATE contacts_clients SET nom = $1, fonction = $2, email = $3, telephone = $4,
+                    destinataire_rapport = $5, updated_at = NOW()
+             WHERE id = $6 AND client_id = $7 AND entreprise_id = $8 RETURNING *`,
+            [payload.nom, payload.fonction, payload.email, payload.telephone, payload.destinataireRapport, contactId, clientId, req.user.entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Contact introuvable." });
+        return res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Échec de la modification du contact", error);
+        return res.status(500).json({ error: "Impossible de modifier le contact." });
+    }
+});
+
+router.delete("/:clientId/contacts/:contactId", requireRole(["ADMIN"]), async (req, res) => {
+    const clientId = positiveId(req.params.clientId);
+    const contactId = positiveId(req.params.contactId);
+    if (!clientId || !contactId) return res.status(400).json({ error: "Contact invalide." });
+    try {
+        const result = await pool.query(
+            "DELETE FROM contacts_clients WHERE id = $1 AND client_id = $2 AND entreprise_id = $3 RETURNING id",
+            [contactId, clientId, req.user.entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Contact introuvable." });
+        return res.status(204).send();
+    } catch (error) {
+        console.error("Échec de la suppression du contact", error);
+        return res.status(500).json({ error: "Impossible de supprimer le contact." });
     }
 });
 
