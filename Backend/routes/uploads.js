@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 import {
     removeStoredUpload,
     uploadCompressedPhoto,
@@ -109,6 +110,7 @@ router.post("/company-logo", verifyToken, requireRole(["ADMIN"]), receiveLogo, a
             // Le nouveau logo reste valide même si l'ancien média n'a pas pu être purgé.
             console.error("Ancien logo Cloudinary non supprimé", safeStorageError(cleanupError));
         });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "entreprise", resourceId: req.user.entreprise_id, summary: "Logo de l’entreprise remplacé." });
         return res.json({ entreprise: result.rows[0] });
     } catch (error) {
         if (storedUrl && !databaseUpdated) {
@@ -138,6 +140,7 @@ router.delete("/company-logo", verifyToken, requireRole(["ADMIN"]), async (req, 
         await removeStoredUpload(previousResult.rows[0].logo_url).catch((cleanupError) => {
             console.error("Logo Cloudinary non supprimé", safeStorageError(cleanupError));
         });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "entreprise", resourceId: req.user.entreprise_id, summary: "Logo de l’entreprise supprimé." });
         return res.json({ entreprise: { ...result.rows[0], logo_url: null } });
     } catch (error) {
         console.error("Échec de la suppression du logo", error);

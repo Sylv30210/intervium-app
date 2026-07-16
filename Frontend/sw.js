@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v2-ui";
+const CACHE_VERSION = "intervium-shell-v3-workflows";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

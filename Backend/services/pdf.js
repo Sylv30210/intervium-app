@@ -233,9 +233,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
     const signatureBuffer = await localImage(intervention.signature_url);
     const logoBuffer = await localImage(intervention.entreprise_logo_url);
     const branding = reportBranding(intervention);
+    const pdfConfig = intervention.modele_pdf_config && typeof intervention.modele_pdf_config === "object" ? intervention.modele_pdf_config : {};
+    const margin = Math.min(90, Math.max(24, Number(pdfConfig.margin) || 48));
+    const titleSize = Math.min(28, Math.max(14, Number(pdfConfig.titleSize) || 20));
 
     return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true, info: {
+        const doc = new PDFDocument({ size: "A4", margin, bufferPages: true, info: {
             Title: `Rapport - ${intervention.titre}`,
             Author: branding.displayName,
         } });
@@ -244,16 +247,18 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         doc.on("error", reject);
         doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-        drawReportHeader(doc, branding, logoBuffer, intervention.id);
+        if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.id);
 
-        doc.font("Helvetica-Bold").fontSize(20).fillColor(DARK)
-            .text(intervention.titre, 48, doc.y, { width: doc.page.width - 96 });
+        doc.font("Helvetica-Bold").fontSize(titleSize).fillColor(DARK)
+            .text(intervention.titre, margin, doc.y, { width: doc.page.width - (margin * 2) });
         doc.moveDown(0.35).font("Helvetica").fontSize(10).fillColor(GRAY)
             .text(`Rapport généré le ${new Intl.DateTimeFormat("fr-FR").format(new Date())}`);
 
         sectionTitle(doc, "Détails de l'intervention");
-        detailLine(doc, "Client", intervention.client_nom);
-        detailLine(doc, "Adresse", intervention.client_adresse);
+        if (pdfConfig.showClient !== false) {
+            detailLine(doc, "Client", intervention.client_nom);
+            detailLine(doc, "Adresse", intervention.client_adresse);
+        }
         detailLine(doc, "Date", `${formatDate(intervention.date_intervention)}${intervention.heure ? ` à ${String(intervention.heure).slice(0, 5)}` : ""}`);
         detailLine(doc, "Technicien", intervention.technicien_nom || "Non assigné");
         detailLine(doc, "Statut", labelStatus(intervention.statut));
@@ -262,10 +267,10 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
             .text(intervention.description || "Aucune description renseignée.", { lineGap: 3 });
 
-        sectionTitle(doc, "Équipements du client");
-        if (equipments.length === 0) {
+        if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Équipements du client");
+        if (pdfConfig.showEquipment !== false && equipments.length === 0) {
             doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucun équipement renseigné.");
-        } else {
+        } else if (pdfConfig.showEquipment !== false) {
             for (const equipment of equipments) {
                 ensureSpace(doc, 30);
                 const summary = [equipment.type, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`]
@@ -317,7 +322,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             }
         }
 
-        if (photoBuffers.length > 0) {
+        if (pdfConfig.showPhotos !== false && photoBuffers.length > 0) {
             const photoHeight = signatureBuffer ? 135 : 205;
             const photoAdvance = photoHeight + 10;
             ensureSpace(doc, photoAdvance + 48);
@@ -330,7 +335,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             }
         }
 
-        if (signatureBuffer || signatureSection) {
+        if (pdfConfig.showSignature !== false && (signatureBuffer || signatureSection)) {
             const signatureBlockHeight = signatureBuffer ? 95 : 38;
             ensureSpace(doc, signatureBlockHeight + 38);
             sectionTitle(doc, signatureSection?.label || "Validation du client");
@@ -350,11 +355,11 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             doc.switchToPage(index);
             const originalBottomMargin = doc.page.margins.bottom;
             doc.page.margins.bottom = 0;
-            const footerParts = [branding.footerText || branding.displayName];
+            const footerParts = [pdfConfig.footerText || branding.footerText || branding.displayName];
             if (branding.showIntervium) footerParts.push("Généré avec Intervium");
             doc.font("Helvetica").fontSize(8).fillColor(GRAY)
                 .text(footerParts.join(" - "), 48, doc.page.height - 35, { width: 360, lineBreak: false, ellipsis: true });
-            doc.text(`Page ${index + 1} / ${range.count}`, doc.page.width - 148, doc.page.height - 35, { width: 100, align: "right", lineBreak: false });
+            if (pdfConfig.showPageNumbers !== false) doc.text(`Page ${index + 1} / ${range.count}`, doc.page.width - 148, doc.page.height - 35, { width: 100, align: "right", lineBreak: false });
             doc.page.margins.bottom = originalBottomMargin;
         }
 

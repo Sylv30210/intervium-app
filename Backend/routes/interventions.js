@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
 
@@ -66,7 +67,7 @@ async function validateRelations(clientId, technicienId, equipementId, entrepris
 async function getReportTemplate(templateId, entrepriseId) {
     if (templateId === null) return null;
     const result = await pool.query(
-        `SELECT id, nom, description, sections FROM modeles_rapport
+        `SELECT id, nom, description, sections, pdf_config FROM modeles_rapport
          WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE`,
         [templateId, entrepriseId]
     );
@@ -74,7 +75,7 @@ async function getReportTemplate(templateId, entrepriseId) {
 }
 
 function reportSnapshot(template) {
-    return template ? { nom: template.nom, description: template.description, sections: template.sections } : null;
+    return template ? { nom: template.nom, description: template.description, sections: template.sections, pdf_config: template.pdf_config || {} } : null;
 }
 
 function validateTemplateData(template, data) {
@@ -152,6 +153,7 @@ router.get("/", async (req, res) => {
                     i.titre, i.description, i.compte_rendu, i.statut,
                     i.date_intervention, i.heure, i.signature_url,
                     i.modele_rapport_id, i.donnees_rapport, i.modele_rapport_snapshot,
+                    i.report_version,
                     i.created_at, i.updated_at,
                     c.nom AS client_nom,
                     eq.type AS equipement_type,
@@ -160,6 +162,7 @@ router.get("/", async (req, res) => {
                     u.nom AS technicien_nom,
                     COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
                     COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
+                    COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config,
                     COALESCE(p.photos, '[]'::json) AS photos,
                     COALESCE(p.nombre_photos, 0)::INTEGER AS nombre_photos
              FROM interventions i
@@ -273,6 +276,10 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                 template ? JSON.stringify(reportSnapshot(template)) : null,
             ]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "intervention", resourceId: result.rows[0].id, summary: `Intervention « ${result.rows[0].titre} » créée.` });
+        if (result.rows[0].technicien_id && Number(result.rows[0].technicien_id) !== Number(req.user.id)) {
+            await createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_ASSIGNED", title: "Nouvelle intervention", message: `L’intervention « ${result.rows[0].titre} » vous a été assignée.`, resourceType: "intervention", resourceId: result.rows[0].id });
+        }
         return res.status(201).json(result.rows[0]);
     } catch (error) {
         if (["22007", "22008"].includes(error.code)) {
@@ -296,7 +303,8 @@ router.get("/:id/pdf", async (req, res) => {
                     c.utilisateur_id AS client_utilisateur_id,
                     u.nom AS technicien_nom,
                     COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
-                    COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections
+                    COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
+                    COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config
              FROM interventions i
              JOIN entreprises e ON e.id = i.entreprise_id
              JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
@@ -362,7 +370,11 @@ router.put("/:id", async (req, res) => {
     ];
     const technicianFields = ["statut", "compte_rendu", "donnees_rapport"];
     const allowed = req.user.role === "ADMIN" ? adminFields : technicianFields;
-    const received = Object.keys(req.body);
+    const expectedVersion = req.body.expected_version === undefined ? null : Number(req.body.expected_version);
+    if (expectedVersion !== null && (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)) {
+        return res.status(400).json({ error: "Version de rapport invalide." });
+    }
+    const received = Object.keys(req.body).filter((field) => field !== "expected_version");
     const forbidden = received.filter((field) => !allowed.includes(field));
     if (forbidden.length > 0) {
         return res.status(403).json({ error: `Modification interdite : ${forbidden.join(", ")}.` });
@@ -467,23 +479,37 @@ router.put("/:id", async (req, res) => {
             if (dataError) return res.status(400).json({ error: dataError });
         }
 
-        values.push(id, req.user.entreprise_id);
+        assignments.push("report_version = report_version + 1");
+        values.push(id);
+        const idParameter = values.length;
+        values.push(req.user.entreprise_id);
+        const tenantParameter = values.length;
         let ownershipClause = "";
         if (req.user.role === "TECHNICIEN") {
             values.push(req.user.id);
             ownershipClause = `AND technicien_id = $${values.length}`;
         }
+        let versionClause = "";
+        if (expectedVersion !== null) {
+            values.push(expectedVersion);
+            versionClause = `AND report_version = $${values.length}`;
+        }
 
         const result = await pool.query(
             `UPDATE interventions
              SET ${assignments.join(", ")}, updated_at = NOW()
-             WHERE id = $${values.length - (req.user.role === "TECHNICIEN" ? 2 : 1)}
-               AND entreprise_id = $${values.length - (req.user.role === "TECHNICIEN" ? 1 : 0)}
-               ${ownershipClause}
+             WHERE id = $${idParameter}
+               AND entreprise_id = $${tenantParameter}
+               ${ownershipClause} ${versionClause}
              RETURNING *`,
             values
         );
+        if (result.rowCount === 0 && expectedVersion !== null) return res.status(409).json({ error: "Ce rapport a été modifié ailleurs. Rechargez-le avant de poursuivre.", code: "REPORT_VERSION_CONFLICT" });
         if (result.rowCount === 0) return res.status(404).json({ error: "Intervention introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "intervention", resourceId: id, summary: `Intervention « ${result.rows[0].titre} » modifiée.`, changes: { fields: supplied } });
+        if (result.rows[0].technicien_id && Number(result.rows[0].technicien_id) !== Number(req.user.id)) {
+            await createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_UPDATED", title: "Intervention modifiée", message: `L’intervention « ${result.rows[0].titre} » a été mise à jour.`, resourceType: "intervention", resourceId: id });
+        }
         return res.json(result.rows[0]);
     } catch (error) {
         if (["22007", "22008"].includes(error.code)) {

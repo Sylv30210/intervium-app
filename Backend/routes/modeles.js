@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -75,12 +76,30 @@ function validateSections(value) {
     return sections;
 }
 
+function validatePdfConfig(value) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const margin = Math.min(90, Math.max(24, Number(source.margin) || 48));
+    const titleSize = Math.min(28, Math.max(14, Number(source.titleSize) || 20));
+    return {
+        margin,
+        titleSize,
+        showHeader: source.showHeader !== false,
+        showCompany: source.showCompany !== false,
+        showClient: source.showClient !== false,
+        showEquipment: source.showEquipment !== false,
+        showPhotos: source.showPhotos !== false,
+        showSignature: source.showSignature !== false,
+        showPageNumbers: source.showPageNumbers !== false,
+        footerText: optionalText(source.footerText, 240),
+    };
+}
+
 router.get("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
     try {
         const values = [req.user.entreprise_id];
         const activeFilter = req.user.role === "ADMIN" ? "" : "AND m.actif = TRUE";
         const result = await pool.query(
-            `SELECT m.id, m.nom, m.description, m.sections, m.actif,
+            `SELECT m.id, m.nom, m.description, m.sections, m.pdf_config, m.actif,
                     m.created_at, m.updated_at, u.nom AS createur_nom
              FROM modeles_rapport m
              JOIN utilisateurs u
@@ -99,16 +118,18 @@ router.get("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
 router.post("/", requireRole(["ADMIN"]), async (req, res) => {
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const sections = validateSections(req.body.sections ?? []);
+    const pdfConfig = validatePdfConfig(req.body.pdf_config);
     if (!nom) return res.status(400).json({ error: "Le nom du modèle est requis." });
     if (!sections) return res.status(400).json({ error: "La structure du modèle est invalide." });
     try {
         const result = await pool.query(
             `INSERT INTO modeles_rapport
-                (entreprise_id, createur_id, nom, description, sections)
-             VALUES ($1, $2, $3, $4, $5::jsonb)
+                (entreprise_id, createur_id, nom, description, sections, pdf_config)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
              RETURNING *`,
-            [req.user.entreprise_id, req.user.id, nom, req.body.description?.trim() || null, JSON.stringify(sections)]
+            [req.user.entreprise_id, req.user.id, nom, req.body.description?.trim() || null, JSON.stringify(sections), JSON.stringify(pdfConfig)]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "modele", resourceId: result.rows[0].id, summary: `Modèle « ${result.rows[0].nom} » créé.` });
         return res.status(201).json(result.rows[0]);
     } catch (error) {
         if (error.code === "23505") return res.status(409).json({ error: "Un modèle porte déjà ce nom." });
@@ -121,18 +142,20 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
     const id = positiveId(req.params.id);
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const sections = validateSections(req.body.sections ?? []);
+    const pdfConfig = validatePdfConfig(req.body.pdf_config);
     if (!id) return res.status(400).json({ error: "Identifiant de modèle invalide." });
     if (!nom || !sections) return res.status(400).json({ error: "Nom ou structure du modèle invalide." });
     try {
         const result = await pool.query(
             `UPDATE modeles_rapport
-             SET nom = $1, description = $2, sections = $3::jsonb,
-                 actif = $4, updated_at = NOW()
-             WHERE id = $5 AND entreprise_id = $6
+             SET nom = $1, description = $2, sections = $3::jsonb, pdf_config = $4::jsonb,
+                 actif = $5, updated_at = NOW()
+             WHERE id = $6 AND entreprise_id = $7
              RETURNING *`,
-            [nom, req.body.description?.trim() || null, JSON.stringify(sections), req.body.actif !== false, id, req.user.entreprise_id]
+            [nom, req.body.description?.trim() || null, JSON.stringify(sections), JSON.stringify(pdfConfig), req.body.actif !== false, id, req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Modèle introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "modele", resourceId: id, summary: `Modèle « ${result.rows[0].nom} » modifié.`, changes: { sections: result.rows[0].sections.length } });
         return res.json(result.rows[0]);
     } catch (error) {
         if (error.code === "23505") return res.status(409).json({ error: "Un modèle porte déjà ce nom." });
@@ -148,7 +171,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
     try {
         await client.query("BEGIN");
         const model = await client.query(
-            `SELECT id, nom, description, sections
+            `SELECT id, nom, description, sections, pdf_config
              FROM modeles_rapport
              WHERE id = $1 AND entreprise_id = $2
              FOR UPDATE`,
@@ -162,6 +185,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
             nom: model.rows[0].nom,
             description: model.rows[0].description,
             sections: model.rows[0].sections,
+            pdf_config: model.rows[0].pdf_config,
         });
         await client.query(
             `UPDATE interventions
@@ -175,6 +199,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
             "DELETE FROM modeles_rapport WHERE id = $1 AND entreprise_id = $2",
             [id, req.user.entreprise_id]
         );
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "modele", resourceId: id, summary: `Modèle « ${model.rows[0].nom} » supprimé définitivement.`, client });
         await client.query("COMMIT");
         return res.status(204).send();
     } catch (error) {

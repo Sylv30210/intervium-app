@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -80,6 +81,7 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
                 req.body.date_installation || null,
             ]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "equipement", resourceId: result.rows[0].id, summary: `Équipement ${result.rows[0].type || result.rows[0].id} créé.` });
         return res.status(201).json(result.rows[0]);
     } catch (error) {
         if (error.code === "22007") return res.status(400).json({ error: "Date invalide." });
@@ -131,6 +133,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
             values
         );
         if (result.rowCount === 0) return res.status(404).json({ error: "Équipement introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "equipement", resourceId: id, summary: `Équipement ${result.rows[0].type || id} modifié.` });
         return res.json(result.rows[0]);
     } catch (error) {
         if (error.code === "22007") return res.status(400).json({ error: "Date invalide." });
@@ -150,6 +153,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
             [id, req.user.entreprise_id]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: "Équipement introuvable." });
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "equipement", resourceId: id, summary: `Équipement ${id} supprimé.` });
         return res.status(204).send();
     } catch (error) {
         console.error("Échec de la suppression de l'équipement", error);

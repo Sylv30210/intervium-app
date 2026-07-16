@@ -16,9 +16,13 @@ let templateDraftSections = [];
 let currentView = "dashboard";
 let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
+let reportAutosaveTimer = null;
+let reportAutosavePending = false;
+let globalSearchTimer = null;
 
 const app = document.getElementById("app");
 const THEME_STORAGE_KEY = "intervium_visual_theme";
+const FUTURE_THEME_STORAGE_KEY = "noverys_visual_theme";
 applyStoredTheme();
 
 const styles = `
@@ -64,6 +68,7 @@ html[data-theme="dark"] :is(.detail-box,.related-card,.offline-card>div),html.th
 .ui-icon{display:inline-block;width:20px;height:20px;flex:0 0 auto;vertical-align:-.2em}.nav button,.primary,.secondary,.danger,.icon-button,.mobile-settings,.mobile-logout{display:inline-flex;align-items:center;justify-content:center;gap:8px}.nav button{justify-content:flex-start}.nav .ui-icon{width:19px;height:19px}.bottom-nav .nav-icon{display:grid;place-items:center;height:25px}.bottom-nav .ui-icon{width:22px;height:22px}.icon-only{width:44px;min-width:44px;height:44px;padding:0;border-radius:12px}.close{display:grid;place-items:center}.close .ui-icon{width:24px;height:24px}.quick-actions button{display:flex;align-items:center;gap:10px}.quick-actions .ui-icon{width:21px;height:21px}.media-delete{display:grid;place-items:center}.media-delete .ui-icon{width:18px;height:18px}.file-upload{display:grid;gap:8px;margin:14px 0;min-width:0}.file-upload-label{font-size:13px;font-weight:700;color:#475569}.file-upload-dropzone{display:flex;align-items:center;gap:14px;min-height:112px;padding:18px;border:1.5px dashed #94a3b8;border-radius:14px;background:#f8fafc;color:#29415f;cursor:pointer;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.file-upload-dropzone:hover,.file-upload-dropzone.is-dragover{border-color:#2563eb;background:#eff6ff}.file-upload-dropzone:focus-visible{outline:3px solid #2563eb45;outline-offset:2px}.file-upload-icon{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:12px;background:#e7eef8;color:#1d4ed8}.file-upload-icon .ui-icon{width:25px;height:25px}.file-upload-copy{display:grid;gap:3px;min-width:0}.file-upload-copy strong{font-size:15px}.file-upload-copy small,.file-upload-name{display:block;color:#64748b;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-upload-preview{display:none;position:relative;align-items:center;gap:10px;min-height:58px;padding:8px 54px 8px 8px;border:1px solid #dbe3ee;border-radius:12px;background:#fff}.file-upload-preview.is-visible{display:flex}.file-upload-preview img{display:block;width:74px;height:54px;object-fit:contain;border-radius:8px;background:#fff}.file-upload-clear{position:absolute;right:8px;top:50%;translate:0 -50%;display:grid;place-items:center;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:10px;background:#fee2e2;color:#b91c1c}.file-upload-status{min-height:18px;margin:0;color:#166534;font-size:12px}.file-upload.is-error .file-upload-dropzone{border-color:#dc2626;background:#fef2f2}.file-upload.is-error .file-upload-status{color:#b91c1c}.file-upload.is-success .file-upload-dropzone{border-color:#16a34a}.toast{display:flex;align-items:flex-start;gap:10px;min-height:48px;box-shadow:0 12px 32px #0f172a30}.modal-head{gap:14px;border-bottom:1px solid #edf1f7}.modal-head h2{line-height:1.2;overflow-wrap:anywhere}.client-tabs,.tabs{scrollbar-width:thin;overscroll-behavior-inline:contain}.client-tabs button{flex:0 0 auto}.field input[type="checkbox"]{width:20px;height:20px;min-height:20px;accent-color:#2563eb}button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #2563eb55;outline-offset:2px}
 html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-dark :is(.file-upload-dropzone,.file-upload-preview){background:#0c1626;border-color:#334155;color:#dbeafe}html[data-theme="dark"] .file-upload-icon,html.theme-dark .file-upload-icon{background:#172e52;color:#bfdbfe}html[data-theme="dark"] .file-upload-label,html.theme-dark .file-upload-label{color:#cbd5e1}html[data-theme="dark"] .file-upload-dropzone:hover,html.theme-dark .file-upload-dropzone:hover{background:#15243a;border-color:#60a5fa}html[data-theme="glass"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-glass :is(.file-upload-dropzone,.file-upload-preview){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.42);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
 @media(max-width:768px){.file-upload-dropzone{min-height:104px;padding:14px}.file-upload-copy small,.file-upload-name{white-space:normal;overflow-wrap:anywhere}.modal-head{padding-bottom:12px}.client-tabs{margin-inline:-18px;padding-inline:18px}.topbar{min-width:0}.topbar>div{min-width:0}.topbar h1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.primary,.secondary,.danger{min-height:46px}.quick-actions button{min-height:52px}.bottom-nav .nav-label{font-size:10px}.company-branding{min-width:0}.theme-options{overflow:hidden}}
+.topbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.notification-button{position:relative}.notification-count{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800}.search-results,.notification-list,.activity-list{display:grid;gap:9px}.search-result,.notification-item,.activity-item{width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:inherit;text-align:left}.notification-item.unread{border-left:4px solid #2563eb}.notification-item small,.activity-item small,.search-result small{display:block;margin-top:4px;color:#64748b}.autosave-status{display:flex;align-items:center;gap:7px;min-height:28px;margin:8px 0;color:#64748b;font-size:12px}.autosave-status.saving{color:#1d4ed8}.autosave-status.saved{color:#166534}.autosave-status.error,.autosave-status.dirty{color:#b45309}.template-field-row[draggable="true"]{cursor:grab}.template-field-row.is-dragging{opacity:.55;outline:2px dashed #2563eb}.drag-handle{display:inline-flex;align-items:center;gap:6px;color:#64748b;font-size:12px}.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px}.table-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.table-tools input,.table-tools select{min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:9px 11px;background:#fff}.table-tools input{flex:1 1 220px}html[data-theme="dark"] :is(.search-result,.notification-item,.activity-item,.table-tools input,.table-tools select),html.theme-dark :is(.search-result,.notification-item,.activity-item,.table-tools input,.table-tools select){background:#0c1626;border-color:#334155;color:#e5edf8}@media(max-width:768px){.topbar-actions{flex:0 0 auto}.topbar-actions>#add-clients,.topbar-actions>#add-equipements,.topbar-actions>#add-interventions,.topbar-actions>#add-modeles,.topbar-actions>#add-documents,.topbar-actions>#add-equipe{padding-inline:10px}.search-result,.notification-item,.activity-item{min-height:58px}}
 `;
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 
@@ -137,7 +142,7 @@ function initPwa() {
 
 function viewFromLocation() {
     const view = location.hash.replace(/^#/, "");
-    return ["dashboard", "interventions", "planning", "clients", "equipements", "modeles", "documents", "equipe"].includes(view)
+    return ["dashboard", "interventions", "planning", "clients", "equipements", "modeles", "documents", "equipe", "activity"].includes(view)
         ? view
         : "dashboard";
 }
@@ -178,7 +183,10 @@ async function api(path, options = {}) {
         }
     }
     if (!response.ok) {
-        throw new Error(data?.error || `La requête a échoué (${response.status}).`);
+        const error = new Error(data?.error || `La requête a échoué (${response.status}).`);
+        error.status = response.status;
+        error.code = data?.code;
+        throw error;
     }
     return data;
 }
@@ -216,7 +224,7 @@ function showAuth(mode = "login") {
         <form id="login-form" class="${mode === "login" ? "" : "hidden"}">
           ${field("Email", "email", "email", true)}${field("Mot de passe", "password", "password", true)}
           <button class="primary wide" type="submit">Se connecter</button>
-        </form>
+        </form><footer class="auth-footer">Conçu par Sylvain Lecoeuvre</footer>
         <form id="register-form" class="${mode === "register" ? "" : "hidden"}">
           ${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true)}${field("Mot de passe (8 caractères minimum)", "password", "password", true)}
           <button class="primary wide" type="submit">Créer mon espace</button>
@@ -261,6 +269,7 @@ const ICON_PATHS = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>',
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>',
     glass: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
 };
 
 function icon(name, extraClass = "") {
@@ -336,7 +345,7 @@ function logoLockup(extraClass = "") {
 }
 
 function storedTheme() {
-    try { return localStorage.getItem(THEME_STORAGE_KEY); } catch { return null; }
+    try { return localStorage.getItem(FUTURE_THEME_STORAGE_KEY) || localStorage.getItem(THEME_STORAGE_KEY); } catch { return null; }
 }
 
 function applyStoredTheme() {
@@ -359,8 +368,8 @@ function applyStoredTheme() {
 function setTheme(theme) {
     const value = ["glass", "dark"].includes(theme) ? theme : "classic";
     try {
-        if (value !== "classic") localStorage.setItem(THEME_STORAGE_KEY, value);
-        else localStorage.removeItem(THEME_STORAGE_KEY);
+        if (value !== "classic") { localStorage.setItem(THEME_STORAGE_KEY, value); localStorage.setItem(FUTURE_THEME_STORAGE_KEY, value); }
+        else { localStorage.removeItem(THEME_STORAGE_KEY); localStorage.removeItem(FUTURE_THEME_STORAGE_KEY); }
     } catch {}
     return applyStoredTheme();
 }
@@ -464,7 +473,7 @@ function renderMain(view = "dashboard") {
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
-      <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div>${adminButtonFor(view)}</header><div id="view">${renderView(view)}</div></main>
+      <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale">${mobileNavButton("dashboard", "home", "Accueil", view)}${mobileNavButton("interventions", "interventions", currentUser.role === "CLIENT" ? "Rapports" : "Missions", view)}${currentUser.role === "CLIENT" ? "" : `${mobileNavButton("planning", "calendar", "Planning", view)}${mobileNavButton("clients", "clients", "Clients", view)}<button id="mobile-more" aria-label="Plus de rubriques"><span class="nav-icon">${icon("more")}</span><span class="nav-label">Plus</span></button>`}</nav>
     </div><div id="modal-root"></div>`;
 
@@ -475,13 +484,16 @@ function renderMain(view = "dashboard") {
     document.getElementById("desktop-settings").addEventListener("click", openSettings);
     document.getElementById("mobile-settings").addEventListener("click", openSettings);
     document.getElementById("mobile-more")?.addEventListener("click", openMoreMenu);
+    document.getElementById("global-search")?.addEventListener("click", openGlobalSearch);
+    document.getElementById("open-notifications")?.addEventListener("click", openNotifications);
     bindMainActions(view);
     updateInstallUi();
+    refreshNotificationCount();
 }
 
 function navButton(view, label, active, iconName) { return `<button data-view="${view}" class="${view === active ? "active" : ""}">${icon(iconName)}<span>${label}</span></button>`; }
 function mobileNavButton(view, iconName, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}" aria-label="${label}" title="${label}"><span class="nav-icon">${icon(iconName)}</span><span class="nav-label">${label}</span></button>`; }
-function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: currentUser.role === "CLIENT" ? "Rapports" : "Interventions", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe" })[view] || "Intervium"; }
+function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: currentUser.role === "CLIENT" ? "Rapports" : "Interventions", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
         (currentUser.role === "TECHNICIEN" && ["interventions", "planning"].includes(view));
@@ -499,6 +511,7 @@ function renderView(view) {
     if (view === "equipements") return renderEquipements();
     if (view === "modeles") return renderTemplates();
     if (view === "documents") return renderDocuments();
+    if (view === "activity") return `<section class="panel"><div class="table-tools"><select id="activity-type"><option value="">Toutes les ressources</option><option value="client">Clients</option><option value="equipement">Équipements</option><option value="intervention">Interventions</option><option value="document">Documents</option><option value="modele">Modèles</option><option value="utilisateur">Utilisateurs</option></select><button class="secondary" id="activity-refresh">Actualiser</button></div><div id="activity-list" class="activity-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div></section>`;
     return renderTeam();
 }
 
@@ -582,16 +595,117 @@ function bindMainActions(view) {
     bindDeletes("client", "/clients", "clients");
     bindDeletes("equipment", "/equipements", "equipements");
     bindTeamActions();
+    if (view === "activity") bindActivityView();
+    enhanceBusinessTables(view);
+}
+
+function enhanceBusinessTables(view) {
+    document.querySelectorAll("#view .table-wrap").forEach((wrap, tableIndex) => {
+        const table = wrap.querySelector("table");
+        const rows = [...table?.tBodies?.[0]?.rows || []];
+        if (!table || rows.length < 2 || wrap.dataset.enhanced) return;
+        wrap.dataset.enhanced = "true";
+        const storageKey = `intervium_table:${view}:${tableIndex}`;
+        let saved = {}; try { saved = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch {}
+        let page = 1; const pageSize = 10; let sortIndex = Number.isInteger(saved.sortIndex) ? saved.sortIndex : -1; let direction = saved.direction || "asc";
+        const tools = document.createElement("div"); tools.className = "table-tools";
+        tools.innerHTML = `<label class="sr-only" for="table-search-${tableIndex}">Filtrer ce tableau</label><input id="table-search-${tableIndex}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(saved.query || "")}"><button class="secondary" type="button">Réinitialiser</button>`;
+        wrap.before(tools);
+        const pager = document.createElement("div"); pager.className = "pagination"; wrap.after(pager);
+        const search = tools.querySelector("input");
+        const render = () => {
+            const query = search.value.trim().toLocaleLowerCase("fr");
+            let filtered = rows.filter((row) => row.textContent.toLocaleLowerCase("fr").includes(query));
+            if (sortIndex >= 0) filtered.sort((a, b) => a.cells[sortIndex].textContent.trim().localeCompare(b.cells[sortIndex].textContent.trim(), "fr", { numeric: true }) * (direction === "asc" ? 1 : -1));
+            const pages = Math.max(1, Math.ceil(filtered.length / pageSize)); page = Math.min(page, pages);
+            rows.forEach((row) => { row.hidden = true; }); filtered.slice((page - 1) * pageSize, page * pageSize).forEach((row) => { row.hidden = false; row.parentElement.append(row); });
+            pager.innerHTML = `<button class="secondary" type="button" data-page="prev" ${page === 1 ? "disabled" : ""}>Précédent</button><span>${filtered.length ? `${filtered.length} résultat(s) · page ${page}/${pages}` : "Aucun résultat"}</span><button class="secondary" type="button" data-page="next" ${page === pages ? "disabled" : ""}>Suivant</button>`;
+            pager.querySelector('[data-page="prev"]')?.addEventListener("click", () => { page -= 1; render(); }); pager.querySelector('[data-page="next"]')?.addEventListener("click", () => { page += 1; render(); });
+            try { sessionStorage.setItem(storageKey, JSON.stringify({ query: search.value, sortIndex, direction })); } catch {}
+        };
+        let timer; search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { page = 1; render(); }, 250); });
+        tools.querySelector("button").addEventListener("click", () => { search.value = ""; sortIndex = -1; page = 1; render(); });
+        [...table.tHead?.rows?.[0]?.cells || []].forEach((header, index) => { if (/actions?/i.test(header.textContent)) return; header.tabIndex = 0; header.title = "Trier cette colonne"; header.addEventListener("click", () => { direction = sortIndex === index && direction === "asc" ? "desc" : "asc"; sortIndex = index; page = 1; render(); }); header.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); header.click(); } }); });
+        render();
+    });
+}
+
+async function bindActivityView(page = 1) {
+    const type = document.getElementById("activity-type")?.value || "";
+    try {
+        const result = await api(`/activity?page=${page}&limit=25${type ? `&type=${encodeURIComponent(type)}` : ""}`);
+        const list = document.getElementById("activity-list"); if (!list) return;
+        list.innerHTML = result.items.length ? result.items.map((item) => `<article class="activity-item"><span><strong>${escapeHtml(item.resume)}</strong><small>${escapeHtml(item.utilisateur_nom || "Utilisateur supprimé")} · ${escapeHtml(item.utilisateur_role || "—")} · ${new Date(item.created_at).toLocaleString("fr-FR")}</small></span><span class="badge">${escapeHtml(item.ressource_type)}</span></article>`).join("") + `<div class="pagination"><button class="secondary" data-activity-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>Précédent</button><span>Page ${page} / ${Math.max(1, result.pagination.pages)}</span><button class="secondary" data-activity-page="${page + 1}" ${page >= result.pagination.pages ? "disabled" : ""}>Suivant</button></div>` : `<div class="empty">Aucune activité enregistrée.</div>`;
+        list.querySelectorAll("[data-activity-page]").forEach((button) => button.addEventListener("click", () => bindActivityView(Number(button.dataset.activityPage))));
+    } catch (error) { document.getElementById("activity-list").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
+    document.getElementById("activity-type")?.addEventListener("change", () => bindActivityView(1), { once: true });
+    document.getElementById("activity-refresh")?.addEventListener("click", () => bindActivityView(page), { once: true });
 }
 
 function openMoreMenu() {
     const items = [
         ["equipements", "equipment", "Équipements"],
         ["modeles", "template", "Modèles de rapport"],
-        ...(currentUser.role === "ADMIN" ? [["documents", "documents", "Devis & factures"], ["equipe", "team", "Équipe"]] : []),
+        ...(currentUser.role === "ADMIN" ? [["documents", "documents", "Devis & factures"], ["equipe", "team", "Équipe"], ["activity", "history", "Historique"]] : []),
     ];
     modal("Plus de rubriques", `<div class="more-menu">${items.map(([view, iconName, label]) => `<button class="secondary" data-more-view="${view}">${icon(iconName)} ${label}</button>`).join("")}</div>`);
     document.querySelectorAll("[data-more-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.moreView)));
+}
+
+function openGlobalSearch() {
+    modal("Recherche globale", `<div class="field"><label for="global-search-input">Rechercher dans votre espace</label><input id="global-search-input" type="search" autocomplete="off" placeholder="Client, équipement, intervention, document…"></div><div id="global-search-results" class="search-results"><div class="empty">Saisissez au moins 2 caractères.</div></div>`);
+    const input = document.getElementById("global-search-input");
+    input.addEventListener("input", () => {
+        clearTimeout(globalSearchTimer);
+        const query = input.value.trim();
+        if (query.length < 2) { document.getElementById("global-search-results").innerHTML = `<div class="empty">Saisissez au moins 2 caractères.</div>`; return; }
+        document.getElementById("global-search-results").innerHTML = `<div class="empty"><span class="spinner"></span> Recherche…</div>`;
+        globalSearchTimer = setTimeout(async () => {
+            try {
+                const result = await api(`/search?q=${encodeURIComponent(query)}`);
+                const target = document.getElementById("global-search-results");
+                if (!target) return;
+                target.innerHTML = result.items.length ? result.items.map((item) => `<button class="search-result" data-search-type="${escapeHtml(item.type)}" data-search-id="${item.id}"><span><strong>${escapeHtml(item.titre)}</strong><small>${escapeHtml(item.sous_titre || item.type)}</small></span><span class="badge">${escapeHtml(item.type)}</span></button>`).join("") : `<div class="empty">Aucun résultat.</div>`;
+                target.querySelectorAll("[data-search-type]").forEach((button) => button.addEventListener("click", () => openSearchResult(button.dataset.searchType, button.dataset.searchId)));
+            } catch (error) { document.getElementById("global-search-results").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
+        }, 350);
+    });
+}
+
+function openSearchResult(type, id) {
+    closeModal();
+    if (["intervention", "rapport"].includes(type)) { navigateTo("interventions"); return setTimeout(() => openIntervention(id), 0); }
+    if (type === "client") { navigateTo("clients"); return setTimeout(() => openClientDetails(id), 0); }
+    if (["devis", "facture"].includes(type)) { navigateTo("documents"); return setTimeout(() => openDocumentDetails(id), 0); }
+    navigateTo("equipements");
+}
+
+async function refreshNotificationCount() {
+    try {
+        const result = await api("/notifications?limit=10&unread=true");
+        const badge = document.getElementById("notification-count");
+        if (!badge) return;
+        badge.textContent = result.unread > 99 ? "99+" : String(result.unread);
+        badge.classList.toggle("hidden", !result.unread);
+    } catch { /* Le centre reste discret si la migration n'est pas encore déployée. */ }
+}
+
+async function openNotifications() {
+    modal("Notifications", `<div class="panel-head"><label><input id="notifications-unread" type="checkbox"> Non lues uniquement</label><button class="secondary" id="read-all-notifications">Tout marquer comme lu</button></div><div id="notifications-list" class="notification-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div>`);
+    const load = async () => {
+        try {
+            const unread = document.getElementById("notifications-unread")?.checked;
+            const result = await api(`/notifications?limit=30${unread ? "&unread=true" : ""}`);
+            const list = document.getElementById("notifications-list");
+            if (!list) return;
+            list.innerHTML = result.items.length ? result.items.map((item) => `<button class="notification-item ${item.lu_at ? "" : "unread"}" data-notification-id="${item.id}" data-resource-type="${escapeHtml(item.ressource_type || "")}" data-resource-id="${item.ressource_id || ""}"><span><strong>${escapeHtml(item.titre)}</strong><small>${escapeHtml(item.message)}</small><small>${new Date(item.created_at).toLocaleString("fr-FR")}</small></span></button>`).join("") : `<div class="empty">Aucune notification.</div>`;
+            list.querySelectorAll("[data-notification-id]").forEach((button) => button.addEventListener("click", async () => { await api(`/notifications/${button.dataset.notificationId}/read`, { method: "PATCH" }); openSearchResult(button.dataset.resourceType, button.dataset.resourceId); }));
+            refreshNotificationCount();
+        } catch (error) { document.getElementById("notifications-list").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
+    };
+    document.getElementById("notifications-unread").addEventListener("change", load);
+    document.getElementById("read-all-notifications").addEventListener("click", async () => { await api("/notifications/read-all", { method: "POST" }); await load(); });
+    await load();
 }
 
 function bindDeletes(name, path, view) {
@@ -662,6 +776,7 @@ function openSettings() {
         <p class="muted">Cette préférence visuelle est enregistrée uniquement sur cet appareil.</p>
         ${pwaSettings}
         ${companySettings}
+        <section class="settings-intro" aria-labelledby="about-intervium"><strong id="about-intervium">À propos</strong><p>Intervium — gestion des interventions, rapports et documents métier.</p><p class="muted">Conçu par Sylvain Lecoeuvre</p></section>
     `);
 
     document.querySelectorAll('input[name="visual-theme"]').forEach((input) => input.addEventListener("change", (event) => {
@@ -761,6 +876,7 @@ function openTemplateEditor(id = null) {
       <div class="field"><label for="template-description">Description</label><textarea id="template-description" rows="2">${escapeHtml(existing?.description || "")}</textarea></div>
       <div class="builder-palette">${TEMPLATE_FIELD_TYPES.map(([type, label]) => `<button type="button" class="secondary" data-add-template-field="${type}">＋ ${label}</button>`).join("")}</div>
       <div id="template-fields" class="template-fields"></div>
+      <details class="template-preview"><summary>Configuration du PDF</summary><div class="grid2"><div class="field"><label for="pdf-margin">Marges (24 à 90 pt)</label><input id="pdf-margin" type="number" min="24" max="90" value="${existing?.pdf_config?.margin || 48}"></div><div class="field"><label for="pdf-title-size">Taille du titre</label><input id="pdf-title-size" type="number" min="14" max="28" value="${existing?.pdf_config?.titleSize || 20}"></div></div><div class="checkbox-options"><label><input id="pdf-show-header" type="checkbox" ${existing?.pdf_config?.showHeader !== false ? "checked" : ""}> Afficher l’en-tête</label><label><input id="pdf-show-client" type="checkbox" ${existing?.pdf_config?.showClient !== false ? "checked" : ""}> Informations client</label><label><input id="pdf-show-equipment" type="checkbox" ${existing?.pdf_config?.showEquipment !== false ? "checked" : ""}> Équipements</label><label><input id="pdf-show-photos" type="checkbox" ${existing?.pdf_config?.showPhotos !== false ? "checked" : ""}> Photos</label><label><input id="pdf-show-signature" type="checkbox" ${existing?.pdf_config?.showSignature !== false ? "checked" : ""}> Signature</label><label><input id="pdf-show-pages" type="checkbox" ${existing?.pdf_config?.showPageNumbers !== false ? "checked" : ""}> Numéros de page</label></div><div class="field"><label for="pdf-footer">Pied de page</label><input id="pdf-footer" maxlength="240" value="${escapeHtml(existing?.pdf_config?.footerText || "")}"></div></details>
       <button class="primary wide" type="submit">${existing ? "Enregistrer le modèle" : "Créer le modèle"}</button>
     </form><details class="template-preview"><summary>Prévisualiser le formulaire</summary><div id="template-preview" inert></div></details>`);
     renderTemplateDraft();
@@ -829,8 +945,8 @@ function templateSpecificConfiguration(section, index) {
 function renderTemplateDraft() {
     const container = document.getElementById("template-fields");
     if (!container) return;
-    container.innerHTML = templateDraftSections.length ? templateDraftSections.map((section, index) => `<article class="template-field-row">
-      <div class="template-field-toolbar"><strong>Bloc ${index + 1}</strong><span class="muted">Clé : ${escapeHtml(section.key)}</span></div>
+    container.innerHTML = templateDraftSections.length ? templateDraftSections.map((section, index) => `<article class="template-field-row" draggable="true" data-template-drag-index="${index}">
+      <div class="template-field-toolbar"><strong class="drag-handle" title="Glisser pour réordonner">${icon("more")} Bloc ${index + 1}</strong><span class="muted">Clé : ${escapeHtml(section.key)}</span></div>
       <div class="template-field-config">
         <div class="field"><label>Libellé affiché</label><input data-template-property="label" data-template-index="${index}" value="${escapeHtml(section.label)}" maxlength="150"></div>
         <div class="field"><label>Type de bloc</label><select data-template-type="${index}">${TEMPLATE_FIELD_TYPES.map(([type, label]) => `<option value="${type}" ${type === section.type ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></div>
@@ -863,6 +979,13 @@ function renderTemplateDraft() {
     container.querySelectorAll("[data-move-template-up]").forEach((button) => button.addEventListener("click", () => moveTemplateField(Number(button.dataset.moveTemplateUp), -1)));
     container.querySelectorAll("[data-move-template-down]").forEach((button) => button.addEventListener("click", () => moveTemplateField(Number(button.dataset.moveTemplateDown), 1)));
     container.querySelectorAll("[data-remove-template-field]").forEach((button) => button.addEventListener("click", () => { templateDraftSections.splice(Number(button.dataset.removeTemplateField), 1); renderTemplateDraft(); }));
+    let draggedIndex = null;
+    container.querySelectorAll("[data-template-drag-index]").forEach((row) => {
+        row.addEventListener("dragstart", (event) => { draggedIndex = Number(row.dataset.templateDragIndex); row.classList.add("is-dragging"); event.dataTransfer.effectAllowed = "move"; });
+        row.addEventListener("dragend", () => row.classList.remove("is-dragging"));
+        row.addEventListener("dragover", (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; });
+        row.addEventListener("drop", (event) => { event.preventDefault(); const target = Number(row.dataset.templateDragIndex); if (draggedIndex === null || target === draggedIndex) return; const [moved] = templateDraftSections.splice(draggedIndex, 1); templateDraftSections.splice(target, 0, moved); renderTemplateDraft(); });
+    });
     renderTemplatePreview();
 }
 
@@ -895,6 +1018,17 @@ async function saveTemplate(event, existing) {
                 nom: document.getElementById("template-name").value.trim(),
                 description: document.getElementById("template-description").value.trim() || null,
                 sections: templateDraftSections,
+                pdf_config: {
+                    margin: Number(document.getElementById("pdf-margin").value),
+                    titleSize: Number(document.getElementById("pdf-title-size").value),
+                    showHeader: document.getElementById("pdf-show-header").checked,
+                    showClient: document.getElementById("pdf-show-client").checked,
+                    showEquipment: document.getElementById("pdf-show-equipment").checked,
+                    showPhotos: document.getElementById("pdf-show-photos").checked,
+                    showSignature: document.getElementById("pdf-show-signature").checked,
+                    showPageNumbers: document.getElementById("pdf-show-pages").checked,
+                    footerText: document.getElementById("pdf-footer").value.trim(),
+                },
                 actif: true,
             };
             await api(existing ? `/modeles/${existing.id}` : "/modeles", { method: existing ? "PUT" : "POST", body: JSON.stringify(payload) });
@@ -1338,33 +1472,41 @@ function openIntervention(id) {
     const selectedTemplateId = item.modele_rapport_id || (item.modele_rapport_sections?.length ? "__snapshot__" : "");
     const templateSelector = `<div class="field"><label>Modèle de rapport</label><select id="edit-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${selectedTemplateId === "__snapshot__" ? `<option value="__snapshot__" selected>${escapeHtml(item.modele_rapport_nom || "Modèle supprimé")} (contenu conservé)</option>` : ""}${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}" ${String(template.id) === String(selectedTemplateId) ? "selected" : ""}>${escapeHtml(template.nom)}</option>`).join("")}</select></div>`;
     const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${field("Titre", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
+    const localDraft = loadReportDraft(item);
     const customReportFields = Array.isArray(item.modele_rapport_sections) && item.modele_rapport_sections.length
-        ? renderReportFields(item, item.donnees_rapport || {})
+        ? renderReportFields(item, localDraft?.payload?.donnees_rapport || item.donnees_rapport || {})
         : "";
-    modal("Rapport d’intervention", `<form id="edit-intervention-form">
+    modal("Rapport d’intervention", `<form id="edit-intervention-form" data-intervention-id="${item.id}">
       <p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p>
       ${adminFields}
       <div class="field"><label>Statut</label><select name="statut">${["PLANIFIEE","EN_COURS","TERMINEE","ANNULEE"].map((s) => `<option value="${s}" ${s === item.statut ? "selected" : ""}>${statusLabel(s)}</option>`).join("")}</select></div>
       <div class="field"><label>Compte-rendu</label><textarea name="compte_rendu" rows="5">${escapeHtml(item.compte_rendu || "")}</textarea></div>
       <div id="edit-report-fields">${customReportFields}</div>
+      <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
     </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
     <div class="field"><label>Signature client</label><canvas id="signature-canvas" class="canvas"></canvas><div class="actions"><button class="secondary" id="clear-signature">Effacer</button><button class="primary" id="upload-signature">Enregistrer la signature</button></div></div>
     ${mediaGallery(item)}${pdfButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
+    restoreReportDraft(item, document.getElementById("edit-intervention-form"));
+    bindReportAutosave(item, document.getElementById("edit-intervention-form"));
 
     document.getElementById("edit-intervention-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
         const submitButton = form.querySelector("button[type='submit'], button:not([type])");
         const values = Object.fromEntries(new FormData(form));
+        values.expected_version = item.report_version || 1;
         if (values.modele_rapport_id === "__snapshot__") delete values.modele_rapport_id;
         for (const key of Object.keys(values)) if (values[key] === "") values[key] = null;
         if (form.querySelector("[data-report-key]")) values.donnees_rapport = collectReportData(form);
         await withBusy(submitButton, async () => {
             try {
-                await api(`/interventions/${id}`, { method: "PUT", body: JSON.stringify(values) });
+                const updated = await api(`/interventions/${id}`, { method: "PUT", body: JSON.stringify(values) });
+                item.report_version = updated.report_version;
+                clearReportDraft(item.id);
+                reportAutosavePending = false;
                 closeModal();
                 await finishMutation("interventions", "Rapport enregistré.");
             } catch (error) { toast(error.message, true); }
@@ -1388,6 +1530,70 @@ function openIntervention(id) {
     bindMediaActions(item);
     bindPdfDownload();
 }
+
+function reportDraftKey(id) { return `intervium_report_draft:${currentEntreprise?.id || currentUser?.entreprise_id}:${currentUser?.id}:${id}`; }
+function loadReportDraft(item) { try { const draft = JSON.parse(localStorage.getItem(reportDraftKey(item.id)) || "null"); return draft?.payload && Number(draft.version) === Number(item.report_version || 1) ? draft : null; } catch { return null; } }
+function clearReportDraft(id) { try { localStorage.removeItem(reportDraftKey(id)); } catch {} }
+function setAutosaveStatus(state, label) {
+    const node = document.getElementById("report-autosave-status"); if (!node) return;
+    node.className = `autosave-status ${state}`;
+    node.innerHTML = `${state === "saving" ? '<span class="spinner"></span>' : icon(state === "saved" ? "check" : "alert")} ${escapeHtml(label)}`;
+}
+function currentReportPayload(form) {
+    const data = Object.fromEntries(new FormData(form));
+    return { statut: data.statut, compte_rendu: data.compte_rendu || null, donnees_rapport: collectReportData(form) };
+}
+function persistReportDraft(item, payload) {
+    try { localStorage.setItem(reportDraftKey(item.id), JSON.stringify({ interventionId: item.id, version: item.report_version || 1, payload, savedAt: new Date().toISOString() })); } catch {}
+}
+function restoreReportDraft(item, form) {
+    const draft = loadReportDraft(item);
+    if (!draft) return;
+    if (draft.payload.statut && form.elements.statut) form.elements.statut.value = draft.payload.statut;
+    if (form.elements.compte_rendu && draft.payload.compte_rendu !== null) form.elements.compte_rendu.value = draft.payload.compte_rendu;
+    Object.entries(draft.payload.donnees_rapport || {}).forEach(([key, value]) => {
+        const input = form.querySelector(`[data-report-key="${CSS.escape(key)}"]`);
+        if (input && !Array.isArray(value)) input.value = value ?? "";
+    });
+    reportAutosavePending = true;
+    setAutosaveStatus("dirty", "Brouillon local restauré");
+}
+function bindReportAutosave(item, form) {
+    const schedule = (event) => {
+        const target = event.target;
+        const reportInput = target.matches('[name="statut"],[name="compte_rendu"],[data-report-key],[data-report-checkbox-group],[data-table-column]');
+        if (!reportInput) return;
+        reportAutosavePending = true;
+        const payload = currentReportPayload(form);
+        persistReportDraft(item, payload);
+        setAutosaveStatus("dirty", "Modifications non enregistrées");
+        clearTimeout(reportAutosaveTimer);
+        reportAutosaveTimer = setTimeout(() => saveReportDraft(item, form), 1200);
+    };
+    form.addEventListener("input", schedule);
+    form.addEventListener("change", schedule);
+}
+async function saveReportDraft(item, form) {
+    if (!document.body.contains(form) || !reportAutosavePending) return;
+    const payload = { ...currentReportPayload(form), expected_version: item.report_version || 1 };
+    setAutosaveStatus("saving", "Enregistrement…");
+    try {
+        const updated = await api(`/interventions/${item.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        item.report_version = updated.report_version;
+        item.statut = updated.statut;
+        item.compte_rendu = updated.compte_rendu;
+        item.donnees_rapport = updated.donnees_rapport;
+        reportAutosavePending = false;
+        clearReportDraft(item.id);
+        setAutosaveStatus("saved", "Enregistré");
+    } catch (error) {
+        persistReportDraft(item, payload);
+        setAutosaveStatus("error", error.code === "REPORT_VERSION_CONFLICT" ? "Conflit : rechargez le rapport" : "Erreur de sauvegarde — brouillon conservé");
+    }
+}
+
+window.addEventListener("beforeunload", (event) => { if (reportAutosavePending) { event.preventDefault(); event.returnValue = ""; } });
+window.addEventListener("online", () => { const form = document.getElementById("edit-intervention-form"); const item = interventions.find((entry) => String(entry.id) === String(form?.dataset.interventionId)); if (form && item && loadReportDraft(item)) saveReportDraft(item, form); });
 
 async function uploadPhoto(id) {
     const item = interventions.find((entry) => String(entry.id) === String(id));

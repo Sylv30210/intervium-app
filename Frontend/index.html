@@ -15,7 +15,7 @@
     <title>Intervium</title>
     <script>
         try {
-            const theme = localStorage.getItem("intervium_visual_theme");
+            const theme = localStorage.getItem("noverys_visual_theme") || localStorage.getItem("intervium_visual_theme");
             if (["glass", "dark"].includes(theme)) {
                 document.documentElement.dataset.theme = theme;
                 document.documentElement.classList.add(`theme-${theme}`);

@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 import { removeStoredUpload } from "../services/storage.js";
 
 const router = express.Router();
@@ -228,6 +229,7 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
                 adresse,
             ]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "client", resourceId: result.rows[0].id, summary: `Client « ${result.rows[0].nom} » créé.` });
         return res.status(201).json(result.rows[0]);
     } catch (error) {
         if (error.code === "23505") {
@@ -292,6 +294,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
             values
         );
         if (result.rowCount === 0) return res.status(404).json({ error: "Client introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "client", resourceId: id, summary: `Client « ${result.rows[0].nom} » modifié.` });
         return res.json(result.rows[0]);
     } catch (error) {
         if (error.code === "23505") {
@@ -340,6 +343,7 @@ router.delete("/:id", requireRole(["ADMIN"]), async (req, res) => {
             "DELETE FROM clients WHERE id = $1 AND entreprise_id = $2",
             [id, req.user.entreprise_id]
         );
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "client", resourceId: id, summary: `Client ${id} supprimé.`, client });
         await client.query("COMMIT");
         const mediaUrls = mediaResult.rows.flatMap((row) => [row.signature_url, row.photo_url]);
         await Promise.all(mediaUrls.map(removeStoredUpload));

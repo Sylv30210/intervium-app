@@ -1,0 +1,16 @@
+{
+  "name": "intervium-app",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Application SaaS de gestion d'interventions, rapports et documents métier.",
+  "scripts": {
+    "postinstall": "npm --prefix Backend install",
+    "start": "npm --prefix Backend start",
+    "dev": "npm --prefix Backend run dev",
+    "migrate": "npm --prefix Backend run migrate",
+    "check": "node --check Frontend/app.js && node --check Frontend/sw.js && node --check Backend/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

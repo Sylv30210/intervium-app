@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 import { COOKIE_NAME, optionalAuth, requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 
 const router = express.Router();
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -287,6 +288,7 @@ router.post("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
              RETURNING id, entreprise_id, nom, email, role, actif, created_at, updated_at`,
             [req.user.entreprise_id, nom, email, hashedPassword]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "utilisateur", resourceId: result.rows[0].id, summary: `Technicien « ${result.rows[0].nom} » ajouté.` });
         return res.status(201).json({ user: result.rows[0] });
     } catch (error) {
         if (error.code === "23505") {
@@ -374,6 +376,7 @@ router.delete("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res
             throw new Error("La suppression du technicien n'a pas été confirmée.");
         }
 
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "utilisateur", resourceId: id, summary: `Technicien « ${deleted.rows[0].nom} » supprimé définitivement.`, client });
         await client.query("COMMIT");
         return res.json({
             deleted: true,

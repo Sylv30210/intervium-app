@@ -1,6 +1,7 @@
 import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 
 const router = express.Router();
 router.use(verifyToken, requireRole(["ADMIN"]));
@@ -94,6 +95,7 @@ router.post("/", async (req, res) => {
             "UPDATE documents_commerciaux SET numero = $1 WHERE id = $2 RETURNING *",
             [numero, document.id]
         );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "document", resourceId: result.rows[0].id, summary: `${result.rows[0].type} « ${result.rows[0].numero} » créé.`, client });
         await client.query("COMMIT");
         return res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -124,6 +126,7 @@ router.put("/:id", async (req, res) => {
                 data.totalHt, data.totalTva, data.totalTtc, id, req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Document ou client introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "document", resourceId: id, summary: `Document « ${result.rows[0].numero || id} » modifié.` });
         return res.json(result.rows[0]);
     } catch (error) {
         console.error("Échec de la modification du document", error);
@@ -142,6 +145,7 @@ router.delete("/:id", async (req, res) => {
             [id, req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Document introuvable dans cette entreprise." });
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "document", resourceId: id, summary: `Document ${id} supprimé.` });
         return res.status(204).send();
     } catch (error) {
         console.error("Échec de la suppression du document", error);
