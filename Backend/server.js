@@ -75,7 +75,7 @@ app.use("/api", (_req, res, next) => {
     next();
 });
 app.use("/api", verifyRequestOrigin);
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 async function authorizeLocalMedia(req, res, next) {
     const match = req.path.match(/^\/(photos|signatures|logos)\/([a-zA-Z0-9._-]+)$/);

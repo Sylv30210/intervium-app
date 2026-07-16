@@ -4,6 +4,7 @@ import { requireRole, verifyToken } from "../middleware/auth.js";
 import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
+import { emailDeliveryConfigured, sendReportEmail } from "../services/email.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -182,7 +183,7 @@ router.get("/", async (req, res) => {
                     i.report_version,
                     i.created_at, i.updated_at,
                     c.nom AS client_nom,
-                    eq.type AS equipement_type,
+                    eq.type AS equipement_type, eq.marque AS equipement_marque,
                     eq.modele AS equipement_modele,
                     eq.numero_serie AS equipement_numero_serie,
                     u.nom AS technicien_nom,
@@ -204,7 +205,7 @@ router.get("/", async (req, res) => {
              LEFT JOIN (
                  SELECT entreprise_id, intervention_id,
                         COUNT(*) AS nombre_photos,
-                        JSON_AGG(JSON_BUILD_OBJECT('id', id, 'url', url) ORDER BY created_at ASC) AS photos
+                        JSON_AGG(JSON_BUILD_OBJECT('id', id, 'url', url, 'rotation', rotation) ORDER BY created_at ASC) AS photos
                  FROM photos
                  GROUP BY entreprise_id, intervention_id
              ) p ON p.intervention_id = i.id AND p.entreprise_id = i.entreprise_id
@@ -359,14 +360,14 @@ router.get("/:id/pdf", async (req, res) => {
 
         const [equipmentResult, photoResult] = await Promise.all([
             pool.query(
-                `SELECT type, modele, numero_serie, date_installation
+                `SELECT type, marque, modele, numero_serie, annee_installation
                  FROM equipements
                  WHERE id = $1 AND client_id = $2 AND entreprise_id = $3
                  ORDER BY id ASC`,
                 [intervention.equipement_id, intervention.client_id, req.user.entreprise_id]
             ),
             pool.query(
-                `SELECT id, url FROM photos
+                `SELECT id, url, rotation FROM photos
                  WHERE intervention_id = $1 AND entreprise_id = $2
                  ORDER BY created_at ASC, id ASC`,
                 [id, req.user.entreprise_id]
@@ -397,6 +398,62 @@ router.get("/:id/pdf", async (req, res) => {
     } catch (error) {
         console.error("Échec de la génération PDF", error);
         return res.status(500).json({ error: "Impossible de générer le rapport PDF." });
+    }
+});
+
+router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
+    const id = positiveId(req.params.id);
+    const recipients = Array.isArray(req.body.recipients)
+        ? [...new Set(req.body.recipients.map((email) => typeof email === "string" ? email.trim().toLowerCase() : "").filter(Boolean))]
+        : [];
+    if (!id || !recipients.length || recipients.length > 20 || recipients.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+        return res.status(400).json({ error: "Sélection de destinataires invalide." });
+    }
+    if (!emailDeliveryConfigured()) return res.status(503).json({ error: "L’envoi d’e-mails n’est pas encore configuré sur le serveur." });
+    try {
+        const result = await pool.query(
+            `SELECT i.*, e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
+                    e.report_settings AS entreprise_report_settings,
+                    c.nom AS client_nom, c.adresse AS client_adresse, c.report_emails,
+                    u.nom AS technicien_nom,
+                    COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
+                    COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
+                    COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config
+             FROM interventions i
+             JOIN entreprises e ON e.id = i.entreprise_id
+             JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+             LEFT JOIN utilisateurs u ON u.id = i.technicien_id AND u.entreprise_id = i.entreprise_id
+             LEFT JOIN modeles_rapport m ON m.id = i.modele_rapport_id AND m.entreprise_id = i.entreprise_id
+             WHERE i.id = $1 AND i.entreprise_id = $2
+               AND ($3 = 'ADMIN' OR i.technicien_id = $4)`,
+            [id, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        const intervention = result.rows[0];
+        if (!intervention) return res.status(404).json({ error: "Rapport introuvable." });
+        const allowedEmails = new Set([...(intervention.report_emails || []), ...(Array.isArray(req.body.free_recipients) ? req.body.free_recipients : [])].map((email) => String(email).trim().toLowerCase()));
+        if (recipients.some((email) => !allowedEmails.has(email))) return res.status(400).json({ error: "Un destinataire n’est ni enregistré ni confirmé comme adresse libre." });
+        const [equipmentResult, photoResult] = await Promise.all([
+            pool.query("SELECT type, marque, modele, numero_serie, annee_installation FROM equipements WHERE id = $1 AND client_id = $2 AND entreprise_id = $3", [intervention.equipement_id, intervention.client_id, req.user.entreprise_id]),
+            pool.query("SELECT id, url, rotation FROM photos WHERE intervention_id = $1 AND entreprise_id = $2 ORDER BY created_at ASC, id ASC", [id, req.user.entreprise_id]),
+        ]);
+        const selectedIds = Array.isArray(req.body.photo_ids) ? req.body.photo_ids.map(Number) : null;
+        const photos = selectedIds ? photoResult.rows.filter((photo) => selectedIds.includes(Number(photo.id))) : photoResult.rows;
+        const pdf = await generateInterventionPdf({ intervention, equipments: equipmentResult.rows, photos });
+        const settings = intervention.entreprise_report_settings || {};
+        await sendReportEmail({
+            to: recipients,
+            subject: req.body.subject?.trim() || `Rapport ${intervention.titre}`,
+            text: req.body.message?.trim() || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${intervention.titre} ».\n\nCordialement,\n${settings.display_name || intervention.entreprise_nom}`,
+            pdf,
+            filename: `rapport-${id}.pdf`,
+            companyName: settings.display_name || intervention.entreprise_nom,
+            companyEmail: settings.email || null,
+        });
+        await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s).` });
+        return res.json({ sent: true, recipients });
+    } catch (error) {
+        console.error("Échec de l’envoi du rapport", error);
+        return res.status(502).json({ error: "Impossible d’envoyer le rapport par e-mail." });
     }
 });
 

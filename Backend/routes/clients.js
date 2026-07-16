@@ -25,6 +25,13 @@ function validEmail(value) {
     return value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function reportEmails(value, fallback = null) {
+    if (value === undefined) return fallback;
+    if (!Array.isArray(value)) return undefined;
+    const emails = [...new Set(value.map((email) => typeof email === "string" ? email.trim().toLowerCase() : "").filter(Boolean))];
+    return emails.length <= 20 && emails.every((email) => email.length <= 254 && validEmail(email)) ? emails : undefined;
+}
+
 async function validClientUser(utilisateurId, entrepriseId) {
     if (utilisateurId === null) return true;
     const result = await pool.query(
@@ -51,7 +58,7 @@ async function accessibleClient(clientId, user) {
     }
 
     const result = await pool.query(
-        `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email,
+        `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email, c.report_emails,
                 c.telephone, c.adresse, c.created_at, c.updated_at,
                 u.nom AS utilisateur_nom
          FROM clients c
@@ -80,7 +87,7 @@ router.get("/", async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email,
+            `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email, c.report_emails,
                     c.telephone, c.adresse, c.created_at, c.updated_at,
                     u.nom AS utilisateur_nom
              FROM clients c
@@ -122,8 +129,8 @@ router.get("/:id", async (req, res) => {
 
         const [equipmentResult, interventionResult, documentResult] = await Promise.all([
             pool.query(
-                `SELECT e.id, e.client_id, e.type, e.modele, e.numero_serie,
-                        e.date_installation, e.created_at, e.updated_at,
+                `SELECT e.id, e.client_id, e.type, e.marque, e.modele, e.numero_serie,
+                        e.date_installation, e.annee_installation, e.created_at, e.updated_at,
                         last_i.id AS derniere_intervention_id,
                         last_i.titre AS derniere_intervention_titre,
                         last_i.date_intervention AS derniere_intervention_date,
@@ -209,22 +216,25 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
         }
 
         const email = optionalText(req.body.email, 254) ?? null;
+        const emails = reportEmails(req.body.report_emails, email ? [email.toLowerCase()] : []);
         const telephone = optionalText(req.body.telephone, 30) ?? null;
         const adresse = optionalText(req.body.adresse, 2000) ?? null;
         if (!validEmail(email) || (req.body.email !== undefined && email === null && String(req.body.email).trim())) return res.status(400).json({ error: "Adresse email invalide ou trop longue." });
+        if (emails === undefined) return res.status(400).json({ error: "Liste d’adresses email invalide (20 maximum)." });
         if (req.body.telephone !== undefined && telephone === null && String(req.body.telephone).trim()) return res.status(400).json({ error: "Téléphone invalide ou trop long." });
         if (req.body.adresse !== undefined && adresse === null && String(req.body.adresse).trim()) return res.status(400).json({ error: "Adresse invalide ou trop longue." });
 
         const result = await pool.query(
             `INSERT INTO clients
-                (entreprise_id, utilisateur_id, nom, email, telephone, adresse)
-             VALUES ($1, $2, $3, $4, $5, $6)
+                (entreprise_id, utilisateur_id, nom, email, report_emails, telephone, adresse)
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
              RETURNING *`,
             [
                 req.user.entreprise_id,
                 utilisateurId,
                 nom,
                 email,
+                JSON.stringify(emails),
                 telephone,
                 adresse,
             ]
@@ -244,7 +254,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
     const id = positiveId(req.params.id);
     if (!id) return res.status(400).json({ error: "Identifiant client invalide." });
 
-    const allowed = ["nom", "email", "telephone", "adresse", "utilisateur_id"];
+    const allowed = ["nom", "email", "report_emails", "telephone", "adresse", "utilisateur_id"];
     const supplied = allowed.filter((field) => Object.hasOwn(req.body, field));
     if (supplied.length === 0) {
         return res.status(400).json({ error: "Aucun champ modifiable fourni." });
@@ -263,6 +273,10 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
         } else if (field === "nom") {
             value = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
             if (!value || value.length > 150) return res.status(400).json({ error: "Le nom doit contenir entre 1 et 150 caractères." });
+        } else if (field === "report_emails") {
+            value = reportEmails(req.body[field]);
+            if (value === undefined) return res.status(400).json({ error: "Liste d’adresses email invalide (20 maximum)." });
+            value = JSON.stringify(value);
         } else {
             const limits = { email: 254, telephone: 30, adresse: 2000 };
             value = optionalText(req.body[field], limits[field]);
@@ -274,7 +288,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
             }
         }
         values.push(value);
-        assignments.push(`${field} = $${values.length}`);
+        assignments.push(`${field} = $${values.length}${field === "report_emails" ? "::jsonb" : ""}`);
     }
 
     try {

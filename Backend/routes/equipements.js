@@ -16,6 +16,12 @@ function nullableText(value) {
     return typeof value === "string" ? value.trim() || null : undefined;
 }
 
+function installationYear(value) {
+    if (value === null || value === "" || value === undefined) return null;
+    const year = Number(value);
+    return Number.isSafeInteger(year) && year >= 1900 && year <= 2200 ? year : undefined;
+}
+
 async function clientBelongsToTenant(clientId, entrepriseId) {
     const result = await pool.query(
         "SELECT 1 FROM clients WHERE id = $1 AND entreprise_id = $2",
@@ -41,8 +47,8 @@ router.get("/", async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e.entreprise_id, e.client_id, e.type, e.modele,
-                    e.numero_serie, e.date_installation, e.created_at, e.updated_at,
+            `SELECT e.id, e.entreprise_id, e.client_id, e.type, e.marque, e.modele,
+                    e.numero_serie, e.date_installation, e.annee_installation, e.created_at, e.updated_at,
                     c.nom AS client_nom
              FROM equipements e
              JOIN clients c
@@ -61,6 +67,8 @@ router.get("/", async (req, res) => {
 router.post("/", requireRole(["ADMIN"]), async (req, res) => {
     const clientId = positiveId(req.body.client_id);
     if (!clientId) return res.status(400).json({ error: "client_id invalide." });
+    const year = installationYear(req.body.annee_installation);
+    if (year === undefined) return res.status(400).json({ error: "Année d’installation invalide." });
 
     try {
         if (!(await clientBelongsToTenant(clientId, req.user.entreprise_id))) {
@@ -69,22 +77,23 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
 
         const result = await pool.query(
             `INSERT INTO equipements
-                (entreprise_id, client_id, type, modele, numero_serie, date_installation)
-             VALUES ($1, $2, $3, $4, $5, $6)
+                (entreprise_id, client_id, type, marque, modele, numero_serie, annee_installation)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
             [
                 req.user.entreprise_id,
                 clientId,
                 nullableText(req.body.type) ?? null,
+                nullableText(req.body.marque) ?? null,
                 nullableText(req.body.modele) ?? null,
                 nullableText(req.body.numero_serie) ?? null,
-                req.body.date_installation || null,
+                year,
             ]
         );
         await logActivity({ user: req.user, action: "CREATE", resourceType: "equipement", resourceId: result.rows[0].id, summary: `Équipement ${result.rows[0].type || result.rows[0].id} créé.` });
         return res.status(201).json(result.rows[0]);
     } catch (error) {
-        if (error.code === "22007") return res.status(400).json({ error: "Date invalide." });
+        if (error.code === "23514") return res.status(400).json({ error: "Année d’installation invalide." });
         if (error.code === "23505") return res.status(409).json({ error: "Numéro de série déjà utilisé." });
         console.error("Échec de la création de l'équipement", error);
         return res.status(500).json({ error: "Impossible de créer l'équipement." });
@@ -95,7 +104,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
     const id = positiveId(req.params.id);
     if (!id) return res.status(400).json({ error: "Identifiant équipement invalide." });
 
-    const allowed = ["client_id", "type", "modele", "numero_serie", "date_installation"];
+    const allowed = ["client_id", "type", "marque", "modele", "numero_serie", "annee_installation"];
     const supplied = allowed.filter((field) => Object.hasOwn(req.body, field));
     if (supplied.length === 0) return res.status(400).json({ error: "Aucun champ modifiable fourni." });
 
@@ -106,8 +115,9 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
         if (field === "client_id") {
             value = positiveId(req.body[field]);
             if (!value) return res.status(400).json({ error: "client_id invalide." });
-        } else if (field === "date_installation") {
-            value = req.body[field] || null;
+        } else if (field === "annee_installation") {
+            value = installationYear(req.body[field]);
+            if (value === undefined) return res.status(400).json({ error: "Année d’installation invalide." });
         } else {
             value = nullableText(req.body[field]);
             if (value === undefined) return res.status(400).json({ error: `Champ ${field} invalide.` });
@@ -136,7 +146,7 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
         await logActivity({ user: req.user, action: "UPDATE", resourceType: "equipement", resourceId: id, summary: `Équipement ${result.rows[0].type || id} modifié.` });
         return res.json(result.rows[0]);
     } catch (error) {
-        if (error.code === "22007") return res.status(400).json({ error: "Date invalide." });
+        if (error.code === "23514") return res.status(400).json({ error: "Année d’installation invalide." });
         if (error.code === "23505") return res.status(409).json({ error: "Numéro de série déjà utilisé." });
         console.error("Échec de la modification de l'équipement", error);
         return res.status(500).json({ error: "Impossible de modifier l'équipement." });

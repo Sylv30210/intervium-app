@@ -202,6 +202,36 @@ router.get("/me", verifyToken, async (req, res) => {
     }
 });
 
+router.put("/password", verifyToken, authRateLimit, async (req, res) => {
+    const currentPassword = typeof req.body.current_password === "string" ? req.body.current_password : "";
+    const newPassword = typeof req.body.new_password === "string" ? req.body.new_password : "";
+    if (!currentPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: "Le mot de passe actuel et un nouveau mot de passe de 8 caractères minimum sont requis." });
+    }
+    if (currentPassword === newPassword) {
+        return res.status(400).json({ error: "Le nouveau mot de passe doit être différent de l’ancien." });
+    }
+    try {
+        const result = await pool.query(
+            "SELECT password FROM utilisateurs WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE",
+            [req.user.id, req.user.entreprise_id]
+        );
+        if (!result.rowCount || !(await bcrypt.compare(currentPassword, result.rows[0].password))) {
+            return res.status(401).json({ error: "Mot de passe actuel incorrect." });
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await pool.query(
+            "UPDATE utilisateurs SET password = $1, updated_at = NOW() WHERE id = $2 AND entreprise_id = $3",
+            [hashedPassword, req.user.id, req.user.entreprise_id]
+        );
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Mot de passe modifié." });
+        return res.status(204).send();
+    } catch (error) {
+        console.error("Échec de la modification du mot de passe", error);
+        return res.status(500).json({ error: "Impossible de modifier le mot de passe." });
+    }
+});
+
 router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     try {
         const currentResult = await pool.query(

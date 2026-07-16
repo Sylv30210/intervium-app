@@ -6,6 +6,7 @@ import { logActivity } from "../services/activity.js";
 import {
     removeStoredUpload,
     uploadCompressedPhoto,
+    uploadEditedPhotoBase64,
     uploadCompanyLogo,
     uploadSignatureBase64,
 } from "../services/storage.js";
@@ -210,6 +211,57 @@ router.post("/photo/:intervention_id", verifyToken, receivePhoto, async (req, re
 
         console.error("Échec de l'upload photo", error);
         return res.status(500).json({ error: "Impossible d'enregistrer la photo." });
+    }
+});
+
+router.patch("/photo/:id/rotation", verifyToken, async (req, res) => {
+    const photoId = parseInterventionId(req.params.id);
+    const rotation = Number(req.body.rotation);
+    if (!photoId || ![0, 90, 180, 270].includes(rotation)) {
+        return res.status(400).json({ error: "Rotation invalide." });
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE photos p SET rotation = $1
+             FROM interventions i
+             WHERE p.id = $2 AND p.entreprise_id = $3
+               AND i.id = p.intervention_id AND i.entreprise_id = p.entreprise_id
+               AND ($4 = 'ADMIN' OR ($4 = 'TECHNICIEN' AND i.technicien_id = $5))
+             RETURNING p.id, p.url, p.rotation`,
+            [rotation, photoId, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Photo introuvable." });
+        return res.json({ photo: result.rows[0] });
+    } catch (error) {
+        console.error("Échec de la rotation de la photo", error);
+        return res.status(500).json({ error: "Impossible de faire pivoter la photo." });
+    }
+});
+
+router.patch("/photo/:id/image", verifyToken, async (req, res) => {
+    const photoId = parseInterventionId(req.params.id);
+    if (!photoId) return res.status(400).json({ error: "Photo invalide." });
+    let storedUrl;
+    try {
+        const current = await pool.query(
+            `SELECT p.id, p.url FROM photos p JOIN interventions i ON i.id = p.intervention_id AND i.entreprise_id = p.entreprise_id
+             WHERE p.id = $1 AND p.entreprise_id = $2 AND ($3 = 'ADMIN' OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4))`,
+            [photoId, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        if (!current.rowCount) return res.status(404).json({ error: "Photo introuvable." });
+        storedUrl = await uploadEditedPhotoBase64(req.body.imageData);
+        const url = absoluteUploadUrl(req, storedUrl);
+        const result = await pool.query(
+            "UPDATE photos SET url = $1, rotation = 0 WHERE id = $2 AND entreprise_id = $3 RETURNING id, url, rotation",
+            [url, photoId, req.user.entreprise_id]
+        );
+        await removeStoredUpload(current.rows[0].url).catch(() => {});
+        return res.json({ photo: result.rows[0] });
+    } catch (error) {
+        if (storedUrl) await removeStoredUpload(storedUrl).catch(() => {});
+        if (error instanceof TypeError || error instanceof RangeError) return res.status(400).json({ error: error.message });
+        console.error("Échec de l’annotation de la photo", error);
+        return res.status(500).json({ error: "Impossible d’enregistrer l’image annotée." });
     }
 });
 

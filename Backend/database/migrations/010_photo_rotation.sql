@@ -1,0 +1,2 @@
+ALTER TABLE photos ADD COLUMN IF NOT EXISTS rotation SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE photos ADD CONSTRAINT photos_rotation_check CHECK (rotation IN (0, 90, 180, 270));

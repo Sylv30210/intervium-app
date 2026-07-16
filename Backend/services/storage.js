@@ -144,6 +144,21 @@ export async function uploadCompressedPhoto(fileBuffer) {
     return persistImage(optimizedBuffer, "photos", "webp");
 }
 
+export async function uploadEditedPhotoBase64(base64Data) {
+    if (typeof base64Data !== "string") throw new TypeError("Image modifiée invalide.");
+    const match = base64Data.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
+    if (!match) throw new TypeError("L’image modifiée doit être un PNG valide.");
+    const decoded = Buffer.from(match[1], "base64");
+    if (!decoded.length || decoded.length > 8 * 1024 * 1024) throw new RangeError("L’image modifiée dépasse la limite de 8 Mo.");
+    try {
+        const buffer = await sharp(decoded, { failOn: "error" }).resize({ width: 1600, withoutEnlargement: true, fit: "inside" }).webp({ quality: 86 }).toBuffer();
+        return persistImage(buffer, "photos", "webp");
+    } catch (error) {
+        if (error instanceof RangeError) throw error;
+        throw new TypeError("Le contenu de l’image modifiée est invalide.");
+    }
+}
+
 export async function uploadCompanyLogo(fileBuffer) {
     if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
         throw new TypeError("Le fichier du logo est vide ou invalide.");

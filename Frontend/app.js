@@ -476,7 +476,7 @@ function renderMain(view = "dashboard") {
     const mobileNavigation = renderMobileNavigation(view);
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
-        <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", currentUser.role === "CLIENT" ? "Rapports" : "Interventions", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Équipements", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view, "documents")}${navButton("equipe", "Équipe", view, "team")}` : ""}</nav>
+        <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", "Rapports", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Équipements", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view, "documents")}${navButton("equipe", "Équipe", view, "team")}` : ""}</nav>
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
@@ -655,7 +655,7 @@ function bindMobileNavigationReorder() {
     nav.addEventListener("contextmenu", (event) => { if (event.target.closest("[data-mobile-nav-item]")) event.preventDefault(); });
     nav.addEventListener("click", (event) => { if (suppressClick && event.target.closest("[data-mobile-nav-item]")) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
 }
-function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: currentUser.role === "CLIENT" ? "Rapports" : "Interventions", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
+function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: "Rapports", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
         (currentUser.role === "TECHNICIEN" && ["interventions", "planning"].includes(view));
@@ -712,7 +712,7 @@ function renderDocuments() {
     return `<section class="stats"><div class="stat"><span class="muted">Documents</span><strong>${commercialDocuments.length}</strong></div><div class="stat"><span class="muted">Total TTC</span><strong>${formatMoney(total)}</strong></div><div class="stat"><span class="muted">Payé</span><strong>${formatMoney(paid)}</strong></div><div class="stat"><span class="muted">À encaisser</span><strong>${formatMoney(total - paid)}</strong></div></section><section class="panel"><div class="document-list">${commercialDocuments.length ? commercialDocuments.map((document) => `<article class="document-card"><div><strong>${escapeHtml(document.numero || document.type)}</strong><div class="muted">${escapeHtml(document.client_nom)} · ${formatDate(document.date_emission)} · ${escapeHtml(document.statut)}</div></div><div class="actions"><strong>${formatMoney(document.total_ttc, document.devise)}</strong><button class="secondary" data-open-document="${document.id}">${icon("documents")} Voir</button><button class="danger" data-delete-document="${document.id}">${icon("trash")} Supprimer</button></div></article>`).join("") : `<div class="empty">Aucun devis ou facture.</div>`}</div></section>`;
 }
 function interventionTable(items, actions) {
-    if (!items.length) return `<div class="empty">Aucune intervention.</div>`;
+    if (!items.length) return `<div class="empty">Aucun rapport.</div>`;
     return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Équipement</th><th>Intervention</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Équipement">${escapeHtml(equipmentLabel(item))}</td><td data-label="Intervention">${escapeHtml(item.titre)}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
@@ -723,7 +723,7 @@ function renderClients() {
 
 function renderEquipements() {
     if (!equipements.length) return `<section class="panel"><div class="empty">Aucun équipement.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Modèle">${escapeHtml(e.modele || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions">${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
+    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions">${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 function renderTeam() {
@@ -934,6 +934,13 @@ function openSettings() {
             <label class="theme-option"><input type="radio" name="visual-theme" value="dark" ${activeTheme === "dark" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon">${icon("moon")}</span><span>Sombre</span></span></label>
         </div>
         <p class="muted">Cette préférence visuelle est enregistrée uniquement sur cet appareil.</p>
+        <form id="password-settings" class="settings-intro">
+          <strong>Sécurité du compte</strong>
+          <div class="field"><label>Mot de passe actuel</label><input name="current_password" type="password" autocomplete="current-password" required></div>
+          <div class="field"><label>Nouveau mot de passe</label><input name="new_password" type="password" minlength="8" autocomplete="new-password" required></div>
+          <div class="field"><label>Confirmer le nouveau mot de passe</label><input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></div>
+          <button class="secondary wide" type="submit">Modifier mon mot de passe</button>
+        </form>
         <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
         ${pwaSettings}
         ${companySettings}
@@ -946,6 +953,20 @@ function openSettings() {
     }));
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     document.getElementById("customize-mobile-nav")?.addEventListener("click", openMobileNavigationCustomizer);
+    document.getElementById("password-settings")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const values = Object.fromEntries(new FormData(form));
+        if (values.new_password !== values.confirm_password) return toast("Les deux nouveaux mots de passe ne correspondent pas.", true);
+        const button = form.querySelector('button[type="submit"]');
+        await withBusy(button, async () => {
+            try {
+                await api("/auth/password", { method: "PUT", body: JSON.stringify({ current_password: values.current_password, new_password: values.new_password }) });
+                form.reset();
+                toast("Mot de passe modifié.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
     updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
     bindFileUpload(document.querySelector("#company-logo-file")?.closest("[data-file-upload]"), { onChange: (file, component) => {
@@ -1409,9 +1430,22 @@ async function deleteDocument(id, button) {
 }
 
 function openNewClient() {
-    modal("Nouveau client", `<form id="client-form">${field("Nom", "nom", "text", true)}${field("Email", "email", "email")}${field("Téléphone", "telephone")}${field("Adresse", "adresse")}<button class="primary wide">Créer le client</button></form>`);
-    document.getElementById("client-form").addEventListener("submit", async (event) => submitForm(event, "/clients", "clients"));
+    modal("Nouveau client", `<form id="client-form">${field("Nom", "nom", "text", true)}${field("Email principal", "email", "email")}<div class="field"><label>Emails destinataires des rapports</label><textarea name="report_emails_text" rows="4" placeholder="Une adresse par ligne"></textarea></div>${field("Téléphone", "telephone")}${field("Adresse", "adresse")}<button class="primary wide">Créer le client</button></form>`);
+    document.getElementById("client-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"],button:not([type])');
+        const values = Object.fromEntries(new FormData(form));
+        values.report_emails = parseEmailList(values.report_emails_text);
+        delete values.report_emails_text;
+        await withBusy(button, async () => {
+            try { await api("/clients", { method: "POST", body: JSON.stringify(values) }); closeModal(); await finishMutation("clients", "Client créé."); }
+            catch (error) { toast(error.message, true); }
+        });
+    });
 }
+
+function parseEmailList(value) { return String(value || "").split(/[\n,;]+/).map((email) => email.trim()).filter(Boolean); }
 
 async function openClientDetails(id, tab = "info") {
     modal("Fiche client", `<div class="empty"><span class="spinner" aria-hidden="true"></span> Chargement de la fiche…</div>`);
@@ -1435,13 +1469,13 @@ function renderClientDetail(detail, activeTab = "info") {
 
     let content;
     if (activeTab === "equipements") {
-        content = `<div class="panel-head"><h2>Équipements associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.modele].filter(Boolean).join(" · ") || `Équipement ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Installé le ${formatDate(equipment.date_installation)}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun équipement associé à ce client.</div>`}</div>`;
+        content = `<div class="panel-head"><h2>Équipements associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.marque, equipment.modele].filter(Boolean).join(" · ") || `Équipement ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Année : ${escapeHtml(equipment.annee_installation || "—")}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun équipement associé à ce client.</div>`}</div>`;
     } else if (activeTab === "devis" && currentUser.role === "ADMIN") {
         content = `<div class="related-list">${detail.devis.length ? detail.devis.map((document) => `<button class="related-card" data-client-document="${document.id}"><span><strong>${escapeHtml(document.numero || `Devis ${document.id}`)}</strong><small>${formatDate(document.date_emission)} · Échéance ${formatDate(document.date_echeance)} · ${escapeHtml(document.statut)}</small></span><strong>${formatMoney(document.total_ttc, document.devise)}</strong></button>`).join("") : `<div class="empty">Aucun devis pour ce client.</div>`}</div>${detail.pagination.devis_total > detail.devis.length ? `<p class="muted">Les ${detail.devis.length} devis les plus récents sont affichés sur ${detail.pagination.devis_total}.</p>` : ""}`;
     } else if (activeTab === "interventions") {
         content = `<div class="related-list">${detail.interventions.length ? detail.interventions.map((item) => `<button class="related-card" data-client-intervention="${item.id}"><span><strong>${escapeHtml(item.titre || `Intervention ${item.id}`)}</strong><small>${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0, 5) || "")} · ${statusLabel(item.statut)}</small><small>${escapeHtml(item.technicien_nom || "Non assigné")} · ${escapeHtml([item.equipement_type, item.equipement_modele].filter(Boolean).join(" · ") || "Sans équipement")}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucune intervention pour ce client.</div>`}</div>${detail.pagination.interventions_total > detail.interventions.length ? `<p class="muted">Les ${detail.interventions.length} interventions les plus récentes sont affichées sur ${detail.pagination.interventions_total}.</p>` : ""}`;
     } else {
-        content = `<div class="panel-head"><h2>Informations générales</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-edit-client="${client.id}">Modifier</button>` : ""}</div><div class="client-detail-grid"><div class="detail-box"><strong>Nom ou raison sociale</strong>${escapeHtml(client.nom)}</div><div class="detail-box"><strong>Contact lié</strong>${escapeHtml(client.utilisateur_nom || "Aucun compte client")}</div><div class="detail-box"><strong>E-mail</strong>${client.email ? `<a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a>` : "—"}</div><div class="detail-box"><strong>Téléphone</strong>${client.telephone ? `<a href="tel:${escapeHtml(client.telephone)}">${escapeHtml(client.telephone)}</a>` : "—"}</div><div class="detail-box"><strong>Adresse</strong>${escapeHtml(client.adresse || "—")}</div><div class="detail-box"><strong>Créé le</strong>${formatDate(client.created_at)}</div><div class="detail-box"><strong>Dernière modification</strong>${formatDate(client.updated_at)}</div></div>`;
+        content = `<div class="panel-head"><h2>Informations générales</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-edit-client="${client.id}">Modifier</button>` : ""}</div><div class="client-detail-grid"><div class="detail-box"><strong>Nom ou raison sociale</strong>${escapeHtml(client.nom)}</div><div class="detail-box"><strong>Contact lié</strong>${escapeHtml(client.utilisateur_nom || "Aucun compte client")}</div><div class="detail-box"><strong>E-mail principal</strong>${client.email ? `<a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a>` : "—"}</div><div class="detail-box"><strong>Destinataires des rapports</strong>${(client.report_emails || []).length ? client.report_emails.map((email) => `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>`).join("<br>") : "—"}</div><div class="detail-box"><strong>Téléphone</strong>${client.telephone ? `<a href="tel:${escapeHtml(client.telephone)}">${escapeHtml(client.telephone)}</a>` : "—"}</div><div class="detail-box"><strong>Adresse</strong>${escapeHtml(client.adresse || "—")}</div><div class="detail-box"><strong>Créé le</strong>${formatDate(client.created_at)}</div><div class="detail-box"><strong>Dernière modification</strong>${formatDate(client.updated_at)}</div></div>`;
     }
 
     modal(client.nom, `<div class="client-tabs" role="tablist">${tabs.map(([value, label]) => `<button class="${value === activeTab ? "primary" : "secondary"}" data-client-tab="${value}" role="tab" aria-selected="${value === activeTab}">${label}</button>`).join("")}</div><section>${content}</section>`);
@@ -1459,7 +1493,7 @@ function renderClientDetail(detail, activeTab = "info") {
 
 function openEditClient(detail) {
     const client = detail.client;
-    modal(`Modifier ${client.nom}`, `<form id="edit-client-form">${field("Nom ou raison sociale", "nom", "text", true, client.nom)}${field("E-mail", "email", "email", false, client.email || "")}${field("Téléphone", "telephone", "tel", false, client.telephone || "")}<div class="field"><label for="edit-client-address">Adresse</label><textarea id="edit-client-address" name="adresse" rows="3">${escapeHtml(client.adresse || "")}</textarea></div><button class="primary wide" type="submit">Enregistrer les modifications</button></form>`);
+    modal(`Modifier ${client.nom}`, `<form id="edit-client-form">${field("Nom ou raison sociale", "nom", "text", true, client.nom)}${field("E-mail principal", "email", "email", false, client.email || "")}<div class="field"><label>Emails destinataires des rapports</label><textarea name="report_emails_text" rows="4">${escapeHtml((client.report_emails || []).join("\n"))}</textarea><span class="field-help">Une adresse par ligne, 20 maximum.</span></div>${field("Téléphone", "telephone", "tel", false, client.telephone || "")}<div class="field"><label for="edit-client-address">Adresse</label><textarea id="edit-client-address" name="adresse" rows="3">${escapeHtml(client.adresse || "")}</textarea></div><button class="primary wide" type="submit">Enregistrer les modifications</button></form>`);
     document.getElementById("edit-client-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -1467,6 +1501,8 @@ function openEditClient(detail) {
         await withBusy(button, async () => {
             try {
                 const values = Object.fromEntries(new FormData(form));
+                values.report_emails = parseEmailList(values.report_emails_text);
+                delete values.report_emails_text;
                 const updated = await api(`/clients/${client.id}`, { method: "PUT", body: JSON.stringify(values) });
                 detail.client = { ...detail.client, ...updated };
                 clients = clients.map((item) => String(item.id) === String(updated.id) ? { ...item, ...updated } : item);
@@ -1477,8 +1513,12 @@ function openEditClient(detail) {
     });
 }
 
+function equipmentFields(equipment = {}) {
+    return `${field("Type", "type", "text", false, equipment.type || "")}${field("Marque", "marque", "text", false, equipment.marque || "")}${field("Modèle", "modele", "text", false, equipment.modele || "")}${field("Numéro de série", "numero_serie", "text", false, equipment.numero_serie || "")}<div class="field"><label>Année d’installation</label><input name="annee_installation" type="number" min="1900" max="2200" inputmode="numeric" value="${escapeHtml(equipment.annee_installation || "")}"></div>`;
+}
+
 function openClientEquipmentForm(detail) {
-    modal(`Nouvel équipement — ${detail.client.nom}`, `<form id="client-equipment-form">${field("Type", "type")}${field("Modèle", "modele")}${field("Numéro de série", "numero_serie")}${field("Date d’installation", "date_installation", "date")}<button class="primary wide" type="submit">Créer l’équipement</button></form>`);
+    modal(`Nouvel équipement — ${detail.client.nom}`, `<form id="client-equipment-form">${equipmentFields()}<button class="primary wide" type="submit">Créer l’équipement</button></form>`);
     document.getElementById("client-equipment-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -1500,12 +1540,33 @@ function openClientEquipmentForm(detail) {
 function openClientEquipmentDetail(detail, equipmentId) {
     const equipment = detail.equipements.find((item) => String(item.id) === String(equipmentId));
     if (!equipment) return;
-    modal("Détail de l’équipement", `<div class="client-detail-grid"><div class="detail-box"><strong>Type</strong>${escapeHtml(equipment.type || "—")}</div><div class="detail-box"><strong>Modèle</strong>${escapeHtml(equipment.modele || "—")}</div><div class="detail-box"><strong>Numéro de série</strong>${escapeHtml(equipment.numero_serie || "—")}</div><div class="detail-box"><strong>Date d’installation</strong>${formatDate(equipment.date_installation)}</div><div class="detail-box"><strong>Dernière intervention</strong>${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</div></div><button class="secondary wide" id="back-to-client">Retour à la fiche client</button>`);
+    modal("Détail de l’équipement", `<div class="client-detail-grid"><div class="detail-box"><strong>Type</strong>${escapeHtml(equipment.type || "—")}</div><div class="detail-box"><strong>Marque</strong>${escapeHtml(equipment.marque || "—")}</div><div class="detail-box"><strong>Modèle</strong>${escapeHtml(equipment.modele || "—")}</div><div class="detail-box"><strong>Numéro de série</strong>${escapeHtml(equipment.numero_serie || "—")}</div><div class="detail-box"><strong>Année d’installation</strong>${escapeHtml(equipment.annee_installation || "—")}</div><div class="detail-box"><strong>Dernière intervention</strong>${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</div></div>${currentUser.role === "ADMIN" ? '<button class="primary wide" id="edit-client-equipment">Modifier l’équipement</button>' : ""}<button class="secondary wide" id="back-to-client">Retour à la fiche client</button>`);
+    document.getElementById("edit-client-equipment")?.addEventListener("click", () => openEditEquipment(detail, equipment));
     document.getElementById("back-to-client").addEventListener("click", () => renderClientDetail(detail, "equipements"));
 }
 
+function openEditEquipment(detail, equipment) {
+    modal("Modifier l’équipement", `<form id="edit-equipment-form">${equipmentFields(equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
+    document.getElementById("edit-equipment-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"]');
+        await withBusy(button, async () => {
+            try {
+                const values = Object.fromEntries(new FormData(form));
+                const updated = await api(`/equipements/${equipment.id}`, { method: "PUT", body: JSON.stringify(values) });
+                Object.assign(equipment, updated);
+                equipements = equipements.map((item) => String(item.id) === String(updated.id) ? { ...item, ...updated } : item);
+                creationEquipements = creationEquipements.map((item) => String(item.id) === String(updated.id) ? { ...item, ...updated } : item);
+                openClientEquipmentDetail(detail, equipment.id);
+                toast("Équipement modifié.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
+}
+
 function openNewEquipment() {
-    modal("Nouvel équipement", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions()}</select></div>${field("Type", "type")}${field("Modèle", "modele")}${field("Numéro de série", "numero_serie")}${field("Date d’installation", "date_installation", "date")}<button class="primary wide">Créer l’équipement</button></form>`);
+    modal("Nouvel équipement", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions()}</select></div>${equipmentFields()}<button class="primary wide">Créer l’équipement</button></form>`);
     document.getElementById("equipment-form").addEventListener("submit", async (event) => submitForm(event, "/equipements", "equipements"));
 }
 
@@ -1582,7 +1643,7 @@ function openNewIntervention() {
     const technicianField = currentUser.role === "ADMIN"
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
         : `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>`;
-    modal("Nouvelle intervention", `<form id="intervention-form"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required>${creationClientOptions(eligibleClients)}</select></div>${technicianField}</div><div class="field"><label>Équipement concerné</label><select id="new-equipment" name="equipement_id" required>${creationEquipmentOptions(firstClientId)}</select></div>${field("Titre", "titre", "text", true)}<div class="field"><label>Description</label><textarea name="description"></textarea></div><div class="grid2">${field("Date", "date_intervention", "date")}${field("Heure", "heure", "time")}</div><div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">Créer l’intervention</button></form>`);
+    modal("Nouveau rapport", `<form id="intervention-form"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required>${creationClientOptions(eligibleClients)}</select></div>${technicianField}</div><div class="field"><label>Équipement concerné</label><select id="new-equipment" name="equipement_id" required>${creationEquipmentOptions(firstClientId)}</select></div>${field("Titre du rapport", "titre", "text", true)}<div class="field"><label>Description</label><textarea name="description"></textarea></div><div class="grid2">${field("Date", "date_intervention", "date")}${field("Heure", "heure", "time")}</div><div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">Créer le rapport</button></form>`);
     document.getElementById("new-client").addEventListener("change", (event) => {
         const equipmentSelect = document.getElementById("new-equipment");
         equipmentSelect.innerHTML = creationEquipmentOptions(event.target.value);
@@ -1604,7 +1665,7 @@ function openNewIntervention() {
             try {
                 await api("/interventions", { method: "POST", body: JSON.stringify(values) });
                 closeModal();
-                await finishMutation("interventions", "Intervention créée.");
+                await finishMutation("interventions", "Rapport créé.");
             } catch (error) { toast(error.message, true); }
         });
     });
@@ -1614,7 +1675,11 @@ function renderReportFields(template, data = {}) {
     const sections = Array.isArray(template?.sections || template?.modele_rapport_sections) ? (template.sections || template.modele_rapport_sections) : [];
     if (!sections.length) return "";
     return `<section class="panel"><div class="panel-head"><div><h2>${escapeHtml(template.nom || template.modele_rapport_nom || "Rapport personnalisé")}</h2><p class="muted">Complétez les contrôles définis dans le modèle.</p></div></div><div class="report-fields-grid">${sections.map((section) => {
-        const value = Object.hasOwn(data || {}, section.key) ? data[section.key] : (section.defaultValue ?? "");
+        const value = Object.hasOwn(data || {}, section.key)
+            ? data[section.key]
+            : section.type === "date" && section.dateMode !== "datetime-local"
+              ? localDateKey(new Date())
+              : (section.defaultValue ?? "");
         const attributes = `data-report-key="${escapeHtml(section.key)}" ${section.required ? "required" : ""}`;
         const labelClass = section.showLabel === false ? ' class="sr-only"' : "";
         const label = `<label${labelClass}>${escapeHtml(section.label)}${section.required ? " *" : ""}</label>`;
@@ -1791,7 +1856,7 @@ function openIntervention(id) {
       <button class="primary wide">Enregistrer le rapport</button>
     </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
     <div class="field"><label>Signature client</label><canvas id="signature-canvas" class="canvas"></canvas><div class="actions"><button class="secondary" id="clear-signature">Effacer</button><button class="primary" id="upload-signature">Enregistrer la signature</button></div></div>
-    ${mediaGallery(item, true)}${pdfButton(item, true)}`);
+    ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
     restoreReportDraft(item, document.getElementById("edit-intervention-form"));
@@ -1834,6 +1899,7 @@ function openIntervention(id) {
     setupSignatureCanvas(id);
     bindMediaActions(item);
     bindPdfDownload();
+    bindReportEmail(item);
 }
 
 function reportDraftKey(id) { return `intervium_report_draft:${currentEntreprise?.id || currentUser?.entreprise_id}:${currentUser?.id}:${id}`; }
@@ -2001,9 +2067,23 @@ function mediaGallery(item, allowPdfSelection = false) {
     const selectionHelp = allowPdfSelection && photos.length
         ? '<p class="field-help">Cochez les photos à inclure dans le prochain PDF.</p>'
         : "";
-    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo de l’intervention"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
+    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo du rapport" style="transform:rotate(${Number(photo.rotation) || 0}deg)"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="secondary" type="button" data-annotate-photo="${photo.id}">✎ Annoter</button><button class="secondary" type="button" data-rotate-photo="${photo.id}" title="Faire pivoter la photo">↻ Pivoter</button><button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
 }
 function bindMediaActions(item) {
+    document.querySelectorAll("[data-annotate-photo]").forEach((button) => button.addEventListener("click", () => {
+        const photo = (item.photos || []).find((entry) => String(entry.id) === String(button.dataset.annotatePhoto));
+        if (photo) openPhotoAnnotator(item, photo);
+    }));
+    document.querySelectorAll("[data-rotate-photo]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => {
+        const photo = (item.photos || []).find((entry) => String(entry.id) === String(button.dataset.rotatePhoto));
+        if (!photo) return;
+        try {
+            const result = await api(`/uploads/photo/${photo.id}/rotation`, { method: "PATCH", body: JSON.stringify({ rotation: ((Number(photo.rotation) || 0) + 90) % 360 }) });
+            Object.assign(photo, result.photo);
+            openIntervention(item.id);
+            toast("Photo pivotée.");
+        } catch (error) { toast(error.message, true); }
+    })));
     document.querySelectorAll("[data-delete-photo]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => {
         if (!confirm("Supprimer définitivement cette photo ?")) return;
         try {
@@ -2024,7 +2104,77 @@ function bindMediaActions(item) {
         } catch (error) { toast(error.message, true); }
     })));
 }
+
+async function openPhotoAnnotator(item, photo) {
+    modal("Annoter la photo", `<div class="field"><label>Couleur du trait</label><input id="annotation-color" type="color" value="#ef4444"></div><canvas id="photo-annotation-canvas" class="canvas" style="height:auto;max-height:65vh"></canvas><div class="actions"><button class="secondary" id="reset-photo-annotation" type="button">Effacer les annotations</button><button class="primary" id="save-photo-annotation" type="button">Enregistrer l’image</button></div>`);
+    const canvas = document.getElementById("photo-annotation-canvas");
+    const context = canvas.getContext("2d");
+    try {
+        const response = await fetch(photo.url, { credentials: "include" });
+        if (!response.ok) throw new Error("Impossible de charger la photo.");
+        const bitmap = await createImageBitmap(await response.blob());
+        const rotation = Number(photo.rotation) || 0;
+        const rotated = rotation === 90 || rotation === 270;
+        const sourceWidth = rotated ? bitmap.height : bitmap.width;
+        const sourceHeight = rotated ? bitmap.width : bitmap.height;
+        const scale = Math.min(1, 1200 / sourceWidth, 900 / sourceHeight);
+        canvas.width = Math.round(sourceWidth * scale);
+        canvas.height = Math.round(sourceHeight * scale);
+        const drawBase = () => {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.save();
+            context.translate(canvas.width / 2, canvas.height / 2);
+            context.rotate(rotation * Math.PI / 180);
+            context.drawImage(bitmap, -bitmap.width * scale / 2, -bitmap.height * scale / 2, bitmap.width * scale, bitmap.height * scale);
+            context.restore();
+        };
+        drawBase();
+        let drawing = false;
+        const point = (event) => { const box = canvas.getBoundingClientRect(); return { x: (event.clientX - box.left) * canvas.width / box.width, y: (event.clientY - box.top) * canvas.height / box.height }; };
+        canvas.addEventListener("pointerdown", (event) => { drawing = true; canvas.setPointerCapture(event.pointerId); const p = point(event); context.beginPath(); context.moveTo(p.x, p.y); });
+        canvas.addEventListener("pointermove", (event) => { if (!drawing) return; const p = point(event); context.strokeStyle = document.getElementById("annotation-color").value; context.lineWidth = Math.max(4, canvas.width / 180); context.lineCap = "round"; context.lineJoin = "round"; context.lineTo(p.x, p.y); context.stroke(); });
+        canvas.addEventListener("pointerup", () => { drawing = false; });
+        document.getElementById("reset-photo-annotation").addEventListener("click", drawBase);
+        document.getElementById("save-photo-annotation").addEventListener("click", (event) => withBusy(event.currentTarget, async () => {
+            try {
+                const result = await api(`/uploads/photo/${photo.id}/image`, { method: "PATCH", body: JSON.stringify({ imageData: canvas.toDataURL("image/png") }) });
+                Object.assign(photo, result.photo);
+                openIntervention(item.id);
+                toast("Photo annotée enregistrée.");
+            } catch (error) { toast(error.message, true); }
+        }));
+    } catch (error) {
+        closeModal();
+        toast(error.message, true);
+    }
+}
 function pdfButton(item, usePhotoSelection = false) { return `<p><button class="primary wide" data-download-pdf="${item.id}" ${usePhotoSelection ? "data-use-photo-selection" : ""}>${icon("download")} Exporter le rapport en PDF</button></p>`; }
+function emailButton(item) { return `<p><button class="secondary wide" type="button" data-email-report="${item.id}">✉ Envoyer le rapport par e-mail</button></p>`; }
+
+function bindReportEmail(item) {
+    document.querySelector(`[data-email-report="${item.id}"]`)?.addEventListener("click", () => openReportEmail(item));
+}
+
+function openReportEmail(item) {
+    const selectedPhotoIds = [...document.querySelectorAll("[data-pdf-photo-id]:checked")].map((input) => Number(input.dataset.pdfPhotoId));
+    const client = clients.find((entry) => String(entry.id) === String(item.client_id));
+    const savedEmails = [...new Set([...(client?.report_emails || []), client?.email].filter(Boolean))];
+    modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${escapeHtml(item.titre)} ».\n\nCordialement,\n${escapeHtml(currentEntreprise?.report_settings?.display_name || currentEntreprise?.nom || "")}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
+    document.getElementById("report-email-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector('button[type="submit"]');
+        const freeRecipients = parseEmailList(form.elements.free_recipients.value);
+        const recipients = [...form.querySelectorAll('[name="saved_recipient"]:checked')].map((input) => input.value).concat(freeRecipients);
+        await withBusy(button, async () => {
+            try {
+                await api(`/interventions/${item.id}/email`, { method: "POST", body: JSON.stringify({ recipients, free_recipients: freeRecipients, photo_ids: selectedPhotoIds, subject: form.elements.subject.value, message: form.elements.message.value }) });
+                closeModal();
+                toast("Rapport envoyé par e-mail.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
+}
 function bindPdfDownload() {
     document.querySelectorAll("[data-download-pdf]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => {
         try {
@@ -2050,7 +2200,7 @@ function bindPdfDownload() {
     })));
 }
 function statusLabel(status) { return ({ PLANIFIEE: "Planifiée", EN_COURS: "En cours", TERMINEE: "Terminée", ANNULEE: "Annulée" })[status] || status; }
-function equipmentLabel(item) { return [item.equipement_type, item.equipement_modele, item.equipement_numero_serie].filter(Boolean).join(" · ") || "Non renseigné"; }
+function equipmentLabel(item) { return [item.equipement_type, item.equipement_marque, item.equipement_modele, item.equipement_numero_serie].filter(Boolean).join(" · ") || "Non renseigné"; }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("fr-FR").format(new Date(`${String(value).slice(0,10)}T12:00:00`)) : "Non planifiée"; }
 function localDateKey(value) { const date = new Date(value); const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
 function formatMoney(value, currency = "EUR") { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: currency || "EUR" }).format(Number(value || 0)); }

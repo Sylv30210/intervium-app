@@ -63,8 +63,8 @@ function drawReportHeader(doc, branding, logoBuffer, reportId) {
 
     let companyX = 48;
     if (logoBuffer) {
-        doc.image(logoBuffer, 48, 25, { fit: [120, 54], align: "left", valign: "center" });
-        companyX = 184;
+        doc.image(logoBuffer, 48, 18, { fit: [150, 70], align: "left", valign: "center" });
+        companyX = 214;
     }
     doc.font("Helvetica-Bold").fontSize(17).fillColor(DARK)
         .text(branding.displayName, companyX, 27, { width: 240, lineBreak: false, ellipsis: true });
@@ -239,7 +239,10 @@ function reportTable(doc, section, rows) {
 
 export async function generateInterventionPdf({ intervention, equipments, photos }) {
     const photoBuffers = (
-        await Promise.all(photos.map((photo) => localImage(photo.url, true)))
+        await Promise.all(photos.map(async (photo) => {
+            const image = await localImage(photo.url, true);
+            return image && Number(photo.rotation) ? sharp(image).rotate(Number(photo.rotation)).png().toBuffer() : image;
+        }))
     ).filter(Boolean);
     const signatureBuffer = await localImage(intervention.signature_url);
     const logoBuffer = await localImage(intervention.entreprise_logo_url);
@@ -260,23 +263,25 @@ export async function generateInterventionPdf({ intervention, equipments, photos
 
         if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.id);
 
+        const hasReportTemplate = Array.isArray(intervention.modele_rapport_sections) && intervention.modele_rapport_sections.length > 0;
         doc.font("Helvetica-Bold").fontSize(titleSize).fillColor(DARK)
             .text(intervention.titre, margin, doc.y, { width: doc.page.width - (margin * 2) });
-        doc.moveDown(0.35).font("Helvetica").fontSize(10).fillColor(GRAY)
-            .text(`Rapport généré le ${new Intl.DateTimeFormat("fr-FR").format(new Date())}`);
 
-        sectionTitle(doc, "Détails de l'intervention");
+        sectionTitle(doc, "Informations du rapport");
         if (pdfConfig.showClient !== false) {
             detailLine(doc, "Client", intervention.client_nom);
             detailLine(doc, "Adresse", intervention.client_adresse);
         }
         detailLine(doc, "Date", `${formatDate(intervention.date_intervention)}${intervention.heure ? ` à ${String(intervention.heure).slice(0, 5)}` : ""}`);
-        detailLine(doc, "Technicien", intervention.technicien_nom || "Non assigné");
-        detailLine(doc, "Statut", labelStatus(intervention.statut));
+        if (!hasReportTemplate) {
+            detailLine(doc, "Technicien", intervention.technicien_nom || "Non assigné");
+            detailLine(doc, "Statut", labelStatus(intervention.statut));
+        }
 
-        sectionTitle(doc, "Description");
-        doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
-            .text(intervention.description || "Aucune description renseignée.", { lineGap: 3 });
+        if (!hasReportTemplate && intervention.description) {
+            sectionTitle(doc, "Description");
+            doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text(intervention.description, { lineGap: 3 });
+        }
 
         if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Équipements du client");
         if (pdfConfig.showEquipment !== false && equipments.length === 0) {
@@ -284,15 +289,17 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         } else if (pdfConfig.showEquipment !== false) {
             for (const equipment of equipments) {
                 ensureSpace(doc, 30);
-                const summary = [equipment.type, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`]
+                const summary = [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`]
                     .filter(Boolean).join(" - ");
                 doc.font("Helvetica").fontSize(10).fillColor(DARK).text(`• ${summary || "Équipement sans détail"}`);
             }
         }
 
-        sectionTitle(doc, "Compte-rendu du technicien");
-        doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
-            .text(intervention.compte_rendu || "Compte-rendu non renseigné.", { lineGap: 3 });
+        if (!hasReportTemplate || intervention.compte_rendu) {
+            sectionTitle(doc, "Compte-rendu");
+            doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
+                .text(intervention.compte_rendu || "Compte-rendu non renseigné.", { lineGap: 3 });
+        }
 
         const templateSections = Array.isArray(intervention.modele_rapport_sections)
             ? intervention.modele_rapport_sections
@@ -320,7 +327,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 if (field.type === "equipment") {
                     const equipment = equipments[0];
                     const value = equipment
-                        ? [equipment.type, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`].filter(Boolean).join(" - ")
+                        ? [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`].filter(Boolean).join(" - ")
                         : "Aucun équipement renseigné";
                     reportField(doc, field.label, value, field.showLabel !== false);
                     continue;

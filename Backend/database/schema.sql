@@ -36,6 +36,7 @@ CREATE TABLE clients (
     utilisateur_id BIGINT,
     nom VARCHAR(150) NOT NULL CHECK (btrim(nom) <> ''),
     email VARCHAR(254),
+    report_emails JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(report_emails) = 'array'),
     telephone VARCHAR(30),
     adresse TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -54,9 +55,11 @@ CREATE TABLE equipements (
     entreprise_id BIGINT NOT NULL,
     client_id BIGINT NOT NULL,
     type VARCHAR(100),
+    marque VARCHAR(150),
     modele VARCHAR(150),
     numero_serie VARCHAR(150),
     date_installation DATE,
+    annee_installation SMALLINT CHECK (annee_installation IS NULL OR annee_installation BETWEEN 1900 AND 2200),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT equipements_entreprise_fk
@@ -169,6 +172,7 @@ CREATE TABLE photos (
     entreprise_id BIGINT NOT NULL,
     intervention_id BIGINT NOT NULL,
     url TEXT NOT NULL CHECK (btrim(url) <> ''),
+    rotation SMALLINT NOT NULL DEFAULT 0 CHECK (rotation IN (0, 90, 180, 270)),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT photos_entreprise_fk
         FOREIGN KEY (entreprise_id) REFERENCES entreprises(id) ON DELETE CASCADE,
