@@ -107,6 +107,32 @@ function validateTemplateData(template, data) {
                 return `« ${section.label} » doit être inférieur ou égal à ${section.max}.`;
             }
         }
+        if (["table", "price_table"].includes(section.type) && !empty) {
+            if (!Array.isArray(value)) return `Le tableau « ${section.label} » est invalide.`;
+            const minRows = Math.max(0, Number(section.minRows) || 0);
+            const maxRows = Math.min(100, Math.max(minRows || 1, Number(section.maxRows) || 30));
+            if (value.length < minRows || value.length > maxRows) return `Le tableau « ${section.label} » doit contenir entre ${minRows} et ${maxRows} ligne(s).`;
+            const columns = (section.columns || []).map((column, index) => typeof column === "string" ? { key: `c${index}`, label: column, type: "text" } : column);
+            for (const [rowIndex, row] of value.entries()) {
+                if (!row || typeof row !== "object" || Array.isArray(row)) return `Ligne ${rowIndex + 1} invalide dans « ${section.label} ».`;
+                for (const column of columns) {
+                    if (column.visibleForm === false || column.type === "photo") continue;
+                    const cell = row[column.key];
+                    const cellEmpty = cell === undefined || cell === null || cell === "";
+                    if (column.required && cellEmpty) return `« ${column.label} » est requis à la ligne ${rowIndex + 1}.`;
+                    if (cellEmpty) continue;
+                    if (["integer", "decimal", "currency", "percentage", "calculated"].includes(column.type)) {
+                        const number = Number(cell);
+                        if (!Number.isFinite(number) || (column.type === "integer" && !Number.isInteger(number))) return `Valeur numérique invalide pour « ${column.label} ».`;
+                        if (column.type === "percentage" && (number < 0 || number > 100)) return `« ${column.label} » doit être compris entre 0 et 100.`;
+                        if (column.min != null && number < Number(column.min)) return `« ${column.label} » est inférieur au minimum autorisé.`;
+                        if (column.max != null && number > Number(column.max)) return `« ${column.label} » dépasse le maximum autorisé.`;
+                    }
+                    if (column.type === "select" && !column.allowOther && !(column.options || []).includes(cell)) return `Choix invalide pour « ${column.label} ».`;
+                    if (["boolean", "checkbox"].includes(column.type) && typeof cell !== "boolean") return `Valeur oui/non invalide pour « ${column.label} ».`;
+                }
+            }
+        }
     }
     return null;
 }

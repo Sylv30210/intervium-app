@@ -74,6 +74,9 @@ html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.the
 `;
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 document.head.insertAdjacentHTML("beforeend", `<style>.auth-footer{margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;text-align:center}html[data-theme="glass"] .bottom-nav.is-reordering,html.theme-glass .bottom-nav.is-reordering{overflow:visible}.bottom-nav [data-mobile-nav-item]{touch-action:pan-y;-webkit-touch-callout:none;user-select:none}</style>`);
+document.head.insertAdjacentHTML("beforeend", `<style>
+.template-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.template-field-row.compact{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;cursor:grab}.template-field-row.compact.full{grid-column:1/-1}.template-field-row.compact.half{grid-column:span 1}.template-field-row.compact .drag-handle{width:32px;height:42px;justify-content:center;border-radius:9px;background:#f1f5f9}.template-card-copy{min-width:0}.template-card-copy strong{display:block;margin-bottom:4px}.template-card-summary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.template-card-summary .badge{padding:3px 7px;font-size:10px}.template-card-summary small{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.template-card-actions{display:flex;align-items:center;gap:6px}.section-drawer-backdrop{position:fixed;inset:0;background:#0f172a80;z-index:70;animation:backdrop-in .18s ease}.section-drawer{position:absolute;inset:0 0 0 auto;width:min(560px,100%);display:flex;flex-direction:column;background:#fff;box-shadow:-18px 0 48px #0f172a2b;animation:drawer-left .22s ease-out}.section-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #e2e8f0}.section-drawer-head h2{margin:0;font-size:19px}.section-drawer-tabs{display:flex;gap:6px;padding:12px 18px 0}.section-drawer-tabs button{flex:1}.section-drawer-body{flex:1;overflow:auto;padding:8px 18px 100px}.section-drawer-footer{position:absolute;inset:auto 0 0;display:grid;grid-template-columns:auto 1fr;gap:8px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e2e8f0}.section-setting-group{padding:14px 0;border-bottom:1px solid #edf1f7}.section-setting-group h3{margin:0 0 10px;font-size:14px}.setting-check{display:flex;align-items:center;gap:10px;min-height:44px}.section-type-help{margin:8px 0 0;padding:10px;border-radius:10px;background:#eff6ff;color:#475569;font-size:12px}.advanced-column-list{display:grid;gap:10px}.advanced-column{padding:12px;border:1px solid #dbe3ee;border-radius:12px;background:#f8fafc}.advanced-column-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.advanced-column .actions{align-items:center}.advanced-column .actions label{display:flex;align-items:center;gap:5px;font-size:12px}.column-preview-list{display:grid;gap:6px;margin-top:8px}.column-preview-row{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #e2e8f0;border-radius:9px}.column-preview-row span:first-child{color:#94a3b8}.column-preview-row strong{flex:1}.list-mode-segments{display:flex;flex-wrap:wrap}.list-mode-segments label{padding:8px 12px;border:1px solid #cbd5e1;border-radius:999px}@keyframes drawer-left{from{transform:translateX(100%)}to{transform:none}}html[data-theme="dark"] .section-drawer,html.theme-dark .section-drawer{background:#111c2e;color:#e5edf8}html[data-theme="dark"] :is(.section-drawer-head,.section-drawer-footer,.section-setting-group),html.theme-dark :is(.section-drawer-head,.section-drawer-footer,.section-setting-group){background:#111c2e;border-color:#334155}html[data-theme="dark"] :is(.template-field-row.compact .drag-handle,.advanced-column),html.theme-dark :is(.template-field-row.compact .drag-handle,.advanced-column){background:#1e2b3e;border-color:#334155}@media(max-width:768px){.template-fields{grid-template-columns:1fr}.template-field-row.compact.full,.template-field-row.compact.half{grid-column:1}.template-field-row.compact{grid-template-columns:auto minmax(0,1fr) auto;padding:12px 10px}.template-card-actions [data-move-template-up],.template-card-actions [data-move-template-down]{display:none}.section-drawer{width:100%}.section-drawer-body{padding-inline:16px}.advanced-column .grid2{grid-template-columns:1fr}.report-field.half{grid-column:1}.report-table{overflow-x:visible}.report-table table{min-width:0}}
+</style>`);
 
 document.addEventListener("DOMContentLoaded", async () => {
     initPwa();
@@ -879,7 +882,7 @@ function bindDeletes(name, path, view) {
 
 function modal(title, content) {
     const root = document.getElementById("modal-root");
-    root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${title}</h2><button class="close icon-only" id="close-modal" type="button" aria-label="Fermer" title="Fermer">${icon("close")}</button></header>${content}</section></div>`;
+    root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${escapeHtml(title)}</h2><button class="close icon-only" id="close-modal" type="button" aria-label="Fermer" title="Fermer">${icon("close")}</button></header>${content}</section></div>`;
     const dialog = root.querySelector(".modal");
     const focusable = () => [...dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')];
     const keyHandler = (event) => {
@@ -895,7 +898,7 @@ function modal(title, content) {
     document.getElementById("close-modal").addEventListener("click", closeModal);
     requestAnimationFrame(() => (focusable()[0] || dialog).focus());
 }
-function closeModal() { const root = document.getElementById("modal-root"); if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) root.innerHTML = ""; }
+function closeModal() { closeTemplateSectionDrawer(); const root = document.getElementById("modal-root"); if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) root.innerHTML = ""; }
 
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
@@ -1036,15 +1039,55 @@ const TEMPLATE_FIELD_TYPES = [
     ["creator", "Profil du créateur"], ["gps", "Position GPS"], ["address", "Adresse"],
     ["table", "Tableau"], ["price_table", "Tableau de prix"], ["page_break", "Saut de page"],
 ];
+const TABLE_COLUMN_TYPES = [
+    ["text", "Texte"], ["textarea", "Texte long"], ["integer", "Nombre entier"],
+    ["decimal", "Nombre décimal"], ["currency", "Montant"], ["percentage", "Pourcentage"],
+    ["date", "Date"], ["time", "Heure"], ["datetime", "Date et heure"],
+    ["boolean", "Oui / Non"], ["checkbox", "Case à cocher"], ["select", "Liste"],
+    ["photo", "Photo"], ["row_number", "N° de ligne"], ["calculated", "Calcul automatique"],
+];
+
+function normalizeTableColumn(column, index, priceTable = false) {
+    const source = typeof column === "string" ? { label: column } : (column || {});
+    const fallbackType = priceTable && index === 1 ? "decimal" : priceTable && index === 2 ? "currency" : priceTable && index === 3 ? "percentage" : "text";
+    return {
+        key: String(source.key || `c${index}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || `c${index}`,
+        label: String(source.label || source.name || `Colonne ${index + 1}`).slice(0, 80),
+        type: TABLE_COLUMN_TYPES.some(([type]) => type === source.type) ? source.type : fallbackType,
+        required: source.required === true,
+        width: Math.min(12, Math.max(1, Number(source.width) || 3)),
+        align: ["left", "center", "right"].includes(source.align) ? source.align : "left",
+        visibleForm: source.visibleForm !== false,
+        visiblePdf: source.visiblePdf !== false,
+        defaultValue: source.defaultValue ?? "",
+        options: Array.isArray(source.options) ? source.options.map(String).slice(0, 40) : [],
+        allowOther: source.allowOther === true,
+        min: source.min ?? null,
+        max: source.max ?? null,
+        decimals: Math.min(4, Math.max(0, Number(source.decimals) || 0)),
+        unit: String(source.unit || "").slice(0, 20),
+        calculation: ["sum", "multiply", "average", "count"].includes(source.calculation) ? source.calculation : "",
+    };
+}
+
+function normalizeTemplateSection(section) {
+    const normalized = { ...newTemplateSection(section.type, section.label, section.key), ...section };
+    normalized.options = [...(section.options || [])];
+    normalized.columns = (section.columns || []).map((column, index) => normalizeTableColumn(column, index, section.type === "price_table"));
+    normalized.defaultRows = Array.isArray(section.defaultRows) ? structuredClone(section.defaultRows).slice(0, 30) : [];
+    normalized.listMode = ["select", "radio", "checkboxes", "segments"].includes(section.listMode) ? section.listMode : "select";
+    normalized.multiple = section.multiple === true;
+    normalized.allowOther = section.allowOther === true;
+    normalized.allowAddRows = section.allowAddRows !== false;
+    normalized.minRows = Math.max(0, Number(section.minRows) || 0);
+    normalized.maxRows = Math.min(100, Math.max(normalized.minRows || 1, Number(section.maxRows) || 30));
+    normalized.tableMode = ["table", "rows", "cards", "compact", "detailed"].includes(section.tableMode) ? section.tableMode : "table";
+    return normalized;
+}
 
 function openTemplateEditor(id = null) {
     const existing = reportTemplates.find((template) => String(template.id) === String(id));
-    templateDraftSections = (existing?.sections || []).map((section) => ({
-        ...newTemplateSection(section.type, section.label, section.key),
-        ...section,
-        options: [...(section.options || [])],
-        columns: [...(section.columns || [])],
-    }));
+    templateDraftSections = (existing?.sections || []).map(normalizeTemplateSection);
     modal(existing ? "Configurer le modèle" : "Nouveau modèle de rapport", `<form id="template-form">
       ${field("Nom du modèle", "template-name", "text", true, existing?.nom || "")}
       <div class="field"><label for="template-description">Description</label><textarea id="template-description" rows="2">${escapeHtml(existing?.description || "")}</textarea></div>
@@ -1071,7 +1114,9 @@ function newTemplateSection(type, label, key = null) {
         label,
         required: false,
         options: ["select", "checkbox"].includes(type) ? ["Oui", "Non", "Non applicable"] : [],
-        columns: type === "price_table" ? ["Désignation", "Quantité", "Prix HT", "TVA %"] : type === "table" ? ["Colonne 1", "Colonne 2"] : [],
+        columns: type === "price_table" ? ["Désignation", "Quantité", "Prix HT", "TVA %"].map((column, index) => normalizeTableColumn(column, index, true)) : type === "table" ? ["Colonne 1", "Colonne 2"].map((column, index) => normalizeTableColumn(column, index)) : [],
+        defaultRows: [], allowAddRows: true, minRows: 0, maxRows: 30, tableMode: "table",
+        listMode: "select", multiple: false, allowOther: false,
         placeholder: "",
         helpText: "",
         defaultValue: "",
@@ -1096,7 +1141,7 @@ function templateSpecificConfiguration(section, index) {
         fields.push(`<div class="field"><label>Valeur par défaut</label><input ${property("defaultValue", section.defaultValue)}></div>`);
     }
     if (["select", "checkbox"].includes(section.type)) {
-        fields.push(`<div class="field full"><label>Choix proposés, séparés par des virgules</label><input ${property("options", (section.options || []).join(", "), "list")} placeholder="Conforme, Non conforme, Non applicable"></div>`);
+        fields.push(`<div class="field full"><label>Choix proposés (un par ligne)</label><textarea data-template-property="options" data-value-kind="lines" rows="6" placeholder="Conforme\nNon conforme\nNon applicable">${escapeHtml((section.options || []).join("\n"))}</textarea></div><div class="field"><label>Mode d’affichage</label><select data-template-property="listMode"><option value="select" ${section.listMode === "select" ? "selected" : ""}>Menu déroulant</option><option value="radio" ${section.listMode === "radio" ? "selected" : ""}>Boutons radio</option><option value="checkboxes" ${section.listMode === "checkboxes" ? "selected" : ""}>Cases à cocher</option><option value="segments" ${section.listMode === "segments" ? "selected" : ""}>Boutons segmentés</option></select></div><label class="setting-check"><input type="checkbox" data-template-property="multiple" ${section.multiple ? "checked" : ""}> Autoriser plusieurs réponses</label><label class="setting-check"><input type="checkbox" data-template-property="allowOther" ${section.allowOther ? "checked" : ""}> Ajouter le choix « Autre »</label>`);
     }
     if (section.type === "textarea") {
         fields.push(`<div class="field"><label>Nombre de lignes</label><input type="number" min="2" max="12" ${property("rows", section.rows || 4, "number")}></div>`);
@@ -1108,7 +1153,8 @@ function templateSpecificConfiguration(section, index) {
         fields.push(`<div class="field"><label>Format</label><select data-template-property="dateMode" data-template-index="${index}"><option value="date" ${section.dateMode !== "datetime-local" ? "selected" : ""}>Date</option><option value="datetime-local" ${section.dateMode === "datetime-local" ? "selected" : ""}>Date et heure</option></select></div>`);
     }
     if (["table", "price_table"].includes(section.type)) {
-        fields.push(`<div class="field full"><label>Colonnes, séparées par des virgules</label><input ${property("columns", (section.columns || []).join(", "), "list")} placeholder="Désignation, Quantité, Observation"></div>`);
+        fields.push(`<div class="field full"><label>Colonnes du tableau</label><div class="advanced-column-list">${(section.columns || []).map((column, columnIndex) => `<article class="advanced-column" data-column-index="${columnIndex}"><div class="advanced-column-head"><strong>${escapeHtml(column.label)}</strong><span class="badge off">${escapeHtml(TABLE_COLUMN_TYPES.find(([type]) => type === column.type)?.[1] || column.type)}</span></div><div class="grid2"><div class="field"><label>Nom</label><input data-column-property="label" value="${escapeHtml(column.label)}"></div><div class="field"><label>Type</label><select data-column-property="type">${TABLE_COLUMN_TYPES.map(([type, label]) => `<option value="${type}" ${column.type === type ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label>Largeur (1–12)</label><input type="number" min="1" max="12" data-column-property="width" value="${column.width}"></div><div class="field"><label>Alignement</label><select data-column-property="align"><option value="left" ${column.align === "left" ? "selected" : ""}>Gauche</option><option value="center" ${column.align === "center" ? "selected" : ""}>Centre</option><option value="right" ${column.align === "right" ? "selected" : ""}>Droite</option></select></div><div class="field"><label>Calcul de synthèse</label><select data-column-property="calculation"><option value="">Aucun</option><option value="sum" ${column.calculation === "sum" ? "selected" : ""}>Somme</option><option value="average" ${column.calculation === "average" ? "selected" : ""}>Moyenne</option><option value="count" ${column.calculation === "count" ? "selected" : ""}>Comptage</option></select></div><div class="field"><label>Valeur par défaut</label><input data-column-property="defaultValue" value="${escapeHtml(column.defaultValue ?? "")}"></div></div>${column.type === "select" ? `<div class="field"><label>Choix de la colonne (un par ligne)</label><textarea data-column-property="options" data-value-kind="lines" rows="4">${escapeHtml((column.options || []).join("\n"))}</textarea></div>` : ""}${["integer", "decimal", "currency", "percentage"].includes(column.type) ? `<div class="grid2"><div class="field"><label>Minimum</label><input type="number" data-column-property="min" value="${column.min ?? ""}"></div><div class="field"><label>Maximum</label><input type="number" data-column-property="max" value="${column.max ?? ""}"></div><div class="field"><label>Décimales</label><input type="number" min="0" max="4" data-column-property="decimals" value="${column.decimals || 0}"></div><div class="field"><label>Unité / suffixe</label><input data-column-property="unit" value="${escapeHtml(column.unit || "")}"></div></div>` : ""}<div class="actions"><label><input type="checkbox" data-column-property="required" ${column.required ? "checked" : ""}> Obligatoire</label><label><input type="checkbox" data-column-property="visibleForm" ${column.visibleForm !== false ? "checked" : ""}> Formulaire</label><label><input type="checkbox" data-column-property="visiblePdf" ${column.visiblePdf !== false ? "checked" : ""}> PDF</label><button type="button" class="secondary" data-duplicate-column="${columnIndex}">Dupliquer</button><button type="button" class="danger" data-delete-column="${columnIndex}">Supprimer</button></div></article>`).join("")}</div><button type="button" class="secondary wide" data-add-column>＋ Ajouter une colonne</button></div><div class="grid2 full"><div class="field"><label>Minimum de lignes</label><input type="number" min="0" max="100" data-template-property="minRows" data-value-kind="number" value="${section.minRows || 0}"></div><div class="field"><label>Maximum de lignes</label><input type="number" min="1" max="100" data-template-property="maxRows" data-value-kind="number" value="${section.maxRows || 30}"></div></div><label class="setting-check"><input type="checkbox" data-template-property="allowAddRows" ${section.allowAddRows !== false ? "checked" : ""}> Autoriser le technicien à ajouter des lignes</label><div class="field full"><label>Mode d’affichage</label><select data-template-property="tableMode"><option value="table" ${section.tableMode === "table" ? "selected" : ""}>Colonnes classiques</option><option value="rows" ${section.tableMode === "rows" ? "selected" : ""}>Ligne par ligne</option><option value="cards" ${section.tableMode === "cards" ? "selected" : ""}>Cartes</option><option value="compact" ${section.tableMode === "compact" ? "selected" : ""}>Compact</option><option value="detailed" ${section.tableMode === "detailed" ? "selected" : ""}>Détaillé</option></select></div>`);
+        fields.push(`<div class="field full"><label>Lignes présentes par défaut</label><div class="advanced-column-list">${(section.defaultRows || []).map((row, rowIndex) => `<article class="advanced-column" data-default-row-index="${rowIndex}"><div class="advanced-column-head"><strong>Ligne ${rowIndex + 1}</strong><div class="actions"><button type="button" class="secondary" data-duplicate-default-row="${rowIndex}">Dupliquer</button><button type="button" class="danger" data-delete-default-row="${rowIndex}">Supprimer</button></div></div><div class="grid2">${(section.columns || []).filter((column) => !["row_number", "calculated", "photo"].includes(column.type)).map((column) => `<div class="field"><label>${escapeHtml(column.label)}</label><input data-default-row-column="${escapeHtml(column.key)}" value="${escapeHtml(row[column.key] ?? column.defaultValue ?? "")}"></div>`).join("")}</div></article>`).join("") || '<p class="muted">Aucune ligne prédéfinie.</p>'}</div><button type="button" class="secondary wide" data-add-default-row>＋ Ajouter une ligne prédéfinie</button></div>`);
     }
     if (["photo", "multi_photo", "event_photos"].includes(section.type)) {
         fields.push(`<div class="field"><label>Nombre maximum de photos</label><input type="number" min="1" max="20" ${property("maxPhotos", section.maxPhotos || (section.type === "photo" ? 1 : 5), "number")}></div>`);
@@ -1119,37 +1165,8 @@ function templateSpecificConfiguration(section, index) {
 function renderTemplateDraft() {
     const container = document.getElementById("template-fields");
     if (!container) return;
-    container.innerHTML = templateDraftSections.length ? templateDraftSections.map((section, index) => `<article class="template-field-row" draggable="true" data-template-drag-index="${index}">
-      <div class="template-field-toolbar"><strong class="drag-handle" title="Glisser pour réordonner">${icon("more")} Bloc ${index + 1}</strong><span class="muted">Clé : ${escapeHtml(section.key)}</span></div>
-      <div class="template-field-config">
-        <div class="field"><label>Libellé affiché</label><input data-template-property="label" data-template-index="${index}" value="${escapeHtml(section.label)}" maxlength="150"></div>
-        <div class="field"><label>Type de bloc</label><select data-template-type="${index}">${TEMPLATE_FIELD_TYPES.map(([type, label]) => `<option value="${type}" ${type === section.type ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></div>
-        ${!["title", "page_break"].includes(section.type) ? `<div class="field full"><label>Texte d’aide</label><input data-template-property="helpText" data-template-index="${index}" value="${escapeHtml(section.helpText || "")}" placeholder="Consigne affichée sous le champ"></div><div class="field"><label>Largeur</label><select data-template-property="width" data-template-index="${index}"><option value="full" ${section.width !== "half" ? "selected" : ""}>Toute la largeur</option><option value="half" ${section.width === "half" ? "selected" : ""}>Demi-largeur</option></select></div>` : ""}
-        ${templateSpecificConfiguration(section, index)}
-      </div>
-      <div class="template-field-actions">${templateFieldSupportsRequired(section.type) ? `<label class="muted"><input type="checkbox" data-required-template="${index}" ${section.required ? "checked" : ""}> Champ obligatoire</label>` : ""}<button type="button" class="secondary" data-move-template-up="${index}" ${index === 0 ? "disabled" : ""}>↑ Monter</button><button type="button" class="secondary" data-move-template-down="${index}" ${index === templateDraftSections.length - 1 ? "disabled" : ""}>↓ Descendre</button><button type="button" class="danger" data-remove-template-field="${index}">Retirer</button></div>
-    </article>`).join("") : `<div class="empty">Ajoutez les blocs qui composeront ce rapport.</div>`;
-    container.querySelectorAll("[data-template-property]").forEach((input) => {
-        const eventName = input.tagName === "SELECT" ? "change" : "input";
-        input.addEventListener(eventName, () => {
-            const section = templateDraftSections[Number(input.dataset.templateIndex)];
-            const kind = input.dataset.valueKind;
-            section[input.dataset.templateProperty] = kind === "list"
-                ? input.value.split(",").map((entry) => entry.trim()).filter(Boolean)
-                : kind === "number" ? Number(input.value)
-                : kind === "nullable-number" ? (input.value === "" ? null : Number(input.value))
-                : input.value;
-            renderTemplatePreview();
-        });
-    });
-    container.querySelectorAll("[data-template-type]").forEach((select) => select.addEventListener("change", () => {
-        const index = Number(select.dataset.templateType);
-        const previous = templateDraftSections[index];
-        const label = TEMPLATE_FIELD_TYPES.find(([type]) => type === select.value)?.[1] || previous.label;
-        templateDraftSections[index] = { ...newTemplateSection(select.value, previous.label || label, previous.key), helpText: previous.helpText || "", width: previous.width || "full" };
-        renderTemplateDraft();
-    }));
-    container.querySelectorAll("[data-required-template]").forEach((input) => input.addEventListener("change", () => { templateDraftSections[Number(input.dataset.requiredTemplate)].required = input.checked; renderTemplatePreview(); }));
+    container.innerHTML = templateDraftSections.length ? templateDraftSections.map((section, index) => templateSectionCard(section, index)).join("") : `<div class="empty">Ajoutez les blocs qui composeront ce rapport.</div>`;
+    container.querySelectorAll("[data-configure-template-field]").forEach((button) => button.addEventListener("click", () => openTemplateSectionDrawer(Number(button.dataset.configureTemplateField))));
     container.querySelectorAll("[data-move-template-up]").forEach((button) => button.addEventListener("click", () => moveTemplateField(Number(button.dataset.moveTemplateUp), -1)));
     container.querySelectorAll("[data-move-template-down]").forEach((button) => button.addEventListener("click", () => moveTemplateField(Number(button.dataset.moveTemplateDown), 1)));
     container.querySelectorAll("[data-remove-template-field]").forEach((button) => button.addEventListener("click", () => { templateDraftSections.splice(Number(button.dataset.removeTemplateField), 1); renderTemplateDraft(); }));
@@ -1162,6 +1179,93 @@ function renderTemplateDraft() {
     });
     renderTemplatePreview();
 }
+
+function templateTypeLabel(type) { return TEMPLATE_FIELD_TYPES.find(([value]) => value === type)?.[1] || type; }
+function templateSectionSummary(section) {
+    if (["select", "checkbox"].includes(section.type)) return `${(section.options || []).length} choix : ${(section.options || []).slice(0, 3).join(", ")}${section.options?.length > 3 ? "…" : ""}`;
+    if (["table", "price_table"].includes(section.type)) return `${(section.columns || []).length} colonnes : ${(section.columns || []).map((column) => typeof column === "string" ? column : column.label).join(", ")}`;
+    if (["photo", "multi_photo", "event_photos"].includes(section.type)) return `${section.maxPhotos || 1} photo(s) maximum`;
+    if (section.type === "number") return [section.min != null && `min. ${section.min}`, section.max != null && `max. ${section.max}`, section.unit].filter(Boolean).join(" · ") || "Nombre libre";
+    return section.helpText || section.placeholder || section.defaultValue || "Aucun réglage complémentaire";
+}
+function templateSectionCard(section, index) {
+    return `<article class="template-field-row compact ${section.width === "half" ? "half" : "full"}" draggable="true" data-template-drag-index="${index}">
+      <span class="drag-handle" title="Glisser pour réordonner" aria-label="Réordonner le bloc">${icon("more")}</span>
+      <div class="template-card-copy"><strong>${escapeHtml(section.label)}</strong><div class="template-card-summary"><span class="badge">${escapeHtml(templateTypeLabel(section.type))}</span>${section.required ? '<span class="badge off">Obligatoire</span>' : ""}<span class="badge off">${section.width === "half" ? "Demi-largeur" : "Pleine largeur"}</span><small>${escapeHtml(templateSectionSummary(section))}</small></div></div>
+      <div class="template-card-actions"><button type="button" class="secondary icon-only" data-move-template-up="${index}" ${index === 0 ? "disabled" : ""} aria-label="Monter ce bloc" title="Monter">↑</button><button type="button" class="secondary icon-only" data-move-template-down="${index}" ${index === templateDraftSections.length - 1 ? "disabled" : ""} aria-label="Descendre ce bloc" title="Descendre">↓</button><button type="button" class="secondary icon-only" data-configure-template-field="${index}" aria-label="Configurer ${escapeHtml(section.label)}" title="Configurer">${icon("edit")}</button></div>
+    </article>`;
+}
+
+function openTemplateSectionDrawer(index, activeTab = "settings", workingDraft = null) {
+    closeTemplateSectionDrawer();
+    const original = templateDraftSections[index];
+    if (!original) return;
+    const draft = workingDraft || structuredClone(original);
+    const root = document.createElement("div");
+    root.id = "template-section-drawer";
+    root.className = "section-drawer-backdrop";
+    root.innerHTML = `<aside class="section-drawer" role="dialog" aria-modal="true" aria-labelledby="section-drawer-title">
+      <header class="section-drawer-head"><div><h2 id="section-drawer-title">Configurer le bloc</h2><span class="muted">Bloc ${index + 1} · ${escapeHtml(templateTypeLabel(draft.type))}</span></div><button class="close icon-only" type="button" data-close-section-drawer aria-label="Fermer">${icon("close")}</button></header>
+      <div class="section-drawer-tabs" role="tablist"><button class="${activeTab === "settings" ? "primary" : "secondary"}" type="button" data-section-tab="settings" role="tab" aria-selected="${activeTab === "settings"}">Réglages</button><button class="${activeTab === "display" ? "primary" : "secondary"}" type="button" data-section-tab="display" role="tab" aria-selected="${activeTab === "display"}">Affichage</button></div>
+      <div class="section-drawer-body"><form id="section-settings-form">${activeTab === "settings" ? templateSectionSettings(draft, index) : templateSectionDisplay(draft, index)}</form></div>
+      <footer class="section-drawer-footer"><button class="secondary" type="button" data-close-section-drawer>Annuler</button><button class="primary" type="button" id="apply-section-settings">Valider les réglages</button><button class="danger" type="button" id="delete-section-from-drawer">${icon("trash")} Supprimer</button><button class="secondary" type="button" id="duplicate-section">Dupliquer</button></footer>
+    </aside>`;
+    document.body.append(root);
+    root.querySelectorAll("[data-close-section-drawer]").forEach((button) => button.addEventListener("click", closeTemplateSectionDrawer));
+    root.addEventListener("mousedown", (event) => { if (event.target === root) closeTemplateSectionDrawer(); });
+    root.querySelectorAll("[data-section-tab]").forEach((button) => button.addEventListener("click", () => {
+        readSectionDrawerValues(draft, root);
+        closeTemplateSectionDrawer();
+        openTemplateSectionDrawer(index, button.dataset.sectionTab, draft);
+    }));
+    root.querySelector("#drawer-type")?.addEventListener("change", (event) => {
+        readSectionDrawerValues(draft, root);
+        const defaults = newTemplateSection(event.target.value, draft.label, draft.key);
+        Object.assign(draft, defaults, { label: draft.label, key: draft.key, helpText: draft.helpText || "", width: draft.width || "full", required: draft.required || false });
+        closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, "settings", draft);
+    });
+    document.getElementById("apply-section-settings").addEventListener("click", () => {
+        readSectionDrawerValues(draft, root);
+        templateDraftSections[index] = draft;
+        closeTemplateSectionDrawer(); renderTemplateDraft(); renderTemplatePreview();
+    });
+    document.getElementById("delete-section-from-drawer").addEventListener("click", () => { templateDraftSections.splice(index, 1); closeTemplateSectionDrawer(); renderTemplateDraft(); });
+    document.getElementById("duplicate-section").addEventListener("click", () => { readSectionDrawerValues(draft, root); const copy = structuredClone(draft); copy.key = `champ_${Date.now()}_${templateDraftSections.length}`; copy.label = `${copy.label} (copie)`; templateDraftSections.splice(index + 1, 0, copy); closeTemplateSectionDrawer(); renderTemplateDraft(); });
+    root.querySelector("[data-add-column]")?.addEventListener("click", () => { readSectionDrawerValues(draft, root); draft.columns.push(normalizeTableColumn({ label: `Colonne ${draft.columns.length + 1}` }, draft.columns.length, draft.type === "price_table")); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); });
+    root.querySelectorAll("[data-delete-column]").forEach((button) => button.addEventListener("click", () => { readSectionDrawerValues(draft, root); if (draft.columns.length <= 1) return toast("Un tableau doit conserver au moins une colonne.", true); draft.columns.splice(Number(button.dataset.deleteColumn), 1); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); }));
+    root.querySelectorAll("[data-duplicate-column]").forEach((button) => button.addEventListener("click", () => { readSectionDrawerValues(draft, root); const sourceIndex = Number(button.dataset.duplicateColumn); const copy = structuredClone(draft.columns[sourceIndex]); copy.key = `${copy.key}_copie_${Date.now()}`; copy.label = `${copy.label} (copie)`; draft.columns.splice(sourceIndex + 1, 0, copy); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); }));
+    root.querySelector("[data-add-default-row]")?.addEventListener("click", () => { readSectionDrawerValues(draft, root); draft.defaultRows.push(Object.fromEntries(draft.columns.filter((column) => !["row_number", "calculated", "photo"].includes(column.type)).map((column) => [column.key, column.defaultValue ?? ""]))); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); });
+    root.querySelectorAll("[data-delete-default-row]").forEach((button) => button.addEventListener("click", () => { readSectionDrawerValues(draft, root); draft.defaultRows.splice(Number(button.dataset.deleteDefaultRow), 1); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); }));
+    root.querySelectorAll("[data-duplicate-default-row]").forEach((button) => button.addEventListener("click", () => { readSectionDrawerValues(draft, root); const rowIndex = Number(button.dataset.duplicateDefaultRow); draft.defaultRows.splice(rowIndex + 1, 0, structuredClone(draft.defaultRows[rowIndex])); closeTemplateSectionDrawer(); openTemplateSectionDrawer(index, activeTab, draft); }));
+    root.querySelector("input,select,textarea")?.focus();
+}
+
+function templateSectionSettings(section, index) {
+    return `<div class="section-setting-group"><h3>Identification du champ</h3><div class="field"><label for="drawer-label">Titre affiché</label><input id="drawer-label" data-drawer-property="label" value="${escapeHtml(section.label)}" maxlength="150" required></div><div class="field"><label for="drawer-type">Type de contenu</label><select id="drawer-type" data-drawer-property="type">${TEMPLATE_FIELD_TYPES.map(([type, label]) => `<option value="${type}" ${type === section.type ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select><span class="field-help">Détermine la façon dont l’information sera saisie dans le rapport.</span></div></div>
+    <div class="section-setting-group"><h3>Contenu et valeurs</h3>${templateSpecificConfiguration(section, index) || '<p class="muted">Ce type de bloc ne nécessite aucun réglage supplémentaire.</p>'}</div>`;
+}
+
+function templateSectionDisplay(section, index) {
+    return `<div class="section-setting-group"><h3>Disposition dans le rapport</h3><div class="field"><label for="drawer-width">Largeur du bloc</label><select id="drawer-width" data-drawer-property="width"><option value="full" ${section.width !== "half" ? "selected" : ""}>Pleine largeur</option><option value="half" ${section.width === "half" ? "selected" : ""}>Moitié de la page</option></select></div><p class="section-type-help">La demi-largeur permet de placer deux champs côte à côte lorsque l’écran ou le PDF dispose de suffisamment d’espace.</p></div>
+    <div class="section-setting-group"><h3>Comportement</h3>${templateFieldSupportsRequired(section.type) ? `<label class="setting-check"><input type="checkbox" data-drawer-property="required" ${section.required ? "checked" : ""}> Ce champ doit obligatoirement être rempli</label>` : ""}<label class="setting-check"><input type="checkbox" data-drawer-property="showLabel" ${section.showLabel !== false ? "checked" : ""}> Afficher le titre du champ</label><div class="field"><label for="drawer-help">Consigne affichée à l’utilisateur</label><textarea id="drawer-help" data-drawer-property="helpText" rows="3" placeholder="Expliquez ce qui doit être renseigné">${escapeHtml(section.helpText || "")}</textarea></div></div>`;
+}
+
+function readSectionDrawerValues(section, root) {
+    root.querySelectorAll("[data-drawer-property]").forEach((input) => { section[input.dataset.drawerProperty] = input.type === "checkbox" ? input.checked : input.value; });
+    root.querySelectorAll("[data-template-property]").forEach((input) => {
+        const kind = input.dataset.valueKind;
+        section[input.dataset.templateProperty] = input.type === "checkbox" ? input.checked : kind === "list" ? input.value.split(",").map((value) => value.trim()).filter(Boolean) : kind === "lines" ? input.value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) : kind === "number" ? Number(input.value) : kind === "nullable-number" ? (input.value === "" ? null : Number(input.value)) : input.value;
+    });
+    root.querySelectorAll("[data-column-index]").forEach((card) => {
+        const column = section.columns[Number(card.dataset.columnIndex)];
+        card.querySelectorAll("[data-column-property]").forEach((input) => {
+            const value = input.type === "checkbox" ? input.checked : input.dataset.valueKind === "lines" ? input.value.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean) : input.type === "number" ? (input.value === "" ? null : Number(input.value)) : input.value;
+            column[input.dataset.columnProperty] = value;
+        });
+    });
+    section.defaultRows = [...root.querySelectorAll("[data-default-row-index]")].map((card) => Object.fromEntries([...card.querySelectorAll("[data-default-row-column]")].map((input) => [input.dataset.defaultRowColumn, input.value])));
+}
+function closeTemplateSectionDrawer() { document.getElementById("template-section-drawer")?.remove(); }
 
 function templateFieldSupportsRequired(type) {
     return ["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table"].includes(type);
@@ -1512,7 +1616,8 @@ function renderReportFields(template, data = {}) {
     return `<section class="panel"><div class="panel-head"><div><h2>${escapeHtml(template.nom || template.modele_rapport_nom || "Rapport personnalisé")}</h2><p class="muted">Complétez les contrôles définis dans le modèle.</p></div></div><div class="report-fields-grid">${sections.map((section) => {
         const value = Object.hasOwn(data || {}, section.key) ? data[section.key] : (section.defaultValue ?? "");
         const attributes = `data-report-key="${escapeHtml(section.key)}" ${section.required ? "required" : ""}`;
-        const label = `<label>${escapeHtml(section.label)}${section.required ? " *" : ""}</label>`;
+        const labelClass = section.showLabel === false ? ' class="sr-only"' : "";
+        const label = `<label${labelClass}>${escapeHtml(section.label)}${section.required ? " *" : ""}</label>`;
         const help = section.helpText ? `<span class="field-help">${escapeHtml(section.helpText)}</span>` : "";
         const wrapper = (content, extra = "") => `<div class="report-field ${section.width === "half" ? "half" : "full"} ${extra}">${content}${help}</div>`;
         if (section.type === "title") return `<h3 class="report-section-title">${escapeHtml(section.label)}</h3>`;
@@ -1525,10 +1630,18 @@ function renderReportFields(template, data = {}) {
         if (section.type === "address") return wrapper(`<div class="field">${label}<input ${attributes} value="${escapeHtml(value || "")}" autocomplete="street-address" placeholder="${escapeHtml(section.placeholder || "Adresse complète")}"></div>`);
         if (["table", "price_table"].includes(section.type)) return renderReportTable(section, Array.isArray(value) ? value : []);
         if (section.type === "textarea") return wrapper(`<div class="field">${label}<textarea ${attributes} rows="${Number(section.rows || 4)}" placeholder="${escapeHtml(section.placeholder || "")}">${escapeHtml(value || "")}</textarea></div>`);
-        if (section.type === "select") return wrapper(`<div class="field">${label}<select ${attributes}><option value="">${escapeHtml(section.placeholder || "Sélectionner")}</option>${(section.options || []).map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`);
+        if (section.type === "select") {
+            const choices = [...(section.options || []), ...(section.allowOther ? ["Autre"] : [])];
+            const selected = Array.isArray(value) ? value : [value];
+            if (section.multiple || ["radio", "checkboxes", "segments"].includes(section.listMode)) {
+                const inputType = section.multiple || section.listMode === "checkboxes" ? "checkbox" : "radio";
+                return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options list-mode-${escapeHtml(section.listMode || "radio")}">${choices.map((option) => `<label><input type="${inputType}" data-report-checkbox-group="${escapeHtml(section.key)}" name="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
+            }
+            return wrapper(`<div class="field">${label}<select ${attributes}><option value="">${escapeHtml(section.placeholder || "Sélectionner")}</option>${choices.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`);
+        }
         if (section.type === "checkbox" && (section.options || []).length) {
             const selected = Array.isArray(value) ? value : [];
-            return wrapper(`<fieldset class="field"><legend>${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options">${section.options.map((option) => `<label><input type="checkbox" data-report-checkbox-group="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
+            return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options">${section.options.map((option) => `<label><input type="checkbox" data-report-checkbox-group="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
         }
         if (section.type === "checkbox") return wrapper(`<div class="field"><label><input type="checkbox" ${attributes} ${value ? "checked" : ""}> ${escapeHtml(section.label)}${section.required ? " *" : ""}</label></div>`);
         const inputType = section.type === "date" ? (section.dateMode || "date") : section.type === "number" ? "number" : "text";
@@ -1537,14 +1650,28 @@ function renderReportFields(template, data = {}) {
     }).join("")}</div></section>`;
 }
 
-function reportTableRow(columns, values = {}, priceTable = false) {
-    return `<tr>${columns.map((column, index) => `<td data-label="${escapeHtml(column)}"><input data-table-column="c${index}" type="${priceTable && index > 0 ? "number" : "text"}" ${priceTable && index > 0 ? 'min="0" step="0.01"' : ""} value="${escapeHtml(values[`c${index}`] ?? "")}" aria-label="${escapeHtml(column)}"></td>`).join("")}<td data-label="Action"><button type="button" class="danger" data-remove-report-row aria-label="Supprimer la ligne">×</button></td></tr>`;
+function tableCellInput(column, value, rowIndex) {
+    const common = `data-table-column="${escapeHtml(column.key)}" ${column.required ? "required" : ""} aria-label="${escapeHtml(column.label)}"`;
+    if (column.type === "row_number") return `<input ${common} value="${rowIndex + 1}" readonly>`;
+    if (column.type === "select") return `<select ${common}><option value="">Sélectionner</option>${column.options.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === option ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}${column.allowOther ? '<option value="__other__">Autre…</option>' : ""}</select>`;
+    if (["boolean", "checkbox"].includes(column.type)) return `<input type="checkbox" ${common} ${value === true || value === "true" ? "checked" : ""}>`;
+    if (column.type === "textarea") return `<textarea ${common} rows="2">${escapeHtml(value ?? column.defaultValue ?? "")}</textarea>`;
+    if (column.type === "photo") return `<input type="file" ${common} accept="image/png,image/jpeg,image/webp">`;
+    const type = ({ integer: "number", decimal: "number", currency: "number", percentage: "number", date: "date", time: "time", datetime: "datetime-local", calculated: "number" })[column.type] || "text";
+    const numeric = ["integer", "decimal", "currency", "percentage", "calculated"].includes(column.type);
+    const step = column.type === "integer" ? 1 : 1 / (10 ** (column.decimals || 2));
+    const limits = numeric ? `${column.min != null ? `min="${Number(column.min)}"` : ""} ${column.max != null ? `max="${Number(column.max)}"` : ""} step="${step}"` : "";
+    return `<input type="${type}" ${common} ${limits} ${column.type === "calculated" ? "readonly" : ""} value="${escapeHtml(value ?? column.defaultValue ?? "")}">`;
+}
+
+function reportTableRow(columns, values = {}, _priceTable = false, rowIndex = 0) {
+    return `<tr>${columns.filter((column) => column.visibleForm !== false).map((column) => `<td data-label="${escapeHtml(column.label)}" style="text-align:${column.align}">${tableCellInput(column, values[column.key], rowIndex)}</td>`).join("")}<td data-label="Action"><button type="button" class="danger" data-remove-report-row aria-label="Supprimer la ligne">×</button></td></tr>`;
 }
 
 function renderReportTable(section, rows) {
-    const columns = section.columns?.length ? section.columns : (section.type === "price_table" ? ["Désignation", "Quantité", "Prix HT", "TVA %"] : ["Colonne 1", "Colonne 2"]);
-    const initialRows = rows.length ? rows : [{}];
-    return `<div class="report-table field" data-report-table="${escapeHtml(section.key)}" data-columns="${escapeHtml(JSON.stringify(columns))}" data-price-table="${section.type === "price_table"}"><label>${escapeHtml(section.label)}${section.required ? " *" : ""}</label>${section.helpText ? `<span class="field-help">${escapeHtml(section.helpText)}</span>` : ""}<table><thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}<th></th></tr></thead><tbody>${initialRows.map((row) => reportTableRow(columns, row, section.type === "price_table")).join("")}</tbody></table><div class="report-table-actions"><button type="button" class="secondary" data-add-report-row>＋ Ajouter une ligne</button></div>${section.type === "price_table" ? `<div class="report-table-total">Total HT : <span>0,00 €</span></div>` : ""}</div>`;
+    const columns = (section.columns?.length ? section.columns : ["Colonne 1", "Colonne 2"]).map((column, index) => normalizeTableColumn(column, index, section.type === "price_table"));
+    const initialRows = rows.length ? rows : (section.defaultRows?.length ? structuredClone(section.defaultRows) : Array.from({ length: Math.max(1, section.minRows || 0) }, () => ({})));
+    return `<div class="report-table field mode-${escapeHtml(section.tableMode || "table")}" data-report-table="${escapeHtml(section.key)}" data-columns="${escapeHtml(JSON.stringify(columns))}" data-min-rows="${Number(section.minRows || 0)}" data-max-rows="${Number(section.maxRows || 30)}"><label class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</label>${section.helpText ? `<span class="field-help">${escapeHtml(section.helpText)}</span>` : ""}<table><thead><tr>${columns.filter((column) => column.visibleForm !== false).map((column) => `<th style="width:${column.width}fr;text-align:${column.align}">${escapeHtml(column.label)}${column.required ? " *" : ""}</th>`).join("")}<th></th></tr></thead><tbody>${initialRows.map((row, rowIndex) => reportTableRow(columns, row, false, rowIndex)).join("")}</tbody></table>${section.allowAddRows !== false ? '<div class="report-table-actions"><button type="button" class="secondary" data-add-report-row>＋ Ajouter une ligne</button></div>' : ""}<div class="report-table-total" data-table-calculations></div></div>`;
 }
 
 function collectReportData(form) {
@@ -1556,7 +1683,7 @@ function collectReportData(form) {
     groupKeys.forEach((key) => { data[key] = [...form.querySelectorAll(`[data-report-checkbox-group="${CSS.escape(key)}"]:checked`)].map((input) => input.value); });
     form.querySelectorAll("[data-report-table]").forEach((table) => {
         data[table.dataset.reportTable] = [...table.querySelectorAll("tbody tr")].map((row) => Object.fromEntries(
-            [...row.querySelectorAll("[data-table-column]")].map((input) => [input.dataset.tableColumn, input.type === "number" && input.value !== "" ? Number(input.value) : input.value.trim()])
+            [...row.querySelectorAll("[data-table-column]")].filter((input) => input.type !== "file").map((input) => [input.dataset.tableColumn, input.type === "checkbox" ? input.checked : input.type === "number" && input.value !== "" ? Number(input.value) : input.value.trim()])
         )).filter((row) => Object.values(row).some((value) => value !== ""));
     });
     return data;
@@ -1577,25 +1704,29 @@ function bindReportFieldActions(container = document) {
     }));
     container.querySelectorAll("[data-report-table]").forEach((table) => {
         const columns = JSON.parse(table.dataset.columns || "[]");
-        const priceTable = table.dataset.priceTable === "true";
         const recalculate = () => {
-            if (!priceTable) return;
-            const total = [...table.querySelectorAll("tbody tr")].reduce((sum, row) => {
-                const inputs = row.querySelectorAll("[data-table-column]");
-                return sum + Number(inputs[1]?.value || 0) * Number(inputs[2]?.value || 0);
-            }, 0);
-            table.querySelector(".report-table-total span").textContent = formatMoney(total);
+            const rows = [...table.querySelectorAll("tbody tr")];
+            const summaries = [];
+            columns.forEach((column) => {
+                if (!column.calculation) return;
+                const numbers = rows.map((row) => Number(row.querySelector(`[data-table-column="${CSS.escape(column.key)}"]`)?.value || 0));
+                const result = column.calculation === "sum" ? numbers.reduce((a, b) => a + b, 0) : column.calculation === "average" ? numbers.reduce((a, b) => a + b, 0) / Math.max(1, numbers.length) : column.calculation === "count" ? rows.length : 0;
+                summaries.push(`${column.label} : ${column.type === "currency" ? formatMoney(result) : result.toLocaleString("fr-FR")}`);
+            });
+            table.querySelector("[data-table-calculations]").textContent = summaries.join(" · ");
         };
         table.addEventListener("click", (event) => {
             const remove = event.target.closest("[data-remove-report-row]");
             if (remove) {
                 const rows = table.querySelectorAll("tbody tr");
-                if (rows.length > 1) remove.closest("tr").remove();
+                if (rows.length > Number(table.dataset.minRows || 0) && rows.length > 1) remove.closest("tr").remove();
                 else remove.closest("tr").querySelectorAll("input").forEach((input) => { input.value = ""; });
                 recalculate();
             }
             if (event.target.closest("[data-add-report-row]")) {
-                table.querySelector("tbody").insertAdjacentHTML("beforeend", reportTableRow(columns, {}, priceTable));
+                const rows = table.querySelectorAll("tbody tr");
+                if (rows.length >= Number(table.dataset.maxRows || 30)) return toast("Nombre maximum de lignes atteint.", true);
+                table.querySelector("tbody").insertAdjacentHTML("beforeend", reportTableRow(columns, {}, false, rows.length));
             }
         });
         table.addEventListener("input", recalculate);

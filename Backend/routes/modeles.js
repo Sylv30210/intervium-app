@@ -11,6 +11,38 @@ const SECTION_TYPES = new Set([
     "equipment", "photo", "multi_photo", "event_photos", "signature",
     "electronic_signature", "creator", "gps", "address", "table", "price_table", "page_break",
 ]);
+const COLUMN_TYPES = new Set(["text", "textarea", "integer", "decimal", "currency", "percentage", "date", "time", "datetime", "boolean", "checkbox", "select", "photo", "row_number", "calculated"]);
+
+function normalizeColumns(value, priceTable = false) {
+    if (!Array.isArray(value) || value.length > 12) return null;
+    const keys = new Set();
+    return value.map((entry, index) => {
+        const source = typeof entry === "string" ? { label: entry } : entry;
+        if (!source || typeof source !== "object") return null;
+        const key = optionalText(source.key || `c${index}`, 40).replace(/[^a-zA-Z0-9_-]/g, "") || `c${index}`;
+        if (keys.has(key)) return null;
+        keys.add(key);
+        const fallbackType = priceTable && index === 1 ? "decimal" : priceTable && index === 2 ? "currency" : priceTable && index === 3 ? "percentage" : "text";
+        const type = COLUMN_TYPES.has(source.type) ? source.type : fallbackType;
+        return {
+            key,
+            label: optionalText(source.label || source.name || `Colonne ${index + 1}`, 80),
+            type,
+            required: source.required === true,
+            width: Math.min(12, Math.max(1, Math.round(optionalNumber(source.width, 3)))),
+            align: ["left", "center", "right"].includes(source.align) ? source.align : "left",
+            visibleForm: source.visibleForm !== false,
+            visiblePdf: source.visiblePdf !== false,
+            defaultValue: ["text", "textarea", "date", "time", "datetime", "select"].includes(type) ? optionalText(source.defaultValue, 300) : optionalNumber(source.defaultValue, ""),
+            options: type === "select" && Array.isArray(source.options) ? source.options.map((option) => optionalText(option, 100)).filter(Boolean).slice(0, 40) : [],
+            allowOther: source.allowOther === true,
+            min: optionalNumber(source.min), max: optionalNumber(source.max),
+            decimals: Math.min(4, Math.max(0, Math.round(optionalNumber(source.decimals, type === "integer" ? 0 : 2)))),
+            unit: optionalText(source.unit, 20),
+            calculation: ["sum", "multiply", "average", "count"].includes(source.calculation) ? source.calculation : "",
+        };
+    });
+}
 
 function positiveId(value) {
     const id = Number(value);
@@ -43,9 +75,8 @@ function validateSections(value) {
         const options = ["select", "checkbox"].includes(source.type) && Array.isArray(source.options)
             ? source.options.map((option) => String(option).trim()).filter(Boolean).slice(0, 30)
             : [];
-        const columns = ["table", "price_table"].includes(source.type) && Array.isArray(source.columns)
-            ? source.columns.map((column) => String(column).trim()).filter(Boolean).slice(0, 8)
-            : [];
+        const columns = ["table", "price_table"].includes(source.type) ? normalizeColumns(source.columns || [], source.type === "price_table") : [];
+        if (["table", "price_table"].includes(source.type) && (!columns || columns.some((column) => column === null))) return null;
         const min = optionalNumber(source.min);
         const max = optionalNumber(source.max);
         if (min !== null && max !== null && min > max) return null;
@@ -54,10 +85,21 @@ function validateSections(value) {
             type: source.type,
             label: label || (source.type === "page_break" ? "Saut de page" : `Champ ${index + 1}`),
             required: Boolean(source.required),
+            showLabel: source.showLabel !== false,
             options,
+            listMode: ["select", "radio", "checkboxes", "segments"].includes(source.listMode) ? source.listMode : "select",
+            multiple: source.multiple === true,
+            allowOther: source.allowOther === true,
             columns: columns.length ? columns : (source.type === "price_table"
-                ? ["Désignation", "Quantité", "Prix HT", "TVA %"]
-                : source.type === "table" ? ["Colonne 1", "Colonne 2"] : []),
+                ? normalizeColumns(["Désignation", "Quantité", "Prix HT", "TVA %"], true)
+                : source.type === "table" ? normalizeColumns(["Colonne 1", "Colonne 2"]) : []),
+            defaultRows: ["table", "price_table"].includes(source.type) && Array.isArray(source.defaultRows)
+                ? source.defaultRows.slice(0, 30).map((row) => Object.fromEntries(Object.entries(row || {}).slice(0, 12).map(([columnKey, cell]) => [String(columnKey).slice(0, 40), typeof cell === "boolean" || typeof cell === "number" ? cell : optionalText(cell, 300)])))
+                : [],
+            allowAddRows: source.allowAddRows !== false,
+            minRows: Math.min(100, Math.max(0, Math.round(optionalNumber(source.minRows, 0)))),
+            maxRows: Math.min(100, Math.max(1, Math.round(optionalNumber(source.maxRows, 30)))),
+            tableMode: ["table", "rows", "cards", "compact", "detailed"].includes(source.tableMode) ? source.tableMode : "table",
             placeholder: optionalText(source.placeholder, 180),
             helpText: optionalText(source.helpText, 300),
             defaultValue: ["text", "textarea", "date", "number", "select", "address"].includes(source.type)

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v5-mobile-nav-index";
+const CACHE_VERSION = "intervium-shell-v8-report-builder";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

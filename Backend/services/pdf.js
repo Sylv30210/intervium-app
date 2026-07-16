@@ -155,13 +155,17 @@ function detailLine(doc, label, value) {
     doc.y = Math.max(doc.y, y + 19);
 }
 
-function reportField(doc, label, value) {
-    ensureSpace(doc, 42);
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
-        .text(String(label || "CHAMP").toUpperCase(), 48, doc.y, { width: doc.page.width - 96 });
-    doc.moveDown(0.2).font("Helvetica").fontSize(10.5).fillColor(DARK)
-        .text(value || "-", { lineGap: 3 });
+function reportField(doc, label, value, showLabel = true, x = 48, width = doc.page.width - 96) {
+    ensureSpace(doc, showLabel ? 42 : 28);
+    if (showLabel) {
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
+            .text(String(label || "CHAMP").toUpperCase(), x, doc.y, { width });
+        doc.moveDown(0.2);
+    }
+    doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
+        .text(value || "-", x, doc.y, { width, lineGap: 3 });
     doc.moveDown(0.45);
+    doc.x = 48;
 }
 
 function reportValue(section, rawValue) {
@@ -184,41 +188,48 @@ function reportValue(section, rawValue) {
 
 function reportTable(doc, section, rows) {
     const columns = Array.isArray(section.columns) && section.columns.length
-        ? section.columns
+        ? section.columns.map((column, index) => typeof column === "string" ? { key: `c${index}`, label: column, type: "text", visiblePdf: true, align: "left", width: 3 } : column).filter((column) => column.visiblePdf !== false)
         : section.type === "price_table"
-          ? ["Désignation", "Quantité", "Prix HT", "TVA %"]
-          : ["Colonne 1", "Colonne 2"];
+          ? ["Désignation", "Quantité", "Prix HT", "TVA %"].map((label, index) => ({ key: `c${index}`, label, type: "text", width: 3 }))
+          : ["Colonne 1", "Colonne 2"].map((label, index) => ({ key: `c${index}`, label, type: "text", width: 3 }));
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-        reportField(doc, section.label, "Aucune ligne renseignée");
+        reportField(doc, section.label, "Aucune ligne renseignée", section.showLabel !== false);
         return;
     }
     const compactTableHeight = 46 + safeRows.length * 34 + (section.type === "price_table" ? 24 : 0);
     ensureSpace(doc, Math.min(280, compactTableHeight));
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
-        .text(String(section.label || "TABLEAU").toUpperCase(), 48, doc.y, { width: doc.page.width - 96 });
-    doc.moveDown(0.3);
+    if (section.showLabel !== false) {
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
+            .text(String(section.label || "TABLEAU").toUpperCase(), 48, doc.y, { width: doc.page.width - 96 });
+        doc.moveDown(0.3);
+    }
     const totalWidth = doc.page.width - 96;
-    const columnWidth = totalWidth / columns.length;
+    const totalUnits = columns.reduce((sum, column) => sum + (Number(column.width) || 3), 0);
     const drawRow = (values, header = false) => {
         const texts = values.map((value) => String(value ?? ""));
-        const height = Math.max(24, ...texts.map((text) => doc.heightOfString(text, { width: columnWidth - 10 }))) + 8;
+        const widths = columns.map((column) => totalWidth * ((Number(column.width) || 3) / totalUnits));
+        const height = Math.max(24, ...texts.map((text, index) => doc.heightOfString(text, { width: widths[index] - 10 }))) + 8;
         ensureSpace(doc, height);
         const y = doc.y;
         if (header) doc.rect(48, y, totalWidth, height).fill(LIGHT);
         doc.font(header ? "Helvetica-Bold" : "Helvetica").fontSize(8.5).fillColor(DARK);
+        let cursorX = 48;
         texts.forEach((text, index) => {
-            const x = 48 + index * columnWidth;
-            doc.rect(x, y, columnWidth, height).strokeColor(LIGHT).stroke();
-            doc.text(text || "-", x + 5, y + 5, { width: columnWidth - 10 });
+            const columnWidth = widths[index];
+            doc.rect(cursorX, y, columnWidth, height).strokeColor(LIGHT).stroke();
+            doc.text(text || "-", cursorX + 5, y + 5, { width: columnWidth - 10, align: columns[index].align || "left" });
+            cursorX += columnWidth;
         });
         doc.x = 48;
         doc.y = y + height;
     };
-    drawRow(columns, true);
-    safeRows.forEach((row) => drawRow(columns.map((_, index) => row?.[`c${index}`] ?? "")));
+    drawRow(columns.map((column) => column.label), true);
+    safeRows.forEach((row, rowIndex) => drawRow(columns.map((column) => column.type === "row_number" ? rowIndex + 1 : typeof row?.[column.key] === "boolean" ? (row[column.key] ? "Oui" : "Non") : row?.[column.key] ?? "")));
     if (section.type === "price_table") {
-        const total = safeRows.reduce((sum, row) => sum + Number(row?.c1 || 0) * Number(row?.c2 || 0), 0);
+        const quantity = columns.find((column) => column.type === "decimal" || column.type === "integer")?.key || "c1";
+        const price = columns.find((column) => column.type === "currency")?.key || "c2";
+        const total = safeRows.reduce((sum, row) => sum + Number(row?.[quantity] || 0) * Number(row?.[price] || 0), 0);
         doc.moveDown(0.35).font("Helvetica-Bold").fontSize(9).fillColor(DARK)
             .text(`Total HT : ${new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(total)}`, { align: "right" });
     }
@@ -295,7 +306,8 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         const signatureSection = templateSections.find((section) => signatureTypes.has(section.type));
         if (templateSections.length > 0) {
             sectionTitle(doc, intervention.modele_rapport_nom || "Informations du rapport");
-            for (const field of templateSections) {
+            for (let fieldIndex = 0; fieldIndex < templateSections.length; fieldIndex += 1) {
+                const field = templateSections[fieldIndex];
                 if (field.type === "page_break") {
                     doc.addPage();
                     continue;
@@ -310,7 +322,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const value = equipment
                         ? [equipment.type, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`].filter(Boolean).join(" - ")
                         : "Aucun équipement renseigné";
-                    reportField(doc, field.label, value);
+                    reportField(doc, field.label, value, field.showLabel !== false);
                     continue;
                 }
                 const rawValue = templateData[field.key];
@@ -318,7 +330,22 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     reportTable(doc, field, rawValue);
                     continue;
                 }
-                reportField(doc, field.label || field.key, reportValue(field, rawValue));
+                const nextField = templateSections[fieldIndex + 1];
+                const pairableTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address"]);
+                if (field.width === "half" && nextField?.width === "half" && pairableTypes.has(field.type) && pairableTypes.has(nextField.type)) {
+                    ensureSpace(doc, 54);
+                    const startY = doc.y;
+                    const gap = 14;
+                    const halfWidth = (doc.page.width - 96 - gap) / 2;
+                    reportField(doc, field.label || field.key, reportValue(field, rawValue), field.showLabel !== false, 48, halfWidth);
+                    const firstBottom = doc.y;
+                    doc.y = startY;
+                    reportField(doc, nextField.label || nextField.key, reportValue(nextField, templateData[nextField.key]), nextField.showLabel !== false, 48 + halfWidth + gap, halfWidth);
+                    doc.y = Math.max(firstBottom, doc.y);
+                    fieldIndex += 1;
+                    continue;
+                }
+                reportField(doc, field.label || field.key, reportValue(field, rawValue), field.showLabel !== false);
             }
         }
 

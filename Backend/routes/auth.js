@@ -4,11 +4,17 @@ import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 import { COOKIE_NAME, optionalAuth, requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
+import { createRateLimiter } from "../middleware/security.js";
 
 const router = express.Router();
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 const ROLES = new Set(["ADMIN", "TECHNICIEN", "CLIENT"]);
 const REPORT_HEADER_STYLES = new Set(["minimal", "band", "none"]);
+const authRateLimit = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 12,
+    message: "Trop de tentatives. Réessayez dans quelques minutes.",
+});
 
 function companyPayload(row) {
     return {
@@ -43,7 +49,7 @@ function publicUser(user) {
     };
 }
 
-router.post("/register", optionalAuth, async (req, res) => {
+router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
@@ -120,7 +126,7 @@ router.post("/register", optionalAuth, async (req, res) => {
     }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authRateLimit, async (req, res) => {
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
 

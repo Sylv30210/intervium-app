@@ -19,6 +19,8 @@ import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
 import pool from "./config/database.js";
 import { runMigrations } from "./database/migrate.js";
+import { verifyToken } from "./middleware/auth.js";
+import { verifyRequestOrigin } from "./middleware/security.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "5000", 10);
@@ -67,19 +69,54 @@ if (allowedOrigins.length > 0) {
         })
     );
 }
-app.use(express.json({ limit: "4mb" }));
 app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store, private");
     res.set("Pragma", "no-cache");
     next();
 });
+app.use("/api", verifyRequestOrigin);
+app.use(express.json({ limit: "4mb" }));
+
+async function authorizeLocalMedia(req, res, next) {
+    const match = req.path.match(/^\/(photos|signatures|logos)\/([a-zA-Z0-9._-]+)$/);
+    if (!match) return res.status(404).json({ error: "Média introuvable." });
+    const [, category, filename] = match;
+    const suffix = `%/uploads/${category}/${filename}`;
+    try {
+        let query;
+        let values;
+        if (category === "logos") {
+            query = "SELECT 1 FROM entreprises WHERE id = $1 AND logo_url LIKE $2";
+            values = [req.user.entreprise_id, suffix];
+        } else {
+            const mediaColumn = category === "photos" ? "p.url" : "i.signature_url";
+            const mediaJoin = category === "photos"
+                ? "JOIN photos p ON p.intervention_id = i.id AND p.entreprise_id = i.entreprise_id"
+                : "";
+            query = `SELECT 1 FROM interventions i ${mediaJoin}
+                     JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+                     WHERE i.entreprise_id = $1 AND ${mediaColumn} LIKE $2
+                       AND ($3 = 'ADMIN' OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4)
+                            OR ($3 = 'CLIENT' AND c.utilisateur_id = $4))`;
+            values = [req.user.entreprise_id, suffix, req.user.role, req.user.id];
+        }
+        const result = await pool.query(query, values);
+        if (!result.rowCount) return res.status(404).json({ error: "Média introuvable." });
+        return next();
+    } catch (error) {
+        console.error("Échec du contrôle d’accès au média", { name: error?.name, code: error?.code });
+        return res.status(500).json({ error: "Impossible de vérifier l’accès au média." });
+    }
+}
 app.use(
     "/uploads",
     (_req, res, next) => {
         res.set("Cache-Control", "no-store, private");
         next();
     },
-    express.static(UPLOADS_DIRECTORY, { fallthrough: false })
+    verifyToken,
+    authorizeLocalMedia,
+    express.static(UPLOADS_DIRECTORY, { fallthrough: false, dotfiles: "deny", index: false })
 );
 
 app.get("/api/health", (_req, res) => {
@@ -114,8 +151,17 @@ app.use(
 app.get("/", (_req, res) => res.sendFile(path.join(frontendDirectory, "index.html")));
 
 app.use((error, _req, res, _next) => {
+    if (error?.type === "entity.parse.failed") {
+        return res.status(400).json({ error: "Corps JSON invalide." });
+    }
+    if (error?.type === "entity.too.large") {
+        return res.status(413).json({ error: "Requête trop volumineuse." });
+    }
+    if (error?.message === "Origine non autorisée par CORS.") {
+        return res.status(403).json({ error: "Origine non autorisée." });
+    }
     console.error("Erreur serveur non gérée", error);
-    res.status(500).json({ error: "Erreur interne du serveur." });
+    return res.status(500).json({ error: "Erreur interne du serveur." });
 });
 
 try {
