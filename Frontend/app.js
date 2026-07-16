@@ -943,7 +943,7 @@ function openSettings() {
           <strong>Envoi des rapports avec Google</strong>
           <p>${googleMailStatus.connection ? `Compte connecté : <strong>${escapeHtml(googleMailStatus.connection.email_google)}</strong>` : "Connectez votre compte Google pour envoyer les rapports depuis votre propre adresse Gmail."}</p>
           ${googleMailStatus.connection ? '<button class="danger wide" id="disconnect-google" type="button">Déconnecter mon compte Google</button>' : `<button class="primary wide" id="connect-google" type="button" ${googleMailStatus.enabled ? "" : "disabled"}>Connecter mon compte Google</button>`}
-          ${googleMailStatus.enabled ? "" : '<p class="muted">La connexion Google n’est pas configurée sur le serveur.</p>'}
+          ${googleMailStatus.enabled ? "" : `<p class="muted">Configuration serveur incomplète${googleMailStatus.configuration?.missing?.length ? ` : ${escapeHtml(googleMailStatus.configuration.missing.join(", "))}` : ". Vérifiez GMAIL_SENDING_ENABLED=true."}</p>`}
         </section>
         <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
         ${pwaSettings}

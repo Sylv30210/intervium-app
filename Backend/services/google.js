@@ -4,20 +4,37 @@ import pool from "../config/database.js";
 
 const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 
+function envValue(name) {
+    const value = process.env[name]?.trim();
+    if (!value) return "";
+    return value.replace(/^(["'])(.*)\1$/, "$2").trim();
+}
+
 function config() {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI?.trim();
-    const encryptionKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY?.trim();
+    const clientId = envValue("GOOGLE_CLIENT_ID");
+    const clientSecret = envValue("GOOGLE_CLIENT_SECRET");
+    const redirectUri = envValue("GOOGLE_REDIRECT_URI") || (envValue("APP_URL") ? `${envValue("APP_URL").replace(/\/$/, "")}/api/google/callback` : "");
+    const encryptionKey = envValue("GOOGLE_TOKEN_ENCRYPTION_KEY");
     if (!clientId || !clientSecret || !redirectUri || !encryptionKey || !process.env.JWT_SECRET) return null;
-    const key = /^[a-f0-9]{64}$/i.test(encryptionKey)
+    let key = /^[a-f0-9]{64}$/i.test(encryptionKey)
         ? Buffer.from(encryptionKey, "hex")
         : Buffer.from(encryptionKey, "base64");
-    if (key.length !== 32) throw new Error("GOOGLE_TOKEN_ENCRYPTION_KEY doit contenir 32 octets encodés en Base64.");
+    if (key.length !== 32) key = crypto.createHash("sha256").update(encryptionKey, "utf8").digest();
     return { clientId, clientSecret, redirectUri, key };
 }
 
-export function googleEnabled() { return process.env.GMAIL_SENDING_ENABLED?.trim().toLowerCase() === "true" && Boolean(config()); }
+export function googleConfigurationStatus() {
+    const missing = [];
+    if (!envValue("GOOGLE_CLIENT_ID")) missing.push("GOOGLE_CLIENT_ID");
+    if (!envValue("GOOGLE_CLIENT_SECRET")) missing.push("GOOGLE_CLIENT_SECRET");
+    if (!envValue("GOOGLE_REDIRECT_URI") && !envValue("APP_URL")) missing.push("GOOGLE_REDIRECT_URI ou APP_URL");
+    if (!envValue("GOOGLE_TOKEN_ENCRYPTION_KEY")) missing.push("GOOGLE_TOKEN_ENCRYPTION_KEY");
+    if (!envValue("JWT_SECRET")) missing.push("JWT_SECRET");
+    const flagEnabled = envValue("GMAIL_SENDING_ENABLED").toLowerCase() === "true";
+    return { enabled: flagEnabled && missing.length === 0, flagEnabled, missing };
+}
+
+export function googleEnabled() { return googleConfigurationStatus().enabled && Boolean(config()); }
 
 function encrypt(value) {
     const { key } = config();

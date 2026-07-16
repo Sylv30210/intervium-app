@@ -1,12 +1,13 @@
 import express from "express";
 import { verifyToken } from "../middleware/auth.js";
-import { connectGoogleAccount, disconnectGoogle, googleAuthorizationUrl, googleConnection, googleEnabled, verifyGoogleState } from "../services/google.js";
+import { connectGoogleAccount, disconnectGoogle, googleAuthorizationUrl, googleConfigurationStatus, googleConnection, verifyGoogleState } from "../services/google.js";
 
 const router = express.Router();
 
 router.get("/status", verifyToken, async (req, res) => {
     try {
-        return res.json({ enabled: googleEnabled(), connection: await googleConnection(req.user) });
+        const configuration = googleConfigurationStatus();
+        return res.json({ enabled: configuration.enabled, connection: await googleConnection(req.user), configuration });
     } catch (error) {
         console.error("Échec du statut Google", error);
         return res.status(500).json({ error: "Impossible de vérifier la connexion Google." });
