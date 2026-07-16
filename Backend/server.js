@@ -15,6 +15,7 @@ import documents from "./routes/documents.js";
 import activity from "./routes/activity.js";
 import notifications from "./routes/notifications.js";
 import search from "./routes/search.js";
+import google from "./routes/google.js";
 import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
 import pool from "./config/database.js";
@@ -133,6 +134,7 @@ app.use("/api/documents", documents);
 app.use("/api/activity", activity);
 app.use("/api/notifications", notifications);
 app.use("/api/search", search);
+app.use("/api/google", google);
 
 app.get("/sw.js", (_req, res) => {
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");

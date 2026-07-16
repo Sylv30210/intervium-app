@@ -4,7 +4,7 @@ import { requireRole, verifyToken } from "../middleware/auth.js";
 import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
-import { emailDeliveryConfigured, sendReportEmail } from "../services/email.js";
+import { googleEnabled, sendGmailReport } from "../services/google.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -409,7 +409,7 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
     if (!id || !recipients.length || recipients.length > 20 || recipients.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
         return res.status(400).json({ error: "Sélection de destinataires invalide." });
     }
-    if (!emailDeliveryConfigured()) return res.status(503).json({ error: "L’envoi d’e-mails n’est pas encore configuré sur le serveur." });
+    if (!googleEnabled()) return res.status(503).json({ error: "L’envoi Gmail n’est pas encore configuré sur le serveur." });
     try {
         const result = await pool.query(
             `SELECT i.*, e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
@@ -440,14 +440,12 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
         const photos = selectedIds ? photoResult.rows.filter((photo) => selectedIds.includes(Number(photo.id))) : photoResult.rows;
         const pdf = await generateInterventionPdf({ intervention, equipments: equipmentResult.rows, photos });
         const settings = intervention.entreprise_report_settings || {};
-        await sendReportEmail({
-            to: recipients,
+        await sendGmailReport({
+            user: req.user, to: recipients,
             subject: req.body.subject?.trim() || `Rapport ${intervention.titre}`,
             text: req.body.message?.trim() || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${intervention.titre} ».\n\nCordialement,\n${settings.display_name || intervention.entreprise_nom}`,
             pdf,
             filename: `rapport-${id}.pdf`,
-            companyName: settings.display_name || intervention.entreprise_nom,
-            companyEmail: settings.email || null,
         });
         await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s).` });
         return res.json({ sent: true, recipients });

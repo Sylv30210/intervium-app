@@ -20,6 +20,7 @@ let reportAutosaveTimer = null;
 let reportAutosavePending = false;
 let globalSearchTimer = null;
 let mobileNavLongPressTimer = null;
+let googleMailStatus = { enabled: false, connection: null };
 
 const app = document.getElementById("app");
 const THEME_STORAGE_KEY = "intervium_visual_theme";
@@ -429,6 +430,7 @@ async function logout() {
 }
 
 async function loadAllData() {
+    googleMailStatus = await api("/google/status").catch(() => ({ enabled: false, connection: null }));
     if (currentUser.role === "CLIENT") {
         interventions = await api("/interventions");
         clients = [];
@@ -941,6 +943,12 @@ function openSettings() {
           <div class="field"><label>Confirmer le nouveau mot de passe</label><input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></div>
           <button class="secondary wide" type="submit">Modifier mon mot de passe</button>
         </form>
+        <section class="settings-intro">
+          <strong>Envoi des rapports avec Google</strong>
+          <p>${googleMailStatus.connection ? `Compte connecté : <strong>${escapeHtml(googleMailStatus.connection.email_google)}</strong>` : "Connectez votre compte Google pour envoyer les rapports depuis votre propre adresse Gmail."}</p>
+          ${googleMailStatus.connection ? '<button class="danger wide" id="disconnect-google" type="button">Déconnecter mon compte Google</button>' : `<button class="primary wide" id="connect-google" type="button" ${googleMailStatus.enabled ? "" : "disabled"}>Connecter mon compte Google</button>`}
+          ${googleMailStatus.enabled ? "" : '<p class="muted">La connexion Google n’est pas configurée sur le serveur.</p>'}
+        </section>
         <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
         ${pwaSettings}
         ${companySettings}
@@ -953,6 +961,14 @@ function openSettings() {
     }));
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     document.getElementById("customize-mobile-nav")?.addEventListener("click", openMobileNavigationCustomizer);
+    document.getElementById("connect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {
+        try { const result = await api("/google/authorize"); window.location.assign(result.url); }
+        catch (error) { toast(error.message, true); }
+    }));
+    document.getElementById("disconnect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {
+        try { await api("/google/connection", { method: "DELETE" }); googleMailStatus.connection = null; openSettings(); toast("Compte Google déconnecté."); }
+        catch (error) { toast(error.message, true); }
+    }));
     document.getElementById("password-settings")?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -2192,7 +2208,7 @@ async function openPhotoAnnotator(item, photo) {
     }
 }
 function pdfButton(item, usePhotoSelection = false) { return `<p><button class="primary wide" data-download-pdf="${item.id}" ${usePhotoSelection ? "data-use-photo-selection" : ""}>${icon("download")} Exporter le rapport en PDF</button></p>`; }
-function emailButton(_item) { return ""; }
+function emailButton(item) { return googleMailStatus.connection ? `<p><button class="secondary wide" type="button" data-email-report="${item.id}">✉ Envoyer avec ${escapeHtml(googleMailStatus.connection.email_google)}</button></p>` : ""; }
 
 function bindReportEmail(item) {
     document.querySelector(`[data-email-report="${item.id}"]`)?.addEventListener("click", () => openReportEmail(item));
