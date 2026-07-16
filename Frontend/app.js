@@ -2149,7 +2149,7 @@ async function openPhotoAnnotator(item, photo) {
     }
 }
 function pdfButton(item, usePhotoSelection = false) { return `<p><button class="primary wide" data-download-pdf="${item.id}" ${usePhotoSelection ? "data-use-photo-selection" : ""}>${icon("download")} Exporter le rapport en PDF</button></p>`; }
-function emailButton(item) { return `<p><button class="secondary wide" type="button" data-email-report="${item.id}">✉ Envoyer le rapport par e-mail</button></p>`; }
+function emailButton(_item) { return ""; }
 
 function bindReportEmail(item) {
     document.querySelector(`[data-email-report="${item.id}"]`)?.addEventListener("click", () => openReportEmail(item));

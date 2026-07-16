@@ -11,7 +11,9 @@ function smtpConfig() {
     };
 }
 
-export function emailDeliveryConfigured() { return Boolean(smtpConfig()); }
+export function emailDeliveryConfigured() {
+    return process.env.REPORT_EMAIL_ENABLED === "true" && Boolean(smtpConfig());
+}
 
 export async function sendReportEmail({ to, subject, text, pdf, filename, companyName, companyEmail }) {
     const config = smtpConfig();

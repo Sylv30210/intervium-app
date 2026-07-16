@@ -33,3 +33,5 @@ services:
         sync: false
       - key: REPORT_EMAIL_FROM
         sync: false
+      - key: REPORT_EMAIL_ENABLED
+        value: "false"
