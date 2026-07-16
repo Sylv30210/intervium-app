@@ -28,7 +28,7 @@ const styles = `
 .modal-backdrop{position:fixed;inset:0;background:#0f172a88;display:grid;place-items:center;padding:20px;z-index:20;animation:backdrop-in .22s ease-out}.modal{background:white;border-radius:16px;padding:22px;width:min(680px,100%);max-height:92dvh;overflow:auto;animation:modal-in .24s ease-out}.modal-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:-22px;background:white;z-index:2;padding:10px 0}.modal-head h2{margin:0}.close{border:0;background:transparent;font-size:28px;min-width:48px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.canvas{display:block;width:100%;height:180px;max-width:100%;border:2px dashed #94a3b8;border-radius:12px;touch-action:none;background:white}.media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.media-item{position:relative;min-width:0;transition:transform .2s ease,box-shadow .2s ease}.media-item:hover{transform:translateY(-2px)}.media-item img{display:block;width:100%;height:130px;object-fit:cover;border-radius:12px;border:1px solid #e2e8f0;background:white}.media-item.signature img{object-fit:contain}.media-delete{position:absolute;top:7px;right:7px;min-height:40px;min-width:40px;border:0;border-radius:999px;background:#dc2626;color:white;font-size:18px;box-shadow:0 3px 10px #0004}.toast{position:fixed;right:20px;bottom:20px;max-width:min(420px,calc(100vw - 32px));background:#172554;color:white;padding:12px 16px;border-radius:10px;z-index:50;animation:toast-in .24s ease-out}.toast.bad{background:#991b1b}#view{animation:view-in .24s ease-out}.spinner{display:inline-block;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}.spinner.large{width:30px;height:30px;border-width:3px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.app-loading{min-height:100vh;display:grid;place-items:center;background:linear-gradient(145deg,#eff6ff,#f8fafc)}.loading-card{width:min(360px,calc(100% - 32px));display:grid;justify-items:center;gap:18px;background:white;padding:28px;border-radius:20px;box-shadow:0 18px 55px #1e3a5f1c}.skeletons{width:100%;display:grid;gap:9px}.skeleton{height:12px;border-radius:99px;background:linear-gradient(90deg,#e8eef6 25%,#f8fafc 50%,#e8eef6 75%);background-size:200% 100%;animation:shimmer 1.2s ease-in-out infinite}.skeleton:nth-child(2){width:78%}.skeleton:nth-child(3){width:58%}
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes shimmer{to{background-position:-200% 0}}@keyframes view-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}@keyframes backdrop-in{from{opacity:0}to{opacity:1}}@keyframes modal-in{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}@keyframes drawer-up{from{transform:translateY(100%);opacity:.4}to{transform:translateY(0);opacity:1}}@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media(max-width:768px){body{background:#f7f9fc}.shell{display:block;min-height:100dvh}.sidebar{display:none}.mobile-header{display:flex;position:fixed;inset:0 0 auto 0;height:54px;padding:0 14px;align-items:center;justify-content:space-between;background:#10233f;color:white;z-index:15;box-shadow:0 2px 12px #0f172a24}.mobile-brand{font-size:19px;font-weight:850;letter-spacing:-.3px}.mobile-user{display:flex;align-items:center;gap:9px;min-width:0}.mobile-user-name{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#dbeafe}.mobile-logout{border:1px solid #ffffff30;background:#ffffff12;color:white;border-radius:999px;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;font-size:19px}.bottom-nav{display:flex;position:fixed;inset:auto 0 0 0;height:calc(66px + env(safe-area-inset-bottom));padding:5px 4px env(safe-area-inset-bottom);align-items:stretch;background:#fff;border-top:1px solid #dbe3ee;box-shadow:0 -5px 20px #0f172a16;z-index:16}.bottom-nav button{flex:1;min-width:0;min-height:56px;border:0;background:transparent;color:#64748b;border-radius:12px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.bottom-nav button.active{color:#1d4ed8;background:#eff6ff}.bottom-nav .nav-icon{font-size:20px;line-height:1}.bottom-nav .nav-label{font-size:9.5px;line-height:1.1;font-weight:750;max-width:100%;overflow:hidden;text-overflow:ellipsis}.main{min-height:100dvh;padding:70px 14px calc(82px + env(safe-area-inset-bottom));overflow:visible}.topbar{align-items:center;gap:10px;margin-bottom:14px}.topbar h1{font-size:23px;line-height:1.15}.topbar .muted{display:none}.topbar>.primary{white-space:nowrap;padding-inline:13px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat,.panel{padding:14px}.panel{margin-top:12px}.grid2{grid-template-columns:1fr}.modal-backdrop{padding:0;align-items:end;z-index:30}.modal{width:100%;max-height:calc(100dvh - 30px);border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));animation:drawer-up .22s ease-out}.modal-head{top:-18px}.actions{display:grid;grid-template-columns:1fr}.actions button,.actions a,.wide{width:100%}.canvas{height:160px}.table-wrap{overflow:visible}table,thead,tbody,tr,td{display:block;width:100%}table{min-width:0}thead{display:none}tbody{display:grid;gap:12px}tr{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px;box-shadow:0 4px 14px #0f172a0a}td{border:0;padding:7px 0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:start;overflow-wrap:anywhere}td::before{content:attr(data-label);font-size:10px;text-transform:uppercase;color:#64748b;font-weight:800}td.actions{display:flex;grid-template-columns:none;margin-top:5px}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.toast{left:16px;right:16px;bottom:calc(78px + env(safe-area-inset-bottom))}}
-@media(max-width:420px){.stats{grid-template-columns:1fr}.media-grid{grid-template-columns:1fr}.canvas{height:145px}.mobile-user-name{display:none}}
+@media(max-width:420px){.stats{grid-template-columns:1fr}.media-grid{grid-template-columns:1fr}.canvas{height:145px}.mobile-user-name{display:none}.auth{padding:14px}.auth-card{padding:22px 18px;overflow:hidden}.auth-card .tabs{display:grid;grid-template-columns:1fr;margin-block:18px}.auth-card .tabs button{width:100%;white-space:normal}.brand-lockup.auth-logo{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 html[data-theme="glass"] body,html.theme-glass body{background-color:#e9f1fb;background-image:radial-gradient(circle at 8% 5%,rgba(147,197,253,.52),transparent 31%),radial-gradient(circle at 92% 16%,rgba(196,181,253,.42),transparent 28%),radial-gradient(circle at 55% 96%,rgba(153,246,228,.34),transparent 34%),linear-gradient(145deg,#e7f0fb,#f2f4fc 52%,#e8f5f1);background-attachment:fixed;color:#14213a}
 html[data-theme="glass"] :is(.stat,.panel,.modal,.auth-card,.loading-card,.template-card,.document-card,.calendar-day,.money-summary>div),html.theme-glass :is(.stat,.panel,.modal,.auth-card,.loading-card,.template-card,.document-card,.calendar-day,.money-summary>div){min-width:0;max-width:100%;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);box-shadow:0 12px 36px rgba(15,35,65,.08),inset 0 1px 0 rgba(255,255,255,.18);-webkit-backdrop-filter:blur(20px) saturate(145%);backdrop-filter:blur(20px) saturate(145%)}
@@ -61,6 +61,9 @@ html[data-theme="dark"] .theme-option-card,html.theme-dark .theme-option-card{ba
 .install-button[hidden]{display:none!important}.offline-card{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));text-align:center}.offline-card>div{width:min(440px,100%);padding:28px;border-radius:20px;background:#fff;border:1px solid #dbe3ee;box-shadow:0 18px 50px #10233f18}.client-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px}.client-tabs button{white-space:nowrap}.client-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.detail-box{min-width:0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.detail-box strong{display:block;margin-bottom:5px}.related-list{display:grid;gap:9px}.related-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:inherit;text-align:left}.related-card>span{min-width:0}.related-card small{display:block;color:#64748b;margin-top:4px}.logo-preview-pending{outline:3px solid #2563eb35;outline-offset:2px}.pwa-help{padding:14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a5f}.pwa-help p{margin:6px 0 0}.modal,.main,.panel,.related-card{max-width:100%}body{overflow-x:hidden}
 html[data-theme="dark"] :is(.detail-box,.related-card,.offline-card>div),html.theme-dark :is(.detail-box,.related-card,.offline-card>div){background:#111c2e;border-color:#26364e;color:#e5edf8}html[data-theme="dark"] .pwa-help,html.theme-dark .pwa-help{background:#15243a;border-color:#2b3d58;color:#dbeafe}
 @media(max-width:768px){.client-detail-grid{grid-template-columns:1fr}.client-tabs{margin-inline:-4px}.related-card{min-height:58px}.mobile-header{padding-top:env(safe-area-inset-top);padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right));height:calc(54px + env(safe-area-inset-top))}.main{padding-top:calc(70px + env(safe-area-inset-top));padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}.bottom-nav{padding-left:calc(4px + env(safe-area-inset-left));padding-right:calc(4px + env(safe-area-inset-right))}}
+.ui-icon{display:inline-block;width:20px;height:20px;flex:0 0 auto;vertical-align:-.2em}.nav button,.primary,.secondary,.danger,.icon-button,.mobile-settings,.mobile-logout{display:inline-flex;align-items:center;justify-content:center;gap:8px}.nav button{justify-content:flex-start}.nav .ui-icon{width:19px;height:19px}.bottom-nav .nav-icon{display:grid;place-items:center;height:25px}.bottom-nav .ui-icon{width:22px;height:22px}.icon-only{width:44px;min-width:44px;height:44px;padding:0;border-radius:12px}.close{display:grid;place-items:center}.close .ui-icon{width:24px;height:24px}.quick-actions button{display:flex;align-items:center;gap:10px}.quick-actions .ui-icon{width:21px;height:21px}.media-delete{display:grid;place-items:center}.media-delete .ui-icon{width:18px;height:18px}.file-upload{display:grid;gap:8px;margin:14px 0;min-width:0}.file-upload-label{font-size:13px;font-weight:700;color:#475569}.file-upload-dropzone{display:flex;align-items:center;gap:14px;min-height:112px;padding:18px;border:1.5px dashed #94a3b8;border-radius:14px;background:#f8fafc;color:#29415f;cursor:pointer;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.file-upload-dropzone:hover,.file-upload-dropzone.is-dragover{border-color:#2563eb;background:#eff6ff}.file-upload-dropzone:focus-visible{outline:3px solid #2563eb45;outline-offset:2px}.file-upload-icon{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:12px;background:#e7eef8;color:#1d4ed8}.file-upload-icon .ui-icon{width:25px;height:25px}.file-upload-copy{display:grid;gap:3px;min-width:0}.file-upload-copy strong{font-size:15px}.file-upload-copy small,.file-upload-name{display:block;color:#64748b;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-upload-preview{display:none;position:relative;align-items:center;gap:10px;min-height:58px;padding:8px 54px 8px 8px;border:1px solid #dbe3ee;border-radius:12px;background:#fff}.file-upload-preview.is-visible{display:flex}.file-upload-preview img{display:block;width:74px;height:54px;object-fit:contain;border-radius:8px;background:#fff}.file-upload-clear{position:absolute;right:8px;top:50%;translate:0 -50%;display:grid;place-items:center;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:10px;background:#fee2e2;color:#b91c1c}.file-upload-status{min-height:18px;margin:0;color:#166534;font-size:12px}.file-upload.is-error .file-upload-dropzone{border-color:#dc2626;background:#fef2f2}.file-upload.is-error .file-upload-status{color:#b91c1c}.file-upload.is-success .file-upload-dropzone{border-color:#16a34a}.toast{display:flex;align-items:flex-start;gap:10px;min-height:48px;box-shadow:0 12px 32px #0f172a30}.modal-head{gap:14px;border-bottom:1px solid #edf1f7}.modal-head h2{line-height:1.2;overflow-wrap:anywhere}.client-tabs,.tabs{scrollbar-width:thin;overscroll-behavior-inline:contain}.client-tabs button{flex:0 0 auto}.field input[type="checkbox"]{width:20px;height:20px;min-height:20px;accent-color:#2563eb}button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #2563eb55;outline-offset:2px}
+html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-dark :is(.file-upload-dropzone,.file-upload-preview){background:#0c1626;border-color:#334155;color:#dbeafe}html[data-theme="dark"] .file-upload-icon,html.theme-dark .file-upload-icon{background:#172e52;color:#bfdbfe}html[data-theme="dark"] .file-upload-label,html.theme-dark .file-upload-label{color:#cbd5e1}html[data-theme="dark"] .file-upload-dropzone:hover,html.theme-dark .file-upload-dropzone:hover{background:#15243a;border-color:#60a5fa}html[data-theme="glass"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-glass :is(.file-upload-dropzone,.file-upload-preview){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.42);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+@media(max-width:768px){.file-upload-dropzone{min-height:104px;padding:14px}.file-upload-copy small,.file-upload-name{white-space:normal;overflow-wrap:anywhere}.modal-head{padding-bottom:12px}.client-tabs{margin-inline:-18px;padding-inline:18px}.topbar{min-width:0}.topbar>div{min-width:0}.topbar h1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.primary,.secondary,.danger{min-height:46px}.quick-actions button{min-height:52px}.bottom-nav .nav-label{font-size:10px}.company-branding{min-width:0}.theme-options{overflow:hidden}}
 `;
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 
@@ -231,6 +234,99 @@ function field(label, name, type = "text", required = false, value = "") {
     return `<div class="field"><label for="${name}">${label}</label><input id="${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? "required" : ""}></div>`;
 }
 
+// Sous-ensemble Lucide embarqué : une seule grammaire visuelle, sans dépendance réseau.
+const ICON_PATHS = {
+    home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    interventions: '<rect width="14" height="18" x="5" y="3" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+    calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    clients: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    equipment: '<path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="m3 8 9 5 9-5M3 12l9 5 9-5M3 16l9 5 9-5"/>',
+    template: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 3v6l2-1 2 1V3M7 15h10"/>',
+    documents: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+    team: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/>',
+    settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.1A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.14.38.35.73.6 1 .3.3.68.45 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z"/>',
+    logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>',
+    more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+    edit: '<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>',
+    close: '<path d="M18 6 6 18M6 6l12 12"/>',
+    back: '<path d="m15 18-6-6 6-6"/>',
+    check: '<path d="m20 6-11 11-5-5"/>',
+    alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>',
+    glass: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+};
+
+function icon(name, extraClass = "") {
+    const paths = ICON_PATHS[name] || ICON_PATHS.alert;
+    return `<svg class="ui-icon ${extraClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+function fileUpload({ id, name, label, help, accept, maxMb = 5, capture = "", previewUrl = "" }) {
+    return `<div class="file-upload" data-file-upload data-max-mb="${maxMb}">
+      <label class="file-upload-label" for="${id}">${escapeHtml(label)}</label>
+      <input class="file-upload-input sr-only" id="${id}" name="${name}" type="file" accept="${accept}" ${capture ? `capture="${capture}"` : ""}>
+      <div class="file-upload-dropzone" tabindex="0" role="button" aria-controls="${id}" aria-describedby="${id}-help">
+        <span class="file-upload-icon">${icon("upload")}</span>
+        <span class="file-upload-copy"><strong>Choisir un fichier</strong><small id="${id}-help">${escapeHtml(help)} · ${maxMb} Mo maximum</small><span class="file-upload-name">Aucun fichier sélectionné</span></span>
+      </div>
+      <div class="file-upload-preview ${previewUrl ? "is-visible" : ""}" aria-live="polite">${previewUrl ? `<img src="${escapeHtml(previewUrl)}" alt="Aperçu du fichier actuel">` : ""}<button class="file-upload-clear" type="button" aria-label="Retirer le fichier sélectionné" title="Retirer">${icon("trash")}</button></div>
+      <p class="file-upload-status" role="status" aria-live="polite"></p>
+    </div>`;
+}
+
+function bindFileUpload(root, { onChange } = {}) {
+    const component = typeof root === "string" ? document.querySelector(root) : root;
+    if (!component) return;
+    const input = component.querySelector(".file-upload-input");
+    const zone = component.querySelector(".file-upload-dropzone");
+    const preview = component.querySelector(".file-upload-preview");
+    const name = component.querySelector(".file-upload-name");
+    const status = component.querySelector(".file-upload-status");
+    let objectUrl = null;
+    const choose = () => input.click();
+    const update = () => {
+        const file = input.files?.[0];
+        component.classList.remove("is-error", "is-success");
+        input.setCustomValidity("");
+        status.textContent = "";
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        if (!file) { name.textContent = "Aucun fichier sélectionné"; preview.classList.remove("is-visible"); preview.querySelector("img")?.remove(); onChange?.(null, component); return; }
+        const maxBytes = Number(component.dataset.maxMb || 5) * 1024 * 1024;
+        const acceptedTypes = input.accept.split(",").map((value) => value.trim()).filter(Boolean);
+        const typeAllowed = !acceptedTypes.length || acceptedTypes.some((accepted) => accepted.endsWith("/*") ? file.type.startsWith(accepted.slice(0, -1)) : file.type === accepted);
+        if (!typeAllowed) {
+            input.setCustomValidity("Ce format de fichier n’est pas accepté.");
+            component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
+        }
+        if (file.size > maxBytes) {
+            input.setCustomValidity(`Le fichier dépasse la limite de ${component.dataset.maxMb} Mo.`);
+            component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
+        }
+        name.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} Mo`;
+        if (file.type.startsWith("image/")) {
+            objectUrl = URL.createObjectURL(file);
+            let image = preview.querySelector("img");
+            if (!image) { image = document.createElement("img"); image.alt = "Aperçu du fichier sélectionné"; preview.prepend(image); }
+            image.src = objectUrl; preview.classList.add("is-visible");
+        }
+        component.classList.add("is-success"); status.textContent = "Fichier prêt à être envoyé."; onChange?.(file, component);
+    };
+    zone.addEventListener("click", choose);
+    zone.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } });
+    ["dragenter", "dragover"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.add("is-dragover"); }));
+    ["dragleave", "drop"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.remove("is-dragover"); }));
+    zone.addEventListener("drop", (event) => { if (event.dataTransfer?.files?.length) { const transfer = new DataTransfer(); transfer.items.add(event.dataTransfer.files[0]); input.files = transfer.files; update(); } });
+    input.addEventListener("change", update);
+    component.querySelector(".file-upload-clear").addEventListener("click", () => { input.value = ""; update(); });
+}
+
 function logoSvg() {
     return `<svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M24 3.5 41 10v12.6c0 10.2-6.7 18.3-17 21.9C13.7 40.9 7 32.8 7 22.6V10L24 3.5Z" fill="currentColor" opacity=".2"/><path d="M24 5.8 38.5 11v11.6c0 8.5-5.4 15.4-14.5 18.9-9.1-3.5-14.5-10.4-14.5-18.9V11L24 5.8Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="m16.4 23.8 5 5 10.8-11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
@@ -364,12 +460,12 @@ function renderMain(view = "dashboard") {
     currentView = view;
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
-        <nav class="nav">${navButton("dashboard", "Tableau de bord", view)}${navButton("interventions", currentUser.role === "CLIENT" ? "Rapports" : "Interventions", view)}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view)}${navButton("clients", "Clients", view)}${navButton("equipements", "Équipements", view)}${navButton("modeles", "Modèles de rapport", view)}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view)}${navButton("equipe", "Équipe", view)}` : ""}</nav>
-        <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>Installer Intervium</button><button id="desktop-settings" class="icon-button">⚙ Paramètres</button><button id="desktop-logout" class="secondary">Déconnexion</button></div></div>
+        <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", currentUser.role === "CLIENT" ? "Rapports" : "Interventions", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Équipements", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view, "documents")}${navButton("equipe", "Équipe", view, "team")}` : ""}</nav>
+        <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
-      <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings" aria-label="Ouvrir les paramètres" title="Paramètres">⚙</button><button id="mobile-logout" class="mobile-logout" aria-label="Se déconnecter" title="Déconnexion">↪</button></div></header>
+      <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
       <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div>${adminButtonFor(view)}</header><div id="view">${renderView(view)}</div></main>
-      <nav class="bottom-nav" aria-label="Navigation principale">${mobileNavButton("dashboard", "⌂", "Accueil", view)}${mobileNavButton("interventions", "▣", currentUser.role === "CLIENT" ? "Rapports" : "Missions", view)}${currentUser.role === "CLIENT" ? "" : `${mobileNavButton("planning", "▦", "Planning", view)}${mobileNavButton("clients", "♙", "Clients", view)}<button id="mobile-more" aria-label="Plus de rubriques"><span class="nav-icon" aria-hidden="true">•••</span><span class="nav-label">Plus</span></button>`}</nav>
+      <nav class="bottom-nav" aria-label="Navigation principale">${mobileNavButton("dashboard", "home", "Accueil", view)}${mobileNavButton("interventions", "interventions", currentUser.role === "CLIENT" ? "Rapports" : "Missions", view)}${currentUser.role === "CLIENT" ? "" : `${mobileNavButton("planning", "calendar", "Planning", view)}${mobileNavButton("clients", "clients", "Clients", view)}<button id="mobile-more" aria-label="Plus de rubriques"><span class="nav-icon">${icon("more")}</span><span class="nav-label">Plus</span></button>`}</nav>
     </div><div id="modal-root"></div>`;
 
     document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.view)));
@@ -383,8 +479,8 @@ function renderMain(view = "dashboard") {
     updateInstallUi();
 }
 
-function navButton(view, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}">${label}</button>`; }
-function mobileNavButton(view, icon, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}" aria-label="${label}"><span class="nav-icon" aria-hidden="true">${icon}</span><span class="nav-label">${label}</span></button>`; }
+function navButton(view, label, active, iconName) { return `<button data-view="${view}" class="${view === active ? "active" : ""}">${icon(iconName)}<span>${label}</span></button>`; }
+function mobileNavButton(view, iconName, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}" aria-label="${label}" title="${label}"><span class="nav-icon">${icon(iconName)}</span><span class="nav-label">${label}</span></button>`; }
 function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: currentUser.role === "CLIENT" ? "Rapports" : "Interventions", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
@@ -392,7 +488,7 @@ function adminButtonFor(view) {
     if (!canAdd || view === "dashboard") return "";
     if (view === "modeles" && currentUser.role !== "ADMIN") return "";
     if (view === "documents" && currentUser.role !== "ADMIN") return "";
-    return `<button class="primary" id="add-${view}">+ Ajouter</button>`;
+    return `<button class="primary" id="add-${view}">${icon("plus")} Ajouter</button>`;
 }
 
 function renderView(view) {
@@ -408,7 +504,7 @@ function renderView(view) {
 
 function renderDashboard() {
     const finished = interventions.filter((item) => item.statut === "TERMINEE").length;
-    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">＋ Nouvelle intervention</button><button class="secondary" data-quick-view="planning">▦ Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">▤ Modèles de rapport</button>${currentUser.role === "ADMIN" ? `<button class="secondary" data-quick-view="documents">€ Devis et factures</button>` : ""}</section>`;
+    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Nouvelle intervention</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button>${currentUser.role === "ADMIN" ? `<button class="secondary" data-quick-view="documents">${icon("documents")} Devis et factures</button>` : ""}</section>`;
     return `<section class="stats"><div class="stat"><span class="muted">Interventions</span><strong>${interventions.length}</strong></div><div class="stat"><span class="muted">Terminées</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients</span><strong>${clients.length}</strong></div><div class="stat"><span class="muted">Équipements</span><strong>${equipements.length}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.slice(0, 5), false)}</section>`;
 }
 
@@ -432,17 +528,17 @@ function renderPlanning() {
 
 function renderTemplates() {
     if (!reportTemplates.length) return `<section class="panel"><div class="empty">Aucun modèle de rapport. Un ADMIN peut créer une structure réutilisable.</div></section>`;
-    return `<section class="panel"><div class="panel-head"><div><h2>Modèles réutilisables</h2><p class="muted">Les champs du modèle apparaissent lors de la création et dans le PDF du rapport.</p></div></div><div class="template-list">${reportTemplates.map((template) => `<article class="template-card"><div><strong>${escapeHtml(template.nom)}</strong><div class="muted">${escapeHtml(template.description || "Sans description")} · ${(template.sections || []).length} bloc(s)</div></div>${currentUser.role === "ADMIN" ? `<div class="actions"><button class="secondary" data-edit-template="${template.id}">Configurer</button><button class="danger" data-delete-template="${template.id}">Supprimer définitivement</button></div>` : ""}</article>`).join("")}</div></section>`;
+    return `<section class="panel"><div class="panel-head"><div><h2>Modèles réutilisables</h2><p class="muted">Les champs du modèle apparaissent lors de la création et dans le PDF du rapport.</p></div></div><div class="template-list">${reportTemplates.map((template) => `<article class="template-card"><div><strong>${escapeHtml(template.nom)}</strong><div class="muted">${escapeHtml(template.description || "Sans description")} · ${(template.sections || []).length} bloc(s)</div></div>${currentUser.role === "ADMIN" ? `<div class="actions"><button class="secondary" data-edit-template="${template.id}">${icon("edit")} Configurer</button><button class="danger" data-delete-template="${template.id}">${icon("trash")} Supprimer définitivement</button></div>` : ""}</article>`).join("")}</div></section>`;
 }
 
 function renderDocuments() {
     const total = commercialDocuments.reduce((sum, document) => sum + Number(document.total_ttc || 0), 0);
     const paid = commercialDocuments.filter((document) => document.statut === "PAYE").reduce((sum, document) => sum + Number(document.total_ttc || 0), 0);
-    return `<section class="stats"><div class="stat"><span class="muted">Documents</span><strong>${commercialDocuments.length}</strong></div><div class="stat"><span class="muted">Total TTC</span><strong>${formatMoney(total)}</strong></div><div class="stat"><span class="muted">Payé</span><strong>${formatMoney(paid)}</strong></div><div class="stat"><span class="muted">À encaisser</span><strong>${formatMoney(total - paid)}</strong></div></section><section class="panel"><div class="document-list">${commercialDocuments.length ? commercialDocuments.map((document) => `<article class="document-card"><div><strong>${escapeHtml(document.numero || document.type)}</strong><div class="muted">${escapeHtml(document.client_nom)} · ${formatDate(document.date_emission)} · ${escapeHtml(document.statut)}</div></div><div class="actions"><strong>${formatMoney(document.total_ttc, document.devise)}</strong><button class="secondary" data-open-document="${document.id}">Voir</button><button class="danger" data-delete-document="${document.id}">Supprimer</button></div></article>`).join("") : `<div class="empty">Aucun devis ou facture.</div>`}</div></section>`;
+    return `<section class="stats"><div class="stat"><span class="muted">Documents</span><strong>${commercialDocuments.length}</strong></div><div class="stat"><span class="muted">Total TTC</span><strong>${formatMoney(total)}</strong></div><div class="stat"><span class="muted">Payé</span><strong>${formatMoney(paid)}</strong></div><div class="stat"><span class="muted">À encaisser</span><strong>${formatMoney(total - paid)}</strong></div></section><section class="panel"><div class="document-list">${commercialDocuments.length ? commercialDocuments.map((document) => `<article class="document-card"><div><strong>${escapeHtml(document.numero || document.type)}</strong><div class="muted">${escapeHtml(document.client_nom)} · ${formatDate(document.date_emission)} · ${escapeHtml(document.statut)}</div></div><div class="actions"><strong>${formatMoney(document.total_ttc, document.devise)}</strong><button class="secondary" data-open-document="${document.id}">${icon("documents")} Voir</button><button class="danger" data-delete-document="${document.id}">${icon("trash")} Supprimer</button></div></article>`).join("") : `<div class="empty">Aucun devis ou facture.</div>`}</div></section>`;
 }
 function interventionTable(items, actions) {
     if (!items.length) return `<div class="empty">Aucune intervention.</div>`;
-    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Équipement</th><th>Intervention</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Équipement">${escapeHtml(equipmentLabel(item))}</td><td data-label="Intervention">${escapeHtml(item.titre)}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Équipement</th><th>Intervention</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Équipement">${escapeHtml(equipmentLabel(item))}</td><td data-label="Intervention">${escapeHtml(item.titre)}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderClients() {
@@ -490,11 +586,11 @@ function bindMainActions(view) {
 
 function openMoreMenu() {
     const items = [
-        ["equipements", "◇ Équipements"],
-        ["modeles", "▤ Modèles de rapport"],
-        ...(currentUser.role === "ADMIN" ? [["documents", "€ Devis & factures"], ["equipe", "♟ Équipe"]] : []),
+        ["equipements", "equipment", "Équipements"],
+        ["modeles", "template", "Modèles de rapport"],
+        ...(currentUser.role === "ADMIN" ? [["documents", "documents", "Devis & factures"], ["equipe", "team", "Équipe"]] : []),
     ];
-    modal("Plus de rubriques", `<div class="more-menu">${items.map(([view, label]) => `<button class="secondary" data-more-view="${view}">${label}</button>`).join("")}</div>`);
+    modal("Plus de rubriques", `<div class="more-menu">${items.map(([view, iconName, label]) => `<button class="secondary" data-more-view="${view}">${icon(iconName)} ${label}</button>`).join("")}</div>`);
     document.querySelectorAll("[data-more-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.moreView)));
 }
 
@@ -511,10 +607,24 @@ function bindDeletes(name, path, view) {
 }
 
 function modal(title, content) {
-    document.getElementById("modal-root").innerHTML = `<div class="modal-backdrop"><section class="modal"><header class="modal-head"><h2>${title}</h2><button class="close" id="close-modal">×</button></header>${content}</section></div>`;
+    const root = document.getElementById("modal-root");
+    root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${title}</h2><button class="close icon-only" id="close-modal" type="button" aria-label="Fermer" title="Fermer">${icon("close")}</button></header>${content}</section></div>`;
+    const dialog = root.querySelector(".modal");
+    const focusable = () => [...dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')];
+    const keyHandler = (event) => {
+        if (event.key === "Escape") return closeModal();
+        if (event.key !== "Tab") return;
+        const items = focusable(); if (!items.length) return;
+        if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    };
+    root._keyHandler = keyHandler;
+    document.addEventListener("keydown", keyHandler);
+    root.querySelector(".modal-backdrop").addEventListener("mousedown", (event) => { if (event.target.classList.contains("modal-backdrop")) closeModal(); });
     document.getElementById("close-modal").addEventListener("click", closeModal);
+    requestAnimationFrame(() => (focusable()[0] || dialog).focus());
 }
-function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
+function closeModal() { const root = document.getElementById("modal-root"); if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) root.innerHTML = ""; }
 
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
@@ -528,8 +638,8 @@ function openSettings() {
         <form id="company-report-settings" class="company-branding">
           <div class="panel-head"><div><h2>Identité des rapports PDF</h2><p class="muted">Ces informations remplacent entièrement la marque Intervium dans vos documents.</p></div></div>
           <div class="company-logo-preview">${currentEntreprise?.logo_url ? `<img src="${escapeHtml(currentEntreprise.logo_url)}" alt="Logo actuel de l’entreprise">` : `<span class="muted">Aucun logo d’entreprise</span>`}</div>
-          <div class="field"><label for="company-logo-file">Logo (PNG, JPEG ou WebP - 5 Mo maximum)</label><input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp"></div>
-          ${currentEntreprise?.logo_url ? `<button class="danger" id="remove-company-logo" type="button">Supprimer le logo actuel</button>` : ""}
+          ${fileUpload({ id: "company-logo-file", name: "logo", label: "Logo de l’entreprise", help: "PNG, JPEG ou WebP", accept: "image/png,image/jpeg,image/webp", maxMb: 5 })}
+          ${currentEntreprise?.logo_url ? `<button class="danger" id="remove-company-logo" type="button">${icon("trash")} Supprimer le logo actuel</button>` : ""}
           <div class="grid2"><div class="field"><label>Nom affiché</label><input name="display_name" maxlength="150" required value="${escapeHtml(reportSettings.display_name || currentEntreprise?.nom || "")}"></div><div class="field"><label>Identifiant légal / SIRET</label><input name="registration" maxlength="120" value="${escapeHtml(reportSettings.registration || "")}"></div></div>
           <div class="field"><label>Adresse</label><textarea name="address" rows="2" maxlength="300">${escapeHtml(reportSettings.address || "")}</textarea></div>
           <div class="grid2"><div class="field"><label>Téléphone</label><input name="phone" maxlength="40" value="${escapeHtml(reportSettings.phone || "")}"></div><div class="field"><label>Email</label><input name="email" type="email" maxlength="254" value="${escapeHtml(reportSettings.email || "")}"></div></div>
@@ -545,9 +655,9 @@ function openSettings() {
             <div>Choisissez l’apparence la plus confortable pour votre environnement de travail.</div>
         </div>
         <div class="theme-options" role="radiogroup" aria-label="Thème de l’application">
-            <label class="theme-option"><input type="radio" name="visual-theme" value="classic" ${activeTheme === "classic" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon" aria-hidden="true">☀</span><span>Classique</span></span></label>
-            <label class="theme-option"><input type="radio" name="visual-theme" value="glass" ${activeTheme === "glass" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon" aria-hidden="true">◌</span><span>Liquid Glass</span></span></label>
-            <label class="theme-option"><input type="radio" name="visual-theme" value="dark" ${activeTheme === "dark" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon" aria-hidden="true">☾</span><span>Sombre</span></span></label>
+            <label class="theme-option"><input type="radio" name="visual-theme" value="classic" ${activeTheme === "classic" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon">${icon("sun")}</span><span>Classique</span></span></label>
+            <label class="theme-option"><input type="radio" name="visual-theme" value="glass" ${activeTheme === "glass" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon">${icon("glass")}</span><span>Liquid Glass</span></span></label>
+            <label class="theme-option"><input type="radio" name="visual-theme" value="dark" ${activeTheme === "dark" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon">${icon("moon")}</span><span>Sombre</span></span></label>
         </div>
         <p class="muted">Cette préférence visuelle est enregistrée uniquement sur cet appareil.</p>
         ${pwaSettings}
@@ -561,26 +671,24 @@ function openSettings() {
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
-    document.getElementById("company-logo-file")?.addEventListener("change", (event) => {
-        const input = event.currentTarget;
-        const file = input.files?.[0];
-        input.setCustomValidity("");
+    bindFileUpload(document.querySelector("#company-logo-file")?.closest("[data-file-upload]"), { onChange: (file, component) => {
+        const input = component.querySelector("input");
         if (!file) return;
         if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
             input.setCustomValidity("Utilisez une image PNG, JPEG ou WebP.");
-            input.reportValidity();
+            component.classList.add("is-error"); component.querySelector(".file-upload-status").textContent = input.validationMessage;
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
             input.setCustomValidity("Le logo dépasse la limite de 5 Mo.");
-            input.reportValidity();
+            component.classList.add("is-error"); component.querySelector(".file-upload-status").textContent = input.validationMessage;
             return;
         }
         const preview = document.querySelector(".company-logo-preview");
         const objectUrl = URL.createObjectURL(file);
         preview.classList.add("logo-preview-pending");
         preview.innerHTML = `<img src="${objectUrl}" alt="Aperçu du nouveau logo"><span class="muted">Aperçu avant enregistrement</span>`;
-    });
+    }});
     document.getElementById("remove-company-logo")?.addEventListener("click", (event) => withBusy(event.currentTarget, async () => {
         if (!confirm("Supprimer le logo des prochains rapports PDF ?")) return;
         try {
@@ -1240,7 +1348,7 @@ function openIntervention(id) {
       <div class="field"><label>Compte-rendu</label><textarea name="compte_rendu" rows="5">${escapeHtml(item.compte_rendu || "")}</textarea></div>
       <div id="edit-report-fields">${customReportFields}</div>
       <button class="primary wide">Enregistrer le rapport</button>
-    </form><hr><div class="field"><label>Ajouter une photo (5 Mo max.)</label><input id="photo-file" type="file" accept="image/*" capture="environment"><button class="secondary" id="upload-photo">Envoyer la photo</button></div>
+    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
     <div class="field"><label>Signature client</label><canvas id="signature-canvas" class="canvas"></canvas><div class="actions"><button class="secondary" id="clear-signature">Effacer</button><button class="primary" id="upload-signature">Enregistrer la signature</button></div></div>
     ${mediaGallery(item)}${pdfButton(item)}`);
 
@@ -1274,6 +1382,7 @@ function openIntervention(id) {
         }
         bindReportFieldActions(container);
     });
+    bindFileUpload(document.querySelector("#photo-file")?.closest("[data-file-upload]"));
     document.getElementById("upload-photo").addEventListener("click", () => uploadPhoto(id));
     setupSignatureCanvas(id);
     bindMediaActions(item);
@@ -1287,8 +1396,10 @@ async function uploadPhoto(id) {
     if (photoSections.length && (item.photos || []).length >= photoLimit) {
         return toast(`La limite de ${photoLimit} photo(s) définie par le modèle est atteinte.`, true);
     }
-    const file = document.getElementById("photo-file").files[0];
+    const input = document.getElementById("photo-file");
+    const file = input?.files?.[0];
     if (!file) return toast("Sélectionnez une photo.", true);
+    if (!input.checkValidity()) return toast(input.validationMessage, true);
     const formData = new FormData();
     formData.append("photo", file);
     const button = document.getElementById("upload-photo");
@@ -1376,7 +1487,7 @@ function mediaGallery(item) {
     const photos = Array.isArray(item.photos) ? item.photos : [];
     if (!photos.length && !item.signature_url) return `<p class="muted">Aucun média enregistré.</p>`;
     const canDelete = currentUser.role !== "CLIENT";
-    return `<div class="field"><label>Photos et signature enregistrées</label><div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo de l’intervention"></a>${canDelete ? `<button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo">🗑</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature">🗑</button>` : ""}</div>` : ""}</div></div>`;
+    return `<div class="field"><label>Photos et signature enregistrées</label><div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo de l’intervention"></a>${canDelete ? `<button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
 }
 function bindMediaActions(item) {
     document.querySelectorAll("[data-delete-photo]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => {
@@ -1399,7 +1510,7 @@ function bindMediaActions(item) {
         } catch (error) { toast(error.message, true); }
     })));
 }
-function pdfButton(item) { return `<p><button class="primary wide" data-download-pdf="${item.id}">Exporter le rapport en PDF</button></p>`; }
+function pdfButton(item) { return `<p><button class="primary wide" data-download-pdf="${item.id}">${icon("download")} Exporter le rapport en PDF</button></p>`; }
 function bindPdfDownload() {
     document.querySelectorAll("[data-download-pdf]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => {
         try {
@@ -1427,4 +1538,4 @@ function localDateKey(value) { const date = new Date(value); const offset = date
 function formatMoney(value, currency = "EUR") { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: currency || "EUR" }).format(Number(value || 0)); }
 function capitalize(value) { return value.charAt(0).toUpperCase() + value.slice(1); }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]); }
-function toast(message, bad = false) { document.querySelector(".toast")?.remove(); const node = document.createElement("div"); node.className = `toast ${bad ? "bad" : ""}`; node.textContent = message; document.body.append(node); setTimeout(() => node.remove(), 3500); }
+function toast(message, bad = false) { document.querySelector(".toast")?.remove(); const node = document.createElement("div"); node.className = `toast ${bad ? "bad" : ""}`; node.setAttribute("role", bad ? "alert" : "status"); node.innerHTML = `${icon(bad ? "alert" : "check")}<span>${escapeHtml(message)}</span>`; document.body.append(node); setTimeout(() => node.remove(), 3500); }
