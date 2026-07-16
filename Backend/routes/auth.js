@@ -359,6 +359,26 @@ router.patch("/users/:id/status", verifyToken, requireRole(["ADMIN"]), async (re
     }
 });
 
+router.patch("/users/:id/email", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+    const id = Number(req.params.id);
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    if (!Number.isSafeInteger(id) || id <= 0 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Adresse email invalide." });
+    try {
+        const result = await pool.query(
+            `UPDATE utilisateurs SET email=$1, updated_at=NOW()
+             WHERE id=$2 AND entreprise_id=$3 AND role='TECHNICIEN'
+             RETURNING id, entreprise_id, nom, email, role, actif, created_at, updated_at`,
+            [email, id, req.user.entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Adresse de connexion de « ${result.rows[0].nom} » modifiée.` });
+        return res.json({ user: result.rows[0] });
+    } catch (error) {
+        if (error.code === "23505") return res.status(409).json({ error: "Cette adresse email est déjà utilisée." });
+        return res.status(500).json({ error: "Impossible de modifier l’adresse email." });
+    }
+});
+
 router.delete("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) {

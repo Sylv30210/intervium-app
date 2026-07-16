@@ -90,11 +90,11 @@ function validateTemplateData(template, data) {
         if (section.required && (empty || (section.type === "checkbox" && !(section.options || []).length && value !== true))) {
             return `Le champ « ${section.label} » est requis.`;
         }
-        if (section.type === "select" && value && !(section.options || []).includes(value)) {
+        if (section.type === "select" && value && !(section.options || []).includes(value) && section.allowOther !== true) {
             return `Valeur invalide pour « ${section.label} ».`;
         }
         if (section.type === "checkbox" && Array.isArray(value)) {
-            if (value.some((entry) => !(section.options || []).includes(entry))) {
+            if (value.some((entry) => !(section.options || []).includes(entry)) && section.allowOther !== true) {
                 return `Valeur invalide pour « ${section.label} ».`;
             }
         }
@@ -178,7 +178,7 @@ router.get("/", async (req, res) => {
         const result = await pool.query(
             `SELECT i.id, i.entreprise_id, i.client_id, i.equipement_id, i.technicien_id,
                     i.titre, i.description, i.compte_rendu, i.statut,
-                    i.date_intervention, i.heure, i.signature_url, i.creation_type,
+                    i.date_intervention, i.heure, i.signature_url, i.creation_type, i.numero_rapport,
                     i.modele_rapport_id, i.donnees_rapport, i.modele_rapport_snapshot,
                     i.report_version,
                     i.created_at, i.updated_at,
@@ -282,11 +282,22 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
         if (templateDataError) return res.status(400).json({ error: templateDataError });
 
         const result = await pool.query(
-            `INSERT INTO interventions
+            `WITH lock_report_number AS MATERIALIZED (
+                 SELECT pg_advisory_xact_lock(hashtextextended($1::text || ':' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 0))
+             ), next_report_number AS (
+                 SELECT EXTRACT(YEAR FROM CURRENT_DATE)::integer AS year,
+                        COALESCE(MAX(NULLIF(split_part(i.numero_rapport, '-', 2), '')::integer), 0) + 1 AS sequence
+                 FROM interventions i, lock_report_number
+                 WHERE i.entreprise_id = $1
+                   AND i.numero_rapport LIKE EXTRACT(YEAR FROM CURRENT_DATE)::text || '-%'
+             )
+             INSERT INTO interventions
                 (entreprise_id, client_id, equipement_id, technicien_id, titre, description,
                  creation_type, compte_rendu, statut, date_intervention, heure, modele_rapport_id,
-                 donnees_rapport, modele_rapport_snapshot)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb)
+                 donnees_rapport, modele_rapport_snapshot, numero_rapport)
+             SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb,
+                    year::text || '-' || LPAD(sequence::text, 4, '0')
+             FROM next_report_number
              RETURNING *`,
             [
                 req.user.entreprise_id,

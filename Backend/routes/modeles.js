@@ -180,6 +180,31 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
     }
 });
 
+router.post("/:id/duplicate", requireRole(["ADMIN"]), async (req, res) => {
+    const id = positiveId(req.params.id);
+    if (!id) return res.status(400).json({ error: "Modèle invalide." });
+    try {
+        const source = await pool.query(
+            "SELECT nom, description, sections, pdf_config FROM modeles_rapport WHERE id = $1 AND entreprise_id = $2",
+            [id, req.user.entreprise_id]
+        );
+        if (!source.rowCount) return res.status(404).json({ error: "Modèle introuvable." });
+        const baseName = `${source.rows[0].nom} - copie`;
+        const result = await pool.query(
+            `INSERT INTO modeles_rapport (entreprise_id, createur_id, nom, description, sections, pdf_config)
+             SELECT $1, $2, CASE WHEN EXISTS (SELECT 1 FROM modeles_rapport WHERE entreprise_id=$1 AND nom=$3)
+                 THEN $3 || ' ' || to_char(clock_timestamp(), 'HH24MISS') ELSE $3 END,
+                 $4, $5::jsonb, $6::jsonb RETURNING *`,
+            [req.user.entreprise_id, req.user.id, baseName, source.rows[0].description, JSON.stringify(source.rows[0].sections), JSON.stringify(source.rows[0].pdf_config || {})]
+        );
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "modele", resourceId: result.rows[0].id, summary: `Modèle « ${source.rows[0].nom} » dupliqué.` });
+        return res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error("Échec de la duplication du modèle", error);
+        return res.status(500).json({ error: "Impossible de dupliquer le modèle." });
+    }
+});
+
 router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
     const id = positiveId(req.params.id);
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";

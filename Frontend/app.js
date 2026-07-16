@@ -699,7 +699,7 @@ function renderPlanning() {
 
 function renderTemplates() {
     if (!reportTemplates.length) return `<section class="panel"><div class="empty">Aucun modèle de rapport. Un ADMIN peut créer une structure réutilisable.</div></section>`;
-    return `<section class="panel"><div class="panel-head"><div><h2>Modèles réutilisables</h2><p class="muted">Les champs du modèle apparaissent lors de la création et dans le PDF du rapport.</p></div></div><div class="template-list">${reportTemplates.map((template) => `<article class="template-card"><div><strong>${escapeHtml(template.nom)}</strong><div class="muted">${escapeHtml(template.description || "Sans description")} · ${(template.sections || []).length} bloc(s)</div></div>${currentUser.role === "ADMIN" ? `<div class="actions"><button class="secondary" data-edit-template="${template.id}">${icon("edit")} Configurer</button><button class="danger" data-delete-template="${template.id}">${icon("trash")} Supprimer définitivement</button></div>` : ""}</article>`).join("")}</div></section>`;
+    return `<section class="panel"><div class="panel-head"><div><h2>Modèles réutilisables</h2><p class="muted">Les champs du modèle apparaissent lors de la création et dans le PDF du rapport.</p></div></div><div class="template-list">${reportTemplates.map((template) => `<article class="template-card"><div><strong>${escapeHtml(template.nom)}</strong><div class="muted">${escapeHtml(template.description || "Sans description")} · ${(template.sections || []).length} bloc(s)</div></div>${currentUser.role === "ADMIN" ? `<div class="actions"><button class="secondary" data-duplicate-template="${template.id}">Dupliquer</button><button class="secondary" data-edit-template="${template.id}">${icon("edit")} Configurer</button><button class="danger" data-delete-template="${template.id}">${icon("trash")} Supprimer définitivement</button></div>` : ""}</article>`).join("")}</div></section>`;
 }
 
 function renderDocuments() {
@@ -709,7 +709,7 @@ function renderDocuments() {
 }
 function interventionTable(items, actions) {
     if (!items.length) return `<div class="empty">Aucun rapport.</div>`;
-    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport">${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport"><strong>${escapeHtml(item.numero_rapport || "Historique")}</strong><br>${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderClients() {
@@ -726,7 +726,7 @@ function renderTeam() {
     if (!technicians.length) {
         return `<section class="panel"><div class="empty">Aucun technicien. Utilisez “Ajouter” pour créer le premier compte.</div></section>`;
     }
-    return `<section class="panel"><div class="panel-head"><div><h2>Collaborateurs techniques</h2><p class="muted">La désactivation conserve le compte. La suppression définitive efface le technicien de la base et désassigne ses interventions.</p></div></div><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>${technicians.map((user) => `<tr><td data-label="Nom"><strong>${escapeHtml(user.nom)}</strong></td><td data-label="Email">${escapeHtml(user.email)}</td><td data-label="Statut"><span class="badge ${user.actif ? "" : "off"}">${user.actif ? "Actif" : "Désactivé"}</span></td><td data-label="Créé le">${formatDate(user.created_at)}</td><td data-label="Actions" class="actions">${user.actif ? `<button class="secondary" data-disable-technician="${user.id}">Désactiver</button>` : `<button class="primary" data-enable-technician="${user.id}">Réactiver</button>`}<button class="danger" data-delete-technician="${user.id}" data-technician-name="${escapeHtml(user.nom)}">Supprimer définitivement</button></td></tr>`).join("")}</tbody></table></div></section>`;
+    return `<section class="panel"><div class="panel-head"><div><h2>Collaborateurs techniques</h2><p class="muted">La désactivation conserve le compte. La suppression définitive efface le technicien de la base et désassigne ses interventions.</p></div></div><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>${technicians.map((user) => `<tr><td data-label="Nom"><strong>${escapeHtml(user.nom)}</strong></td><td data-label="Email">${escapeHtml(user.email)}</td><td data-label="Statut"><span class="badge ${user.actif ? "" : "off"}">${user.actif ? "Actif" : "Désactivé"}</span></td><td data-label="Créé le">${formatDate(user.created_at)}</td><td data-label="Actions" class="actions"><button class="secondary" data-edit-technician-email="${user.id}">Modifier l’e-mail</button>${user.actif ? `<button class="secondary" data-disable-technician="${user.id}">Désactiver</button>` : `<button class="primary" data-enable-technician="${user.id}">Réactiver</button>`}<button class="danger" data-delete-technician="${user.id}" data-technician-name="${escapeHtml(user.nom)}">Supprimer définitivement</button></td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 function bindMainActions(view) {
@@ -746,6 +746,7 @@ function bindMainActions(view) {
     document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
     document.querySelectorAll("[data-edit-intervention]").forEach((b) => b.addEventListener("click", () => openIntervention(b.dataset.editIntervention)));
     document.querySelectorAll("[data-edit-template]").forEach((button) => button.addEventListener("click", () => openTemplateEditor(button.dataset.editTemplate)));
+    document.querySelectorAll("[data-duplicate-template]").forEach((button) => button.addEventListener("click", () => duplicateTemplate(button.dataset.duplicateTemplate, button)));
     document.querySelectorAll("[data-delete-template]").forEach((button) => button.addEventListener("click", () => deleteTemplate(button.dataset.deleteTemplate, button)));
     document.querySelectorAll("[data-open-document]").forEach((button) => button.addEventListener("click", () => openDocumentDetails(button.dataset.openDocument)));
     document.querySelectorAll("[data-open-client]").forEach((button) => button.addEventListener("click", () => openClientDetails(button.dataset.openClient)));
@@ -891,12 +892,16 @@ function modal(title, content) {
         else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
     };
     root._keyHandler = keyHandler;
+    root._dirty = false;
     document.addEventListener("keydown", keyHandler);
+    dialog.addEventListener("input", () => { root._dirty = true; });
+    dialog.addEventListener("change", () => { root._dirty = true; });
+    dialog.addEventListener("submit", () => { root._dirty = false; }, true);
     root.querySelector(".modal-backdrop").addEventListener("mousedown", (event) => { if (event.target.classList.contains("modal-backdrop")) closeModal(); });
     document.getElementById("close-modal").addEventListener("click", closeModal);
     requestAnimationFrame(() => (focusable()[0] || dialog).focus());
 }
-function closeModal() { closeTemplateSectionDrawer(); const root = document.getElementById("modal-root"); if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) root.innerHTML = ""; }
+function closeModal(force = false) { closeTemplateSectionDrawer(); const root = document.getElementById("modal-root"); if (!force && root?._dirty && !confirm("Fermer sans enregistrer les modifications ?")) return; if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) { root._dirty = false; root.innerHTML = ""; } }
 
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
@@ -1360,6 +1365,15 @@ async function deleteTemplate(id, button) {
     });
 }
 
+async function duplicateTemplate(id, button) {
+    await withBusy(button, async () => {
+        try {
+            await api(`/modeles/${id}/duplicate`, { method: "POST", body: "{}" });
+            await finishMutation("modeles", "Modèle dupliqué.");
+        } catch (error) { toast(error.message, true); }
+    });
+}
+
 function openDocumentEditor() {
     if (!clients.length) return toast("Créez d’abord un client.", true);
     modal("Nouveau devis ou facture", `<form id="document-form">
@@ -1652,6 +1666,15 @@ function openNewTechnician() {
 }
 
 function bindTeamActions() {
+    document.querySelectorAll("[data-edit-technician-email]").forEach((button) => button.addEventListener("click", () => {
+        const user = technicians.find((entry) => String(entry.id) === String(button.dataset.editTechnicianEmail));
+        if (!user) return;
+        modal("Modifier l’adresse de connexion", `<form id="edit-technician-email-form"><p class="muted">Le compte Google n’est pas transféré. L’utilisateur devra déconnecter l’ancien compte Google puis connecter le nouveau depuis ses paramètres.</p>${field("Nouvelle adresse e-mail", "email", "email", true, user.email)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
+        document.getElementById("edit-technician-email-form").addEventListener("submit", async (event) => {
+            event.preventDefault(); const form = formFromSubmitEvent(event); const submit = form.querySelector("button[type='submit']");
+            await withBusy(submit, async () => { try { const result = await api(`/auth/users/${user.id}/email`, { method: "PATCH", body: JSON.stringify({ email: form.elements.email.value }) }); replaceTechnician(result.user); closeModal(true); renderMain("equipe"); toast("Adresse de connexion modifiée."); } catch (error) { toast(error.message, true); } });
+        });
+    }));
     document.querySelectorAll("[data-disable-technician]").forEach((button) =>
         button.addEventListener("click", () => withBusy(button, async () => {
             if (!confirm("Désactiver ce technicien ? Il ne pourra plus se connecter.")) return;

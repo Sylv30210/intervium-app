@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v10-google-diagnostic";
+const CACHE_VERSION = "intervium-shell-v11-account-and-reports";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

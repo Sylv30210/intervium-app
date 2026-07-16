@@ -261,7 +261,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         doc.on("error", reject);
         doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-        if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.id);
+        if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.numero_rapport || intervention.id);
 
         const hasReportTemplate = Array.isArray(intervention.modele_rapport_sections) && intervention.modele_rapport_sections.length > 0;
         doc.font("Helvetica-Bold").fontSize(titleSize).fillColor(DARK)
