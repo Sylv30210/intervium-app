@@ -10,7 +10,7 @@ let technicians = [];
 let creationClients = [];
 let creationEquipements = [];
 let reportTemplates = [];
-let commercialDocuments = [];
+let commercialDocuments = []; // Données historiques conservées, module volontairement masqué.
 let planningCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let templateDraftSections = [];
 let currentView = "dashboard";
@@ -62,7 +62,7 @@ html[data-theme="dark"] .calendar-event,html.theme-dark .calendar-event{backgrou
 html[data-theme="dark"] .theme-option-card,html.theme-dark .theme-option-card{background:#0c1626;border-color:#334155;color:#cbd5e1}html[data-theme="dark"] .theme-option input:checked+.theme-option-card,html.theme-dark .theme-option input:checked+.theme-option-card{border-color:#60a5fa;color:#bfdbfe;box-shadow:0 0 0 3px rgba(96,165,250,.14)}html[data-theme="dark"] .skeleton,html.theme-dark .skeleton{background:linear-gradient(90deg,#17243a 25%,#26364e 50%,#17243a 75%);background-size:200% 100%}
 @media(max-width:768px){html[data-theme="dark"] body,html.theme-dark body{background:#0b1120}html[data-theme="dark"] tbody tr,html.theme-dark tbody tr{background:#111c2e;border-color:#26364e;box-shadow:0 6px 20px rgba(0,0,0,.18)}html[data-theme="dark"] td::before,html.theme-dark td::before{color:#94a3b8}}@media(max-width:420px){.theme-options{grid-template-columns:1fr}.theme-option-card{min-height:64px;grid-template-columns:auto 1fr;justify-items:start;text-align:left;padding-inline:16px}}
 .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:18px}.quick-actions button{text-align:left;padding:14px}.calendar-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px}.calendar-head h2{min-width:190px;text-align:center}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.calendar-weekday{text-align:center;color:#64748b;font-size:12px;font-weight:800;padding:6px}.calendar-day{min-height:92px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:8px;text-align:left;overflow:hidden}.calendar-day.outside{opacity:.42}.calendar-day.today{outline:2px solid #2563eb}.calendar-number{font-weight:800;font-size:12px}.calendar-event{display:block;width:100%;min-height:0;margin-top:5px;padding:5px;border:0;border-radius:7px;background:#dbeafe;color:#1e40af;font-size:10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.template-list,.document-list{display:grid;gap:10px}.template-card,.document-card{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fff}.template-fields{display:grid;gap:8px}.template-field-row,.document-line{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(90px,1fr)) auto;gap:8px;align-items:end;padding:10px;border:1px solid #e2e8f0;border-radius:10px}.template-field-row{grid-template-columns:1fr auto;align-items:center}.builder-palette{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.money-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.money-summary div{padding:12px;border-radius:10px;background:#eff6ff}.more-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}.more-menu button{width:100%}
-.template-field-row{display:block;min-width:0}.template-field-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.template-field-toolbar strong{white-space:nowrap}.template-field-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.template-field-config .full{grid-column:1/-1}.template-field-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:8px}.template-field-actions button{min-height:38px}.template-preview{margin-top:16px}.template-preview summary{cursor:pointer;font-weight:800}.template-preview>[inert]{margin-top:10px}.report-fields-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.report-field{min-width:0}.report-field.full,.report-section-title,.report-page-break{grid-column:1/-1}.field-help{display:block;color:#64748b;font-size:12px;line-height:1.4}.checkbox-options{display:grid;gap:8px;margin-top:4px}.checkbox-options label{display:flex;align-items:center;gap:8px;font-weight:500}.report-table{grid-column:1/-1;overflow-x:auto}.report-table table{min-width:540px}.report-table input{min-width:90px}.report-table-actions{display:flex;justify-content:flex-end;margin-top:8px}.report-table .danger{min-height:36px;padding:7px 10px}.report-table-total{text-align:right;font-weight:800;margin-top:8px}
+.template-field-row{display:block;min-width:0}.template-field-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.template-field-toolbar strong{white-space:nowrap}.template-field-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.template-field-config .full{grid-column:1/-1}.template-field-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:8px}.template-field-actions button{min-height:38px}.template-preview{margin-top:16px}.template-preview summary{cursor:pointer;font-weight:800}.template-preview>[inert]{margin-top:10px}.report-fields-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}.report-field{min-width:0;overflow-wrap:anywhere}.report-field :is(label,legend,p,span,strong){white-space:normal;overflow-wrap:anywhere}.report-field.full,.report-section-title,.report-page-break{grid-column:1/-1}.field-help{display:block;color:#64748b;font-size:12px;line-height:1.4}.checkbox-options{display:grid;gap:8px;margin-top:4px}.checkbox-options label{display:flex;align-items:center;gap:8px;font-weight:500}.report-table{grid-column:1/-1;overflow-x:auto}.report-table table{min-width:540px}.report-table input{min-width:90px}.report-table-actions{display:flex;justify-content:flex-end;margin-top:8px}.report-table .danger{min-height:36px;padding:7px 10px}.report-table-total{text-align:right;font-weight:800;margin-top:8px}.choice-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}.choice-card{display:grid;gap:7px;text-align:left;padding:18px;border:1px solid #cbd5e1;border-radius:14px;background:#f8fafc;color:#1e293b}.choice-card strong{font-size:16px}.choice-card span{color:#64748b;font-size:13px;line-height:1.45}@media(max-width:600px){.choice-cards{grid-template-columns:1fr}}
 @media(max-width:768px){.calendar-day{min-height:67px;padding:5px}.calendar-grid{gap:3px}.calendar-event{font-size:0;height:7px;padding:0}.calendar-event::after{content:""}.document-line{grid-template-columns:1fr 1fr}.document-line .line-description{grid-column:1/-1}.money-summary{grid-template-columns:1fr}.template-card,.document-card{align-items:flex-start;flex-direction:column}.more-menu{grid-template-columns:1fr}.template-field-config,.report-fields-grid{grid-template-columns:1fr}.template-field-config .full,.report-field.full,.report-section-title,.report-page-break{grid-column:1}.template-field-actions{display:grid;grid-template-columns:1fr 1fr}.template-field-actions label{grid-column:1/-1}.template-field-actions .danger{grid-column:1/-1}}
 .install-button[hidden]{display:none!important}.offline-card{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));text-align:center}.offline-card>div{width:min(440px,100%);padding:28px;border-radius:20px;background:#fff;border:1px solid #dbe3ee;box-shadow:0 18px 50px #10233f18}.client-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px}.client-tabs button{white-space:nowrap}.client-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.detail-box{min-width:0;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}.detail-box strong{display:block;margin-bottom:5px}.related-list{display:grid;gap:9px}.related-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:inherit;text-align:left}.related-card>span{min-width:0}.related-card small{display:block;color:#64748b;margin-top:4px}.logo-preview-pending{outline:3px solid #2563eb35;outline-offset:2px}.pwa-help{padding:14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a5f}.pwa-help p{margin:6px 0 0}.modal,.main,.panel,.related-card{max-width:100%}body{overflow-x:hidden}
 html[data-theme="dark"] :is(.detail-box,.related-card,.offline-card>div),html.theme-dark :is(.detail-box,.related-card,.offline-card>div){background:#111c2e;border-color:#26364e;color:#e5edf8}html[data-theme="dark"] .pwa-help,html.theme-dark .pwa-help{background:#15243a;border-color:#2b3d58;color:#dbeafe}
@@ -439,7 +439,6 @@ async function loadAllData() {
         creationClients = [];
         creationEquipements = [];
         reportTemplates = [];
-        commercialDocuments = [];
         return;
     }
     const results = await Promise.allSettled([
@@ -449,7 +448,6 @@ async function loadAllData() {
         currentUser.role === "ADMIN" ? api("/auth/users") : Promise.resolve([]),
         api("/interventions/options"),
         api("/modeles"),
-        currentUser.role === "ADMIN" ? api("/documents") : Promise.resolve([]),
     ]);
     const stateTargets = [
         (value) => { interventions = value; },
@@ -461,7 +459,6 @@ async function loadAllData() {
             creationEquipements = value.equipements || [];
         },
         (value) => { reportTemplates = value; },
-        (value) => { commercialDocuments = value; },
     ];
     const failures = [];
     results.forEach((result, index) => {
@@ -478,7 +475,7 @@ function renderMain(view = "dashboard") {
     const mobileNavigation = renderMobileNavigation(view);
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
-        <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", "Rapports", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Équipements", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view, "documents")}${navButton("equipe", "Équipe", view, "team")}` : ""}</nav>
+        <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", "Rapports", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Matériels", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? navButton("equipe", "Équipe", view, "team") : ""}</nav>
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
@@ -512,11 +509,10 @@ function mobileNavigationItems() {
     if (currentUser.role !== "CLIENT") items.push(
         { view: "planning", icon: "calendar", label: "Planning" },
         { view: "clients", icon: "clients", label: "Clients" },
-        { view: "equipements", icon: "equipment", label: "Équipements" },
+        { view: "equipements", icon: "equipment", label: "Matériels" },
         { view: "modeles", icon: "template", label: "Modèles" },
     );
     if (currentUser.role === "ADMIN") items.push(
-        { view: "documents", icon: "documents", label: "Documents" },
         { view: "equipe", icon: "team", label: "Équipe" },
         { view: "activity", icon: "history", label: "Historique" },
     );
@@ -657,13 +653,12 @@ function bindMobileNavigationReorder() {
     nav.addEventListener("contextmenu", (event) => { if (event.target.closest("[data-mobile-nav-item]")) event.preventDefault(); });
     nav.addEventListener("click", (event) => { if (suppressClick && event.target.closest("[data-mobile-nav-item]")) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
 }
-function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: "Rapports", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
+function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: "Rapports", planning: "Planning", clients: "Clients", equipements: "Matériels", modeles: "Modèles de rapport", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
         (currentUser.role === "TECHNICIEN" && ["interventions", "planning"].includes(view));
     if (!canAdd || view === "dashboard") return "";
     if (view === "modeles" && currentUser.role !== "ADMIN") return "";
-    if (view === "documents" && currentUser.role !== "ADMIN") return "";
     return `<button class="primary" id="add-${view}">${icon("plus")} Ajouter</button>`;
 }
 
@@ -674,15 +669,14 @@ function renderView(view) {
     if (view === "clients") return renderClients();
     if (view === "equipements") return renderEquipements();
     if (view === "modeles") return renderTemplates();
-    if (view === "documents") return renderDocuments();
-    if (view === "activity") return `<section class="panel"><div class="table-tools"><select id="activity-type"><option value="">Toutes les ressources</option><option value="client">Clients</option><option value="equipement">Équipements</option><option value="intervention">Interventions</option><option value="document">Documents</option><option value="modele">Modèles</option><option value="utilisateur">Utilisateurs</option></select><button class="secondary" id="activity-refresh">Actualiser</button></div><div id="activity-list" class="activity-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div></section>`;
+    if (view === "activity") return `<section class="panel"><div class="table-tools"><select id="activity-type"><option value="">Toutes les ressources</option><option value="client">Clients</option><option value="equipement">Matériels</option><option value="intervention">Interventions</option><option value="modele">Modèles</option><option value="utilisateur">Utilisateurs</option></select><button class="secondary" id="activity-refresh">Actualiser</button></div><div id="activity-list" class="activity-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div></section>`;
     return renderTeam();
 }
 
 function renderDashboard() {
     const finished = interventions.filter((item) => item.statut === "TERMINEE").length;
-    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Nouvelle intervention</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button>${currentUser.role === "ADMIN" ? `<button class="secondary" data-quick-view="documents">${icon("documents")} Devis et factures</button>` : ""}</section>`;
-    return `<section class="stats"><div class="stat"><span class="muted">Interventions</span><strong>${interventions.length}</strong></div><div class="stat"><span class="muted">Terminées</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients</span><strong>${clients.length}</strong></div><div class="stat"><span class="muted">Équipements</span><strong>${equipements.length}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.slice(0, 5), false)}</section>`;
+    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Planifier une intervention</button><button class="secondary" data-quick-action="direct-report">${icon("interventions")} Créer un rapport direct</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button></section>`;
+    return `<section class="stats"><div class="stat"><span class="muted">Rapports</span><strong>${interventions.length}</strong></div><div class="stat"><span class="muted">Terminés</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients</span><strong>${clients.length}</strong></div><div class="stat"><span class="muted">Matériels</span><strong>${equipements.length}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT").slice(0, 5), false)}</section>`;
 }
 
 function renderInterventions() { return `<section class="panel">${interventionTable(interventions, true)}</section>`; }
@@ -696,7 +690,7 @@ function renderPlanning() {
     const cells = Array.from({ length: 42 }, (_, index) => {
         const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
         const key = localDateKey(date);
-        const events = interventions.filter((item) => String(item.date_intervention || "").slice(0, 10) === key);
+        const events = interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT" && String(item.date_intervention || "").slice(0, 10) === key);
         return `<div class="calendar-day ${date.getMonth() === month ? "" : "outside"} ${key === todayKey ? "today" : ""}"><span class="calendar-number">${date.getDate()}</span>${events.map((event) => `<button class="calendar-event" data-edit-intervention="${event.id}" title="${escapeHtml(event.titre)} — ${escapeHtml(event.client_nom)}">${escapeHtml(event.heure?.slice(0,5) || "")} ${escapeHtml(event.titre)}</button>`).join("")}</div>`;
     }).join("");
     const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(planningCursor);
@@ -715,7 +709,7 @@ function renderDocuments() {
 }
 function interventionTable(items, actions) {
     if (!items.length) return `<div class="empty">Aucun rapport.</div>`;
-    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Équipement</th><th>Intervention</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Équipement">${escapeHtml(equipmentLabel(item))}</td><td data-label="Intervention">${escapeHtml(item.titre)}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport">${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderClients() {
@@ -724,8 +718,8 @@ function renderClients() {
 }
 
 function renderEquipements() {
-    if (!equipements.length) return `<section class="panel"><div class="empty">Aucun équipement.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions">${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
+    if (!equipements.length) return `<section class="panel"><div class="empty">Aucun matériel.</div></section>`;
+    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions" class="actions">${currentUser.role === "ADMIN" ? `<button class="secondary" data-edit-equipment="${e.id}">${icon("edit")} Modifier</button><button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 function renderTeam() {
@@ -738,7 +732,7 @@ function renderTeam() {
 function bindMainActions(view) {
     document.getElementById(`add-${view}`)?.addEventListener("click", () => {
         if (view === "interventions") openNewIntervention();
-        if (view === "planning") openNewIntervention();
+        if (view === "planning") openNewIntervention("PLANIFIEE");
         if (view === "clients") openNewClient();
         if (view === "equipements") openNewEquipment();
         if (view === "equipe") openNewTechnician();
@@ -746,7 +740,8 @@ function bindMainActions(view) {
         if (view === "documents") openDocumentEditor();
     });
     document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.quickView)));
-    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", openNewIntervention);
+    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention("PLANIFIEE"));
+    document.querySelector("[data-quick-action='direct-report']")?.addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
     document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); });
     document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
     document.querySelectorAll("[data-edit-intervention]").forEach((b) => b.addEventListener("click", () => openIntervention(b.dataset.editIntervention)));
@@ -754,6 +749,7 @@ function bindMainActions(view) {
     document.querySelectorAll("[data-delete-template]").forEach((button) => button.addEventListener("click", () => deleteTemplate(button.dataset.deleteTemplate, button)));
     document.querySelectorAll("[data-open-document]").forEach((button) => button.addEventListener("click", () => openDocumentDetails(button.dataset.openDocument)));
     document.querySelectorAll("[data-open-client]").forEach((button) => button.addEventListener("click", () => openClientDetails(button.dataset.openClient)));
+    document.querySelectorAll("[data-edit-equipment]").forEach((button) => button.addEventListener("click", () => openEquipmentEditor(button.dataset.editEquipment)));
     document.querySelectorAll("[data-delete-document]").forEach((button) => button.addEventListener("click", () => deleteDocument(button.dataset.deleteDocument, button)));
     bindDeletes("intervention", "/interventions", "interventions");
     bindDeletes("client", "/clients", "clients");
@@ -1070,7 +1066,7 @@ async function saveCompanyReportSettings(event) {
 const TEMPLATE_FIELD_TYPES = [
     ["title", "Titre"], ["text", "Texte court"], ["textarea", "Zone de texte"],
     ["date", "Date et heure"], ["number", "Numérique"], ["checkbox", "Case à cocher"],
-    ["select", "Liste de choix"], ["equipment", "Équipement client"],
+    ["select", "Liste de choix"], ["client", "Client"], ["equipment", "Matériel client"],
     ["photo", "Photo"], ["multi_photo", "Multi-photos"], ["event_photos", "Photos événement"],
     ["signature", "Signature"], ["electronic_signature", "Signature électronique"],
     ["creator", "Profil du créateur"], ["gps", "Position GPS"], ["address", "Adresse"],
@@ -1479,8 +1475,7 @@ function renderClientDetail(detail, activeTab = "info") {
     const tabs = [
         ["info", "Informations"],
         ["contacts", `Contacts (${(detail.contacts || []).length})`],
-        ["equipements", `Équipements (${detail.equipements.length})`],
-        ...(currentUser.role === "ADMIN" ? [["devis", `Devis (${detail.pagination.devis_total})`]] : []),
+        ["equipements", `Matériels (${detail.equipements.length})`],
         ["interventions", `Interventions (${detail.pagination.interventions_total})`],
     ];
 
@@ -1488,7 +1483,7 @@ function renderClientDetail(detail, activeTab = "info") {
     if (activeTab === "contacts") {
         content = `<div class="panel-head"><div><h2>Contacts du client</h2><p class="muted">Personnes à contacter et futurs destinataires des rapports.</p></div>${currentUser.role === "ADMIN" ? '<button class="primary" data-add-client-contact>+ Ajouter</button>' : ""}</div><div class="related-list">${(detail.contacts || []).length ? detail.contacts.map((contact) => `<article class="related-card"><span><strong>${escapeHtml(contact.nom)}</strong><small>${escapeHtml(contact.fonction || "Fonction non renseignée")}</small><small>${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>` : "Pas d’e-mail"}${contact.telephone ? ` · <a href="tel:${escapeHtml(contact.telephone)}">${escapeHtml(contact.telephone)}</a>` : ""}</small>${contact.destinataire_rapport ? '<span class="badge">Destinataire des rapports</span>' : ""}</span>${currentUser.role === "ADMIN" ? `<span class="actions"><button class="secondary" data-edit-client-contact="${contact.id}">Modifier</button><button class="danger" data-delete-client-contact="${contact.id}">Supprimer</button></span>` : ""}</article>`).join("") : '<div class="empty">Aucun contact associé à ce client.</div>'}</div>`;
     } else if (activeTab === "equipements") {
-        content = `<div class="panel-head"><h2>Équipements associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.marque, equipment.modele].filter(Boolean).join(" · ") || `Équipement ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Année : ${escapeHtml(equipment.annee_installation || "—")}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun équipement associé à ce client.</div>`}</div>`;
+        content = `<div class="panel-head"><h2>Matériels associés</h2>${currentUser.role === "ADMIN" ? `<button class="primary" data-add-client-equipment="${client.id}">+ Ajouter</button>` : ""}</div><div class="related-list">${detail.equipements.length ? detail.equipements.map((equipment) => `<button class="related-card" data-client-equipment="${equipment.id}"><span><strong>${escapeHtml([equipment.type, equipment.marque, equipment.modele].filter(Boolean).join(" · ") || `Matériel ${equipment.id}`)}</strong><small>N° série : ${escapeHtml(equipment.numero_serie || "—")} · Année : ${escapeHtml(equipment.annee_installation || "—")}</small><small>Dernière intervention : ${equipment.derniere_intervention_date ? `${formatDate(equipment.derniere_intervention_date)} — ${escapeHtml(equipment.derniere_intervention_titre || "")}` : "Aucune"}</small></span><span aria-hidden="true">›</span></button>`).join("") : `<div class="empty">Aucun matériel associé à ce client.</div>`}</div>`;
     } else if (activeTab === "devis" && currentUser.role === "ADMIN") {
         content = `<div class="related-list">${detail.devis.length ? detail.devis.map((document) => `<button class="related-card" data-client-document="${document.id}"><span><strong>${escapeHtml(document.numero || `Devis ${document.id}`)}</strong><small>${formatDate(document.date_emission)} · Échéance ${formatDate(document.date_echeance)} · ${escapeHtml(document.statut)}</small></span><strong>${formatMoney(document.total_ttc, document.devise)}</strong></button>`).join("") : `<div class="empty">Aucun devis pour ce client.</div>`}</div>${detail.pagination.devis_total > detail.devis.length ? `<p class="muted">Les ${detail.devis.length} devis les plus récents sont affichés sur ${detail.pagination.devis_total}.</p>` : ""}`;
     } else if (activeTab === "interventions") {
@@ -1625,8 +1620,28 @@ function openEditEquipment(detail, equipment) {
 }
 
 function openNewEquipment() {
-    modal("Nouvel équipement", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions()}</select></div>${equipmentFields()}<button class="primary wide">Créer l’équipement</button></form>`);
+    modal("Nouveau matériel", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required><option value="">Sélectionner un client</option>${clientOptions()}</select></div>${equipmentFields()}<button class="primary wide">Créer le matériel</button></form>`);
     document.getElementById("equipment-form").addEventListener("submit", async (event) => submitForm(event, "/equipements", "equipements"));
+}
+
+function openEquipmentEditor(id) {
+    const equipment = equipements.find((item) => String(item.id) === String(id));
+    if (!equipment) return;
+    modal("Modifier le matériel", `<form id="main-equipment-edit-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions(equipment.client_id)}</select></div>${equipmentFields(equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
+    document.getElementById("main-equipment-edit-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const button = form.querySelector("button[type='submit']");
+        const values = Object.fromEntries(new FormData(form));
+        for (const key of Object.keys(values)) if (values[key] === "") values[key] = null;
+        await withBusy(button, async () => {
+            try {
+                await api(`/equipements/${id}`, { method: "PUT", body: JSON.stringify(values) });
+                closeModal();
+                await finishMutation("equipements", "Matériel modifié.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
 }
 
 function openNewTechnician() {
@@ -1692,21 +1707,24 @@ function replaceTechnician(updatedUser) {
         .sort((a, b) => Number(b.actif) - Number(a.actif) || a.nom.localeCompare(b.nom, "fr"));
 }
 
-function openNewIntervention() {
+function openNewIntervention(creationType = null) {
     if (!creationClients.length) return toast("Aucun client disponible. Contactez un administrateur.", true);
-    const eligibleClients = creationClients.filter((client) =>
-        creationEquipements.some((item) => String(item.client_id) === String(client.id))
-    );
-    if (!eligibleClients.length) return toast("Aucun client ne possède encore d'équipement.", true);
-    const firstClientId = eligibleClients[0].id;
-    const technicianField = currentUser.role === "ADMIN"
+    if (!creationType) {
+        modal("Que souhaitez-vous créer ?", `<div class="choice-cards"><button class="choice-card" id="choose-planned" type="button"><strong>Planifier une intervention</strong><span>Assigner un technicien et afficher la mission dans le planning.</span></button><button class="choice-card" id="choose-direct" type="button"><strong>Créer un rapport direct</strong><span>Rédiger immédiatement un rapport, sans intervention dans le planning.</span></button></div>`);
+        document.getElementById("choose-planned").addEventListener("click", () => openNewIntervention("PLANIFIEE"));
+        document.getElementById("choose-direct").addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
+        return;
+    }
+    const isDirect = creationType === "RAPPORT_DIRECT";
+    const technicianField = !isDirect && currentUser.role === "ADMIN"
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
-        : `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>`;
-    modal("Nouveau rapport", `<form id="intervention-form"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required>${creationClientOptions(eligibleClients)}</select></div>${technicianField}</div><div class="field"><label>Équipement concerné</label><select id="new-equipment" name="equipement_id" required>${creationEquipmentOptions(firstClientId)}</select></div>${field("Titre du rapport", "titre", "text", true)}<div class="field"><label>Description</label><textarea name="description"></textarea></div><div class="grid2">${field("Date", "date_intervention", "date")}${field("Heure", "heure", "time")}</div><div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">Créer le rapport</button></form>`);
+        : !isDirect ? `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>` : "";
+    const scheduleFields = isDirect ? "" : `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
+    modal(isDirect ? "Nouveau rapport direct" : "Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="${creationType}"><input type="hidden" name="statut" value="${isDirect ? "TERMINEE" : "PLANIFIEE"}"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field(isDirect ? "Titre du rapport" : "Objet de l’intervention", "titre", "text", true)}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">${isDirect ? "Créer le rapport" : "Planifier l’intervention"}</button></form>`);
     document.getElementById("new-client").addEventListener("change", (event) => {
         const equipmentSelect = document.getElementById("new-equipment");
-        equipmentSelect.innerHTML = creationEquipmentOptions(event.target.value);
-        equipmentSelect.disabled = !equipmentSelect.options.length;
+        equipmentSelect.innerHTML = `<option value="">Aucun matériel / sélectionner</option>${creationEquipmentOptions(event.target.value)}`;
+        equipmentSelect.disabled = !event.target.value;
     });
     document.getElementById("new-report-template").addEventListener("change", (event) => {
         const template = reportTemplates.find((item) => String(item.id) === String(event.target.value));
@@ -1724,7 +1742,7 @@ function openNewIntervention() {
             try {
                 await api("/interventions", { method: "POST", body: JSON.stringify(values) });
                 closeModal();
-                await finishMutation("interventions", "Rapport créé.");
+                await finishMutation(isDirect ? "interventions" : "planning", isDirect ? "Rapport créé." : "Intervention planifiée.");
             } catch (error) { toast(error.message, true); }
         });
     });
@@ -1748,7 +1766,11 @@ function renderReportFields(template, data = {}) {
         if (section.type === "page_break") return `<div class="report-page-break"><hr><span class="field-help">Saut de page dans le PDF</span></div>`;
         if (["photo", "multi_photo", "event_photos"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">📷 Ajoutez jusqu’à ${Number(section.maxPhotos || (section.type === "photo" ? 1 : 5))} photo(s) depuis la fiche de l’intervention.</p></div>`);
         if (["signature", "electronic_signature"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">✍ La signature est recueillie dans la fiche de l’intervention et intégrée au PDF.</p></div>`);
-        if (section.type === "equipment") return wrapper(`<div class="field">${label}<p class="muted">◇ Les informations de l’équipement sélectionné sont insérées automatiquement.</p></div>`);
+        if (section.type === "client") {
+            const clientName = document.getElementById("new-client")?.selectedOptions?.[0]?.textContent || template.client_nom || data[section.key] || "Client sélectionné dans le rapport";
+            return wrapper(`<div class="field">${label}<input value="${escapeHtml(clientName)}" disabled><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(clientName)}"></div>`);
+        }
+        if (section.type === "equipment") return wrapper(`<div class="field">${label}<p class="muted">◇ Les informations du matériel sélectionné sont insérées automatiquement.</p></div>`);
         if (section.type === "creator") return wrapper(`<div class="field">${label}<input value="${escapeHtml(currentUser.nom)}" disabled><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(currentUser.nom)}"></div>`);
         if (section.type === "gps") return wrapper(`<div class="field">${label}<div class="actions"><input ${attributes} value="${escapeHtml(value || "")}" placeholder="${escapeHtml(section.placeholder || "Latitude, longitude")}"><button type="button" class="secondary" data-capture-gps>Utiliser ma position</button></div></div>`);
         if (section.type === "address") return wrapper(`<div class="field">${label}<input ${attributes} value="${escapeHtml(value || "")}" autocomplete="street-address" placeholder="${escapeHtml(section.placeholder || "Adresse complète")}"></div>`);
@@ -1757,11 +1779,14 @@ function renderReportFields(template, data = {}) {
         if (section.type === "select") {
             const choices = [...(section.options || []), ...(section.allowOther ? ["Autre"] : [])];
             const selected = Array.isArray(value) ? value : [value];
+            const knownValues = section.options || [];
+            const customValue = Array.isArray(value) ? value.find((entry) => !knownValues.includes(entry)) : (!knownValues.includes(value) && value !== "Autre" ? value : "");
+            const otherInput = section.allowOther ? `<div class="field"><label>Précisez « Autre »</label><input data-report-other-for="${escapeHtml(section.key)}" value="${escapeHtml(customValue || "")}" placeholder="Saisissez votre réponse"></div>` : "";
             if (section.multiple || ["radio", "checkboxes", "segments"].includes(section.listMode)) {
                 const inputType = section.multiple || section.listMode === "checkboxes" ? "checkbox" : "radio";
-                return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options list-mode-${escapeHtml(section.listMode || "radio")}">${choices.map((option) => `<label><input type="${inputType}" data-report-checkbox-group="${escapeHtml(section.key)}" name="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
+                return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options list-mode-${escapeHtml(section.listMode || "radio")}">${choices.map((option) => `<label><input type="${inputType}" data-report-checkbox-group="${escapeHtml(section.key)}" name="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) || (option === "Autre" && customValue) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div>${otherInput}</fieldset>`);
             }
-            return wrapper(`<div class="field">${label}<select ${attributes}><option value="">${escapeHtml(section.placeholder || "Sélectionner")}</option>${choices.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`);
+            return wrapper(`<div class="field">${label}<select ${attributes}><option value="">${escapeHtml(section.placeholder || "Sélectionner")}</option>${choices.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) || (option === "Autre" && customValue) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select>${otherInput}</div>`);
         }
         if (section.type === "checkbox" && (section.options || []).length) {
             const selected = Array.isArray(value) ? value : [];
@@ -1805,6 +1830,13 @@ function collectReportData(form) {
     }, {});
     const groupKeys = new Set([...form.querySelectorAll("[data-report-checkbox-group]")].map((input) => input.dataset.reportCheckboxGroup));
     groupKeys.forEach((key) => { data[key] = [...form.querySelectorAll(`[data-report-checkbox-group="${CSS.escape(key)}"]:checked`)].map((input) => input.value); });
+    form.querySelectorAll("[data-report-other-for]").forEach((input) => {
+        const key = input.dataset.reportOtherFor;
+        const custom = input.value.trim();
+        if (!custom) return;
+        if (Array.isArray(data[key])) data[key] = data[key].map((value) => value === "Autre" ? custom : value);
+        else if (data[key] === "Autre") data[key] = custom;
+    });
     form.querySelectorAll("[data-report-table]").forEach((table) => {
         data[table.dataset.reportTable] = [...table.querySelectorAll("tbody tr")].map((row) => Object.fromEntries(
             [...row.querySelectorAll("[data-table-column]")].filter((input) => input.type !== "file").map((input) => [input.dataset.tableColumn, input.type === "checkbox" ? input.checked : input.type === "number" && input.value !== "" ? Number(input.value) : input.value.trim()])

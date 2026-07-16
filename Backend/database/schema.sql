@@ -130,6 +130,8 @@ CREATE TABLE interventions (
     entreprise_id BIGINT NOT NULL,
     client_id BIGINT NOT NULL,
     equipement_id BIGINT,
+    creation_type VARCHAR(20) NOT NULL DEFAULT 'PLANIFIEE'
+        CHECK (creation_type IN ('PLANIFIEE', 'RAPPORT_DIRECT')),
     technicien_id BIGINT,
     titre VARCHAR(200) NOT NULL CHECK (btrim(titre) <> ''),
     description TEXT,

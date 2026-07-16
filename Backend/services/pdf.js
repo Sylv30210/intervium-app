@@ -283,15 +283,15 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text(intervention.description, { lineGap: 3 });
         }
 
-        if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Équipements du client");
+        if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Matériel du client");
         if (pdfConfig.showEquipment !== false && equipments.length === 0) {
-            doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucun équipement renseigné.");
+            doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucun matériel renseigné.");
         } else if (pdfConfig.showEquipment !== false) {
             for (const equipment of equipments) {
                 ensureSpace(doc, 30);
                 const summary = [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`]
                     .filter(Boolean).join(" - ");
-                doc.font("Helvetica").fontSize(10).fillColor(DARK).text(`• ${summary || "Équipement sans détail"}`);
+                doc.font("Helvetica").fontSize(10).fillColor(DARK).text(`• ${summary || "Matériel sans détail"}`);
             }
         }
 
@@ -328,7 +328,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const equipment = equipments[0];
                     const value = equipment
                         ? [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`].filter(Boolean).join(" - ")
-                        : "Aucun équipement renseigné";
+                        : "Aucun matériel renseigné";
                     reportField(doc, field.label, value, field.showLabel !== false);
                     continue;
                 }

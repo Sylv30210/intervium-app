@@ -178,7 +178,7 @@ router.get("/", async (req, res) => {
         const result = await pool.query(
             `SELECT i.id, i.entreprise_id, i.client_id, i.equipement_id, i.technicien_id,
                     i.titre, i.description, i.compte_rendu, i.statut,
-                    i.date_intervention, i.heure, i.signature_url,
+                    i.date_intervention, i.heure, i.signature_url, i.creation_type,
                     i.modele_rapport_id, i.donnees_rapport, i.modele_rapport_snapshot,
                     i.report_version,
                     i.created_at, i.updated_at,
@@ -246,7 +246,8 @@ router.get("/options", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) =>
 
 router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
     const clientId = positiveId(req.body.client_id);
-    const equipementId = positiveId(req.body.equipement_id);
+    const equipementId = req.body.equipement_id == null ? null : positiveId(req.body.equipement_id);
+    const creationType = req.body.creation_type === "RAPPORT_DIRECT" ? "RAPPORT_DIRECT" : "PLANIFIEE";
     const technicienId = req.user.role === "TECHNICIEN"
         ? req.user.id
         : req.body.technicien_id == null ? null : positiveId(req.body.technicien_id);
@@ -256,7 +257,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
     const donneesRapport = req.body.donnees_rapport == null ? {} : reportData(req.body.donnees_rapport);
 
     if (!clientId) return res.status(400).json({ error: "client_id invalide." });
-    if (!equipementId) return res.status(400).json({ error: "equipement_id invalide." });
+    if (req.body.equipement_id != null && !equipementId) return res.status(400).json({ error: "materiel_id invalide." });
     if (req.user.role === "ADMIN" && req.body.technicien_id != null && !technicienId) {
         return res.status(400).json({ error: "technicien_id invalide." });
     }
@@ -283,9 +284,9 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
         const result = await pool.query(
             `INSERT INTO interventions
                 (entreprise_id, client_id, equipement_id, technicien_id, titre, description,
-                 compte_rendu, statut, date_intervention, heure, modele_rapport_id,
+                 creation_type, compte_rendu, statut, date_intervention, heure, modele_rapport_id,
                  donnees_rapport, modele_rapport_snapshot)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb)
              RETURNING *`,
             [
                 req.user.entreprise_id,
@@ -294,6 +295,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                 technicienId,
                 titre,
                 nullableText(req.body.description) ?? null,
+                creationType,
                 nullableText(req.body.compte_rendu) ?? null,
                 statut,
                 req.body.date_intervention || null,

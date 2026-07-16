@@ -59,8 +59,8 @@ router.get("/", async (req, res) => {
         );
         return res.json(result.rows);
     } catch (error) {
-        console.error("Échec de la liste des équipements", error);
-        return res.status(500).json({ error: "Impossible de charger les équipements." });
+        console.error("Échec de la liste des matériels", error);
+        return res.status(500).json({ error: "Impossible de charger les matériels." });
     }
 });
 
@@ -90,19 +90,19 @@ router.post("/", requireRole(["ADMIN"]), async (req, res) => {
                 year,
             ]
         );
-        await logActivity({ user: req.user, action: "CREATE", resourceType: "equipement", resourceId: result.rows[0].id, summary: `Équipement ${result.rows[0].type || result.rows[0].id} créé.` });
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "equipement", resourceId: result.rows[0].id, summary: `Matériel ${result.rows[0].type || result.rows[0].id} créé.` });
         return res.status(201).json(result.rows[0]);
     } catch (error) {
         if (error.code === "23514") return res.status(400).json({ error: "Année d’installation invalide." });
         if (error.code === "23505") return res.status(409).json({ error: "Numéro de série déjà utilisé." });
         console.error("Échec de la création de l'équipement", error);
-        return res.status(500).json({ error: "Impossible de créer l'équipement." });
+        return res.status(500).json({ error: "Impossible de créer le matériel." });
     }
 });
 
 router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
     const id = positiveId(req.params.id);
-    if (!id) return res.status(400).json({ error: "Identifiant équipement invalide." });
+    if (!id) return res.status(400).json({ error: "Identifiant matériel invalide." });
 
     const allowed = ["client_id", "type", "marque", "modele", "numero_serie", "annee_installation"];
     const supplied = allowed.filter((field) => Object.hasOwn(req.body, field));
@@ -142,8 +142,8 @@ router.put("/:id", requireRole(["ADMIN"]), async (req, res) => {
              RETURNING *`,
             values
         );
-        if (result.rowCount === 0) return res.status(404).json({ error: "Équipement introuvable." });
-        await logActivity({ user: req.user, action: "UPDATE", resourceType: "equipement", resourceId: id, summary: `Équipement ${result.rows[0].type || id} modifié.` });
+        if (result.rowCount === 0) return res.status(404).json({ error: "Matériel introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "equipement", resourceId: id, summary: `Matériel ${result.rows[0].type || id} modifié.` });
         return res.json(result.rows[0]);
     } catch (error) {
         if (error.code === "23514") return res.status(400).json({ error: "Année d’installation invalide." });

@@ -8,7 +8,7 @@ router.use(verifyToken);
 
 const SECTION_TYPES = new Set([
     "title", "text", "textarea", "date", "number", "checkbox", "select",
-    "equipment", "photo", "multi_photo", "event_photos", "signature",
+    "client", "equipment", "photo", "multi_photo", "event_photos", "signature",
     "electronic_signature", "creator", "gps", "address", "table", "price_table", "page_break",
 ]);
 const COLUMN_TYPES = new Set(["text", "textarea", "integer", "decimal", "currency", "percentage", "date", "time", "datetime", "boolean", "checkbox", "select", "photo", "row_number", "calculated"]);
