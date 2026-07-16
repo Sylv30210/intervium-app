@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v9-claudine-updates";
+const CACHE_VERSION = "intervium-shell-v10-google-diagnostic";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
