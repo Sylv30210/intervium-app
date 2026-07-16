@@ -5,17 +5,19 @@ import pool from "../config/database.js";
 const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 
 function config() {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-    const encryptionKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY;
+    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI?.trim();
+    const encryptionKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY?.trim();
     if (!clientId || !clientSecret || !redirectUri || !encryptionKey || !process.env.JWT_SECRET) return null;
-    const key = Buffer.from(encryptionKey, "base64");
+    const key = /^[a-f0-9]{64}$/i.test(encryptionKey)
+        ? Buffer.from(encryptionKey, "hex")
+        : Buffer.from(encryptionKey, "base64");
     if (key.length !== 32) throw new Error("GOOGLE_TOKEN_ENCRYPTION_KEY doit contenir 32 octets encodés en Base64.");
     return { clientId, clientSecret, redirectUri, key };
 }
 
-export function googleEnabled() { return process.env.GMAIL_SENDING_ENABLED === "true" && Boolean(config()); }
+export function googleEnabled() { return process.env.GMAIL_SENDING_ENABLED?.trim().toLowerCase() === "true" && Boolean(config()); }
 
 function encrypt(value) {
     const { key } = config();
