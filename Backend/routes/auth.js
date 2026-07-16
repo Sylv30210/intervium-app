@@ -45,7 +45,9 @@ function publicUser(user) {
         entreprise_id: user.entreprise_id,
         nom: user.nom,
         email: user.email,
-        role: user.role,
+        role: user.role === "SUPER_DEVELOPPEUR" ? "ADMIN" : user.role,
+        is_super_developer: user.role === "SUPER_DEVELOPPEUR",
+        doit_changer_mot_de_passe: user.doit_changer_mot_de_passe === true,
     };
 }
 
@@ -141,7 +143,7 @@ router.post("/login", authRateLimit, async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, entreprise_id, nom, email, password, role
+            `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe
              FROM utilisateurs
              WHERE email = $1 AND actif = TRUE
              LIMIT 1`,
@@ -175,13 +177,13 @@ router.post("/login", authRateLimit, async (req, res) => {
 router.get("/me", verifyToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.id, u.entreprise_id, u.nom, u.email, u.role,
+            `SELECT u.id, $2::bigint AS entreprise_id, u.nom, u.email, u.role, u.doit_changer_mot_de_passe,
                     e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
                     e.report_settings AS entreprise_report_settings
              FROM utilisateurs u
              JOIN entreprises e
-               ON e.id = u.entreprise_id
-             WHERE u.id = $1 AND u.entreprise_id = $2 AND u.actif = TRUE`,
+               ON e.id = $2
+             WHERE u.id = $1 AND (u.entreprise_id = $2 OR u.role = 'SUPER_DEVELOPPEUR') AND u.actif = TRUE`,
             [req.user.id, req.user.entreprise_id]
         );
         const user = result.rows[0];
@@ -221,7 +223,7 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
         }
         const hashedPassword = await bcrypt.hash(newPassword, 12);
         await pool.query(
-            "UPDATE utilisateurs SET password = $1, updated_at = NOW() WHERE id = $2 AND entreprise_id = $3",
+            "UPDATE utilisateurs SET password = $1, doit_changer_mot_de_passe = FALSE, updated_at = NOW() WHERE id = $2 AND (entreprise_id = $3 OR role = 'SUPER_DEVELOPPEUR')",
             [hashedPassword, req.user.id, req.user.entreprise_id]
         );
         await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Mot de passe modifié." });
@@ -230,6 +232,23 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
         console.error("Échec de la modification du mot de passe", error);
         return res.status(500).json({ error: "Impossible de modifier le mot de passe." });
     }
+});
+
+router.get("/companies", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    const result = await pool.query("SELECT id, nom, created_at FROM entreprises ORDER BY nom ASC, id ASC");
+    return res.json(result.rows);
+});
+
+router.post("/switch-company", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    const entrepriseId = Number(req.body.entreprise_id);
+    if (!Number.isSafeInteger(entrepriseId) || entrepriseId <= 0) return res.status(400).json({ error: "Entreprise invalide." });
+    const company = await pool.query("SELECT id, nom FROM entreprises WHERE id=$1", [entrepriseId]);
+    if (!company.rowCount) return res.status(404).json({ error: "Entreprise introuvable." });
+    const token = jwt.sign({ id: req.user.id, entreprise_id: entrepriseId, nom: req.user.nom, role: "SUPER_DEVELOPPEUR" }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "24h" });
+    res.cookie(COOKIE_NAME, token, sessionCookieOptions());
+    return res.json({ entreprise: company.rows[0] });
 });
 
 router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => {

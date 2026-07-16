@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 
 const COOKIE_NAME = "intervium_sid";
-const ALLOWED_ROLES = new Set(["ADMIN", "TECHNICIEN", "CLIENT"]);
+const ALLOWED_ROLES = new Set(["ADMIN", "TECHNICIEN", "CLIENT", "SUPER_DEVELOPPEUR"]);
 
 function readCookie(req, name) {
     const cookieHeader = req.headers.cookie;
@@ -78,7 +78,8 @@ export async function verifyToken(req, res, next) {
         const result = await pool.query(
             `SELECT id, entreprise_id, role, nom
              FROM utilisateurs
-             WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE`,
+             WHERE id = $1 AND actif = TRUE
+               AND (entreprise_id = $2 OR role = 'SUPER_DEVELOPPEUR')`,
             [sessionUser.id, sessionUser.entreprise_id]
         );
         const activeUser = result.rows[0];
@@ -88,7 +89,7 @@ export async function verifyToken(req, res, next) {
 
         req.user = {
             id: Number(activeUser.id),
-            entreprise_id: Number(activeUser.entreprise_id),
+            entreprise_id: activeUser.role === "SUPER_DEVELOPPEUR" ? sessionUser.entreprise_id : Number(activeUser.entreprise_id),
             role: activeUser.role,
             nom: activeUser.nom,
         };
@@ -119,7 +120,10 @@ export function requireRole(rolesArray) {
             return res.status(401).json({ error: "Authentification requise." });
         }
 
-        if (!allowedRoles.has(req.user.role)) {
+        if (req.user.role === "SUPER_DEVELOPPEUR" && req.method === "DELETE") {
+            return res.status(403).json({ error: "La suppression définitive est désactivée pour le super-développeur." });
+        }
+        if (!allowedRoles.has(req.user.role) && !(req.user.role === "SUPER_DEVELOPPEUR" && allowedRoles.has("ADMIN"))) {
             return res.status(403).json({ error: "Droits insuffisants." });
         }
 

@@ -21,6 +21,7 @@ let reportAutosavePending = false;
 let globalSearchTimer = null;
 let mobileNavLongPressTimer = null;
 let googleMailStatus = { enabled: false, connection: null };
+let platformCompanies = [];
 
 const app = document.getElementById("app");
 const THEME_STORAGE_KEY = "intervium_visual_theme";
@@ -431,6 +432,7 @@ async function logout() {
 
 async function loadAllData() {
     googleMailStatus = await api("/google/status").catch(() => ({ enabled: false, connection: null }));
+    platformCompanies = currentUser.is_super_developer ? await api("/auth/companies") : [];
     if (currentUser.role === "CLIENT") {
         interventions = await api("/interventions");
         clients = [];
@@ -926,7 +928,9 @@ function openSettings() {
           <div class="field"><label><input name="show_intervium" type="checkbox" ${reportSettings.show_intervium ? "checked" : ""}> Afficher discrètement « Généré avec Intervium »</label></div>
           <button class="primary wide" type="submit">Enregistrer l’identité des PDF</button>
         </form>` : "";
+    const developerSettings = currentUser.is_super_developer ? `<section class="settings-intro"><strong>Super-développeur</strong><p>Entreprise consultée : <strong>${escapeHtml(currentEntreprise?.nom || "")}</strong></p><div class="field"><label>Changer d’entreprise</label><select id="developer-company">${platformCompanies.map((company) => `<option value="${company.id}" ${String(company.id) === String(currentEntreprise?.id) ? "selected" : ""}>${escapeHtml(company.nom)}</option>`).join("")}</select></div><p class="muted">Accès administrateur transversal. Les suppressions définitives sont interdites.</p></section>` : "";
     modal("Paramètres", `
+        ${developerSettings}
         <div class="settings-intro">
             <strong>Personnalisez Intervium</strong>
             <div>Choisissez l’apparence la plus confortable pour votre environnement de travail.</div>
@@ -960,6 +964,10 @@ function openSettings() {
         const theme = setTheme(event.target.value);
         toast(({ classic: "Thème classique activé.", glass: "Mode Liquid Glass activé.", dark: "Thème sombre activé." })[theme]);
     }));
+    document.getElementById("developer-company")?.addEventListener("change", async (event) => {
+        try { await api("/auth/switch-company", { method: "POST", body: JSON.stringify({ entreprise_id: Number(event.target.value) }) }); window.location.reload(); }
+        catch (error) { toast(error.message, true); }
+    });
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     document.getElementById("customize-mobile-nav")?.addEventListener("click", openMobileNavigationCustomizer);
     document.getElementById("connect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {

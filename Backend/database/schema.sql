@@ -20,8 +20,9 @@ CREATE TABLE utilisateurs (
     email VARCHAR(254) NOT NULL CHECK (btrim(email) <> ''),
     password TEXT NOT NULL CHECK (length(password) > 0),
     role VARCHAR(20) NOT NULL DEFAULT 'TECHNICIEN'
-        CHECK (role IN ('ADMIN', 'TECHNICIEN', 'CLIENT')),
+        CHECK (role IN ('ADMIN', 'TECHNICIEN', 'CLIENT', 'SUPER_DEVELOPPEUR')),
     actif BOOLEAN NOT NULL DEFAULT TRUE,
+    doit_changer_mot_de_passe BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT utilisateurs_entreprise_fk
