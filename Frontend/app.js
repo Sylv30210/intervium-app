@@ -19,6 +19,7 @@ let serviceWorkerRegistration = null;
 let reportAutosaveTimer = null;
 let reportAutosavePending = false;
 let globalSearchTimer = null;
+let mobileNavLongPressTimer = null;
 
 const app = document.getElementById("app");
 const THEME_STORAGE_KEY = "intervium_visual_theme";
@@ -68,9 +69,11 @@ html[data-theme="dark"] :is(.detail-box,.related-card,.offline-card>div),html.th
 .ui-icon{display:inline-block;width:20px;height:20px;flex:0 0 auto;vertical-align:-.2em}.nav button,.primary,.secondary,.danger,.icon-button,.mobile-settings,.mobile-logout{display:inline-flex;align-items:center;justify-content:center;gap:8px}.nav button{justify-content:flex-start}.nav .ui-icon{width:19px;height:19px}.bottom-nav .nav-icon{display:grid;place-items:center;height:25px}.bottom-nav .ui-icon{width:22px;height:22px}.icon-only{width:44px;min-width:44px;height:44px;padding:0;border-radius:12px}.close{display:grid;place-items:center}.close .ui-icon{width:24px;height:24px}.quick-actions button{display:flex;align-items:center;gap:10px}.quick-actions .ui-icon{width:21px;height:21px}.media-delete{display:grid;place-items:center}.media-delete .ui-icon{width:18px;height:18px}.file-upload{display:grid;gap:8px;margin:14px 0;min-width:0}.file-upload-label{font-size:13px;font-weight:700;color:#475569}.file-upload-dropzone{display:flex;align-items:center;gap:14px;min-height:112px;padding:18px;border:1.5px dashed #94a3b8;border-radius:14px;background:#f8fafc;color:#29415f;cursor:pointer;transition:border-color .2s ease,background .2s ease,box-shadow .2s ease}.file-upload-dropzone:hover,.file-upload-dropzone.is-dragover{border-color:#2563eb;background:#eff6ff}.file-upload-dropzone:focus-visible{outline:3px solid #2563eb45;outline-offset:2px}.file-upload-icon{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:12px;background:#e7eef8;color:#1d4ed8}.file-upload-icon .ui-icon{width:25px;height:25px}.file-upload-copy{display:grid;gap:3px;min-width:0}.file-upload-copy strong{font-size:15px}.file-upload-copy small,.file-upload-name{display:block;color:#64748b;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-upload-preview{display:none;position:relative;align-items:center;gap:10px;min-height:58px;padding:8px 54px 8px 8px;border:1px solid #dbe3ee;border-radius:12px;background:#fff}.file-upload-preview.is-visible{display:flex}.file-upload-preview img{display:block;width:74px;height:54px;object-fit:contain;border-radius:8px;background:#fff}.file-upload-clear{position:absolute;right:8px;top:50%;translate:0 -50%;display:grid;place-items:center;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;border:0;border-radius:10px;background:#fee2e2;color:#b91c1c}.file-upload-status{min-height:18px;margin:0;color:#166534;font-size:12px}.file-upload.is-error .file-upload-dropzone{border-color:#dc2626;background:#fef2f2}.file-upload.is-error .file-upload-status{color:#b91c1c}.file-upload.is-success .file-upload-dropzone{border-color:#16a34a}.toast{display:flex;align-items:flex-start;gap:10px;min-height:48px;box-shadow:0 12px 32px #0f172a30}.modal-head{gap:14px;border-bottom:1px solid #edf1f7}.modal-head h2{line-height:1.2;overflow-wrap:anywhere}.client-tabs,.tabs{scrollbar-width:thin;overscroll-behavior-inline:contain}.client-tabs button{flex:0 0 auto}.field input[type="checkbox"]{width:20px;height:20px;min-height:20px;accent-color:#2563eb}button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #2563eb55;outline-offset:2px}
 html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-dark :is(.file-upload-dropzone,.file-upload-preview){background:#0c1626;border-color:#334155;color:#dbeafe}html[data-theme="dark"] .file-upload-icon,html.theme-dark .file-upload-icon{background:#172e52;color:#bfdbfe}html[data-theme="dark"] .file-upload-label,html.theme-dark .file-upload-label{color:#cbd5e1}html[data-theme="dark"] .file-upload-dropzone:hover,html.theme-dark .file-upload-dropzone:hover{background:#15243a;border-color:#60a5fa}html[data-theme="glass"] :is(.file-upload-dropzone,.file-upload-preview),html.theme-glass :is(.file-upload-dropzone,.file-upload-preview){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.42);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
 @media(max-width:768px){.file-upload-dropzone{min-height:104px;padding:14px}.file-upload-copy small,.file-upload-name{white-space:normal;overflow-wrap:anywhere}.modal-head{padding-bottom:12px}.client-tabs{margin-inline:-18px;padding-inline:18px}.topbar{min-width:0}.topbar>div{min-width:0}.topbar h1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.primary,.secondary,.danger{min-height:46px}.quick-actions button{min-height:52px}.bottom-nav .nav-label{font-size:10px}.company-branding{min-width:0}.theme-options{overflow:hidden}}
+.bottom-nav [data-mobile-nav-item]{position:relative;transition:transform .18s ease,box-shadow .18s ease,background .18s ease,opacity .18s ease}.bottom-nav.is-reordering{overflow:visible}.bottom-nav.is-reordering [data-mobile-nav-item]{touch-action:none}.bottom-nav [data-mobile-nav-item].is-lifted{position:fixed;z-index:40;transform:translateY(-15px) scale(1.1)!important;background:#fff!important;color:#1d4ed8!important;box-shadow:0 12px 28px #0f172a35!important;pointer-events:none;transition:transform .12s ease,box-shadow .12s ease}.bottom-nav .nav-placeholder{flex:1;min-width:0;min-height:56px;border:2px dashed #93c5fd;border-radius:12px;background:#eff6ff;opacity:.48;transition:all .18s ease}.bottom-nav.is-reordering [data-mobile-nav-item]:not(.is-lifted){opacity:.76}.bottom-nav.is-reordering #mobile-more{opacity:.45;pointer-events:none}html[data-theme="dark"] .bottom-nav [data-mobile-nav-item].is-lifted,html.theme-dark .bottom-nav [data-mobile-nav-item].is-lifted{background:#172e52!important;color:#bfdbfe!important}html[data-theme="dark"] .bottom-nav .nav-placeholder,html.theme-dark .bottom-nav .nav-placeholder{background:#172e52;border-color:#60a5fa}html[data-theme="glass"] .bottom-nav [data-mobile-nav-item].is-lifted,html.theme-glass .bottom-nav [data-mobile-nav-item].is-lifted{background:rgba(255,255,255,.88)!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}.nav-customizer{display:grid;gap:8px}.nav-customizer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}.nav-customizer-row>span{display:flex;align-items:center;gap:9px;min-width:0}.nav-customizer-row .actions{flex-wrap:nowrap}.nav-customizer-row.is-more{opacity:.72}.nav-customizer-divider{margin:10px 0 2px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase}html[data-theme="dark"] .nav-customizer-row,html.theme-dark .nav-customizer-row{background:#0c1626;border-color:#334155}
 .topbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.notification-button{position:relative}.notification-count{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800}.search-results,.notification-list,.activity-list{display:grid;gap:9px}.search-result,.notification-item,.activity-item{width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:inherit;text-align:left}.notification-item.unread{border-left:4px solid #2563eb}.notification-item small,.activity-item small,.search-result small{display:block;margin-top:4px;color:#64748b}.autosave-status{display:flex;align-items:center;gap:7px;min-height:28px;margin:8px 0;color:#64748b;font-size:12px}.autosave-status.saving{color:#1d4ed8}.autosave-status.saved{color:#166534}.autosave-status.error,.autosave-status.dirty{color:#b45309}.template-field-row[draggable="true"]{cursor:grab}.template-field-row.is-dragging{opacity:.55;outline:2px dashed #2563eb}.drag-handle{display:inline-flex;align-items:center;gap:6px;color:#64748b;font-size:12px}.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px}.table-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.table-tools input,.table-tools select{min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:9px 11px;background:#fff}.table-tools input{flex:1 1 220px}html[data-theme="dark"] :is(.search-result,.notification-item,.activity-item,.table-tools input,.table-tools select),html.theme-dark :is(.search-result,.notification-item,.activity-item,.table-tools input,.table-tools select){background:#0c1626;border-color:#334155;color:#e5edf8}@media(max-width:768px){.topbar-actions{flex:0 0 auto}.topbar-actions>#add-clients,.topbar-actions>#add-equipements,.topbar-actions>#add-interventions,.topbar-actions>#add-modeles,.topbar-actions>#add-documents,.topbar-actions>#add-equipe{padding-inline:10px}.search-result,.notification-item,.activity-item{min-height:58px}}
 `;
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
+document.head.insertAdjacentHTML("beforeend", `<style>.auth-footer{margin-top:20px;padding-top:14px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;text-align:center}html[data-theme="glass"] .bottom-nav.is-reordering,html.theme-glass .bottom-nav.is-reordering{overflow:visible}.bottom-nav [data-mobile-nav-item]{touch-action:pan-y;-webkit-touch-callout:none;user-select:none}</style>`);
 
 document.addEventListener("DOMContentLoaded", async () => {
     initPwa();
@@ -467,6 +470,7 @@ async function loadAllData() {
 
 function renderMain(view = "dashboard") {
     currentView = view;
+    const mobileNavigation = renderMobileNavigation(view);
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
         <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", currentUser.role === "CLIENT" ? "Rapports" : "Interventions", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Équipements", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? `${navButton("documents", "Devis & factures", view, "documents")}${navButton("equipe", "Équipe", view, "team")}` : ""}</nav>
@@ -474,7 +478,7 @@ function renderMain(view = "dashboard") {
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
       <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
-      <nav class="bottom-nav" aria-label="Navigation principale">${mobileNavButton("dashboard", "home", "Accueil", view)}${mobileNavButton("interventions", "interventions", currentUser.role === "CLIENT" ? "Rapports" : "Missions", view)}${currentUser.role === "CLIENT" ? "" : `${mobileNavButton("planning", "calendar", "Planning", view)}${mobileNavButton("clients", "clients", "Clients", view)}<button id="mobile-more" aria-label="Plus de rubriques"><span class="nav-icon">${icon("more")}</span><span class="nav-label">Plus</span></button>`}</nav>
+      <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
     </div><div id="modal-root"></div>`;
 
     document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.view)));
@@ -487,12 +491,167 @@ function renderMain(view = "dashboard") {
     document.getElementById("global-search")?.addEventListener("click", openGlobalSearch);
     document.getElementById("open-notifications")?.addEventListener("click", openNotifications);
     bindMainActions(view);
+    bindMobileNavigationReorder();
     updateInstallUi();
     refreshNotificationCount();
 }
 
 function navButton(view, label, active, iconName) { return `<button data-view="${view}" class="${view === active ? "active" : ""}">${icon(iconName)}<span>${label}</span></button>`; }
-function mobileNavButton(view, iconName, label, active) { return `<button data-view="${view}" class="${view === active ? "active" : ""}" aria-label="${label}" title="${label}"><span class="nav-icon">${icon(iconName)}</span><span class="nav-label">${label}</span></button>`; }
+function mobileNavButton(view, iconName, label, active) { return `<button data-view="${view}" data-mobile-nav-item class="${view === active ? "active" : ""}" aria-label="${label}" title="${label}"><span class="nav-icon">${icon(iconName)}</span><span class="nav-label">${label}</span></button>`; }
+
+function mobileNavigationItems() {
+    const items = [
+        { view: "dashboard", icon: "home", label: "Accueil" },
+        { view: "interventions", icon: "interventions", label: currentUser.role === "CLIENT" ? "Rapports" : "Missions" },
+    ];
+    if (currentUser.role !== "CLIENT") items.push(
+        { view: "planning", icon: "calendar", label: "Planning" },
+        { view: "clients", icon: "clients", label: "Clients" },
+        { view: "equipements", icon: "equipment", label: "Équipements" },
+        { view: "modeles", icon: "template", label: "Modèles" },
+    );
+    if (currentUser.role === "ADMIN") items.push(
+        { view: "documents", icon: "documents", label: "Documents" },
+        { view: "equipe", icon: "team", label: "Équipe" },
+        { view: "activity", icon: "history", label: "Historique" },
+    );
+    return items;
+}
+
+function mobileNavStorageKey() { return `intervium_mobile_nav:${currentEntreprise?.id || currentUser?.entreprise_id}:${currentUser?.id}`; }
+function orderedMobileNavigationItems() {
+    const available = mobileNavigationItems();
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(mobileNavStorageKey()) || "[]"); } catch {}
+    const rank = new Map(saved.map((view, index) => [view, index]));
+    return [...available].sort((left, right) => (rank.get(left.view) ?? 999) - (rank.get(right.view) ?? 999) || available.indexOf(left) - available.indexOf(right));
+}
+function renderMobileNavigation(active) {
+    const ordered = orderedMobileNavigationItems();
+    const visibleCount = currentUser.role === "CLIENT" ? ordered.length : 4;
+    const visible = ordered.slice(0, visibleCount);
+    const buttons = visible.map((item) => mobileNavButton(item.view, item.icon, item.label, active)).join("");
+    return `${buttons}${ordered.length > visibleCount ? `<button id="mobile-more" aria-label="Plus de rubriques" title="Plus"><span class="nav-icon">${icon("more")}</span><span class="nav-label">Plus</span></button>` : ""}`;
+}
+
+function saveMobileNavigationOrder(nav) {
+    const visible = [...nav.querySelectorAll("[data-mobile-nav-item]")].map((button) => button.dataset.view);
+    const remainder = orderedMobileNavigationItems().map((item) => item.view).filter((view) => !visible.includes(view));
+    try { localStorage.setItem(mobileNavStorageKey(), JSON.stringify([...visible, ...remainder])); } catch {}
+}
+
+function bindMobileNavigationReorder() {
+    const nav = document.querySelector("[data-mobile-nav]");
+    if (!nav || !window.matchMedia("(max-width: 768px)").matches) return;
+    if (nav.dataset.dragBound === "true") return;
+    nav.dataset.dragBound = "true";
+    let dragged = null;
+    let startX = 0, startY = 0, latestX = 0;
+    let suppressClick = false;
+    let activePointerId = null;
+    let placeholder = null;
+    let dragOffsetX = 0;
+    let initialOrder = [];
+    let originalNextSibling = null;
+    let frame = null;
+    const cancelPending = () => { clearTimeout(mobileNavLongPressTimer); mobileNavLongPressTimer = null; };
+    const visibleOrder = () => [...nav.querySelectorAll("[data-mobile-nav-item]")].map((item) => item.dataset.view);
+    const resetFloatingStyles = () => {
+        if (!dragged) return;
+        for (const property of ["left", "top", "width", "height"]) dragged.style.removeProperty(property);
+        dragged.classList.remove("is-lifted");
+        nav.classList.remove("is-reordering");
+    };
+    const placeAtOriginalPosition = () => {
+        if (!dragged || !placeholder) return;
+        if (originalNextSibling?.isConnected && originalNextSibling.parentElement === nav) nav.insertBefore(placeholder, originalNextSibling);
+        else nav.insertBefore(placeholder, nav.querySelector("#mobile-more"));
+    };
+    const finish = ({ commit = true } = {}) => {
+        cancelPending();
+        if (!dragged) return;
+        if (frame) cancelAnimationFrame(frame);
+        if (!commit) placeAtOriginalPosition();
+        const floatingBox = dragged.getBoundingClientRect();
+        placeholder.replaceWith(dragged);
+        resetFloatingStyles();
+        const finalBox = dragged.getBoundingClientRect();
+        const changed = commit && visibleOrder().join("|") !== initialOrder.join("|");
+        dragged.animate?.([
+            { transform: `translate(${floatingBox.left - finalBox.left}px, ${floatingBox.top - finalBox.top}px) scale(1.1)`, boxShadow: "0 12px 28px #0f172a35" },
+            { transform: "translate(0, 0) scale(1)", boxShadow: "none" },
+        ], { duration: 210, easing: "cubic-bezier(.2,.8,.2,1)" });
+        if (changed) {
+            saveMobileNavigationOrder(nav);
+            toast("Ordre de navigation enregistré.");
+        }
+        dragged = null; placeholder = null; activePointerId = null; originalNextSibling = null; initialOrder = [];
+        setTimeout(() => { suppressClick = false; }, 320);
+    };
+    const updateDragFrame = () => {
+        frame = null;
+        if (!dragged || !placeholder) return;
+        const navBox = nav.getBoundingClientRect();
+        const width = Number.parseFloat(dragged.style.width) || dragged.getBoundingClientRect().width;
+        dragged.style.left = `${Math.max(navBox.left, Math.min(latestX - dragOffsetX, navBox.right - width))}px`;
+        // Les rectangles sont relus à chaque frame, après toute mutation précédente du DOM.
+        const candidates = [...nav.children].filter((item) =>
+            item.matches?.("[data-mobile-nav-item]") && item !== dragged && !item.hidden
+        );
+        let targetIndex = candidates.length;
+        for (let index = 0; index < candidates.length; index += 1) {
+            const rect = candidates[index].getBoundingClientRect();
+            if (latestX < rect.left + rect.width / 2) { targetIndex = index; break; }
+        }
+        const currentIndex = [...nav.children].filter((item) => item === placeholder || candidates.includes(item)).indexOf(placeholder);
+        if (targetIndex === currentIndex) return;
+        const targetElement = candidates[targetIndex] || nav.querySelector("#mobile-more");
+        if (targetElement) nav.insertBefore(placeholder, targetElement);
+        else nav.appendChild(placeholder);
+    };
+    nav.addEventListener("pointerdown", (event) => {
+            const button = event.target.closest("[data-mobile-nav-item]");
+            if (!button || button.parentElement !== nav || (event.pointerType === "mouse" && event.button !== 0)) return;
+            cancelPending();
+            startX = latestX = event.clientX; startY = event.clientY;
+            activePointerId = event.pointerId;
+            mobileNavLongPressTimer = setTimeout(() => {
+                if (!button.isConnected || button.parentElement !== nav) return;
+                dragged = button; suppressClick = true;
+                const box = button.getBoundingClientRect();
+                initialOrder = visibleOrder();
+                originalNextSibling = button.nextSibling;
+                dragOffsetX = event.clientX - box.left;
+                placeholder = document.createElement("span"); placeholder.className = "nav-placeholder"; placeholder.setAttribute("aria-hidden", "true");
+                button.before(placeholder);
+                nav.classList.add("is-reordering"); button.classList.add("is-lifted");
+                Object.assign(button.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+                try {
+                    button.setPointerCapture?.(event.pointerId);
+                } catch (error) {
+                    console.warn("[mobile-nav-drag] pointer capture failed", error);
+                }
+                navigator.vibrate?.(35);
+            }, 450);
+    });
+    nav.addEventListener("pointermove", (event) => {
+            if (event.pointerId !== activePointerId) return;
+            latestX = event.clientX;
+            if (!dragged) {
+                const dx = event.clientX - startX; const dy = event.clientY - startY;
+                const distance = Math.hypot(dx, dy);
+                if (distance >= 12) cancelPending();
+                return;
+            }
+            if (Math.abs(event.clientY - startY) > 52) return finish({ commit: false });
+            event.preventDefault();
+            if (!frame) frame = requestAnimationFrame(updateDragFrame);
+    });
+    nav.addEventListener("pointerup", (event) => { if (event.pointerId === activePointerId) finish({ commit: true }); });
+    nav.addEventListener("pointercancel", (event) => { if (event.pointerId === activePointerId) { if (dragged) finish({ commit: false }); else cancelPending(); } });
+    nav.addEventListener("contextmenu", (event) => { if (event.target.closest("[data-mobile-nav-item]")) event.preventDefault(); });
+    nav.addEventListener("click", (event) => { if (suppressClick && event.target.closest("[data-mobile-nav-item]")) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
+}
 function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: currentUser.role === "CLIENT" ? "Rapports" : "Interventions", planning: "Planning", clients: "Clients", equipements: "Équipements", modeles: "Modèles de rapport", documents: "Devis & factures", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
@@ -643,13 +802,11 @@ async function bindActivityView(page = 1) {
 }
 
 function openMoreMenu() {
-    const items = [
-        ["equipements", "equipment", "Équipements"],
-        ["modeles", "template", "Modèles de rapport"],
-        ...(currentUser.role === "ADMIN" ? [["documents", "documents", "Devis & factures"], ["equipe", "team", "Équipe"], ["activity", "history", "Historique"]] : []),
-    ];
-    modal("Plus de rubriques", `<div class="more-menu">${items.map(([view, iconName, label]) => `<button class="secondary" data-more-view="${view}">${icon(iconName)} ${label}</button>`).join("")}</div>`);
+    const visible = new Set([...document.querySelectorAll("[data-mobile-nav-item]")].map((button) => button.dataset.view));
+    const items = orderedMobileNavigationItems().filter((item) => !visible.has(item.view));
+    modal("Plus de rubriques", `<div class="more-menu">${items.map((item) => `<button class="secondary" data-more-view="${item.view}">${icon(item.icon)} ${item.label}</button>`).join("")}</div><p class="muted">Maintenez une icône de la barre inférieure pour réorganiser vos raccourcis.</p><button class="secondary wide" id="customize-nav-from-more" type="button">Personnaliser la navigation</button>`);
     document.querySelectorAll("[data-more-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.moreView)));
+    document.getElementById("customize-nav-from-more")?.addEventListener("click", openMobileNavigationCustomizer);
 }
 
 function openGlobalSearch() {
@@ -774,6 +931,7 @@ function openSettings() {
             <label class="theme-option"><input type="radio" name="visual-theme" value="dark" ${activeTheme === "dark" ? "checked" : ""}><span class="theme-option-card"><span class="theme-option-icon">${icon("moon")}</span><span>Sombre</span></span></label>
         </div>
         <p class="muted">Cette préférence visuelle est enregistrée uniquement sur cet appareil.</p>
+        <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
         ${pwaSettings}
         ${companySettings}
         <section class="settings-intro" aria-labelledby="about-intervium"><strong id="about-intervium">À propos</strong><p>Intervium — gestion des interventions, rapports et documents métier.</p><p class="muted">Conçu par Sylvain Lecoeuvre</p></section>
@@ -784,6 +942,7 @@ function openSettings() {
         toast(({ classic: "Thème classique activé.", glass: "Mode Liquid Glass activé.", dark: "Thème sombre activé." })[theme]);
     }));
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
+    document.getElementById("customize-mobile-nav")?.addEventListener("click", openMobileNavigationCustomizer);
     updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
     bindFileUpload(document.querySelector("#company-logo-file")?.closest("[data-file-upload]"), { onChange: (file, component) => {
@@ -813,6 +972,21 @@ function openSettings() {
             toast("Logo supprimé des rapports.");
         } catch (error) { toast(error.message, true); }
     }));
+}
+
+function openMobileNavigationCustomizer() {
+    const render = () => {
+        const items = orderedMobileNavigationItems();
+        const visibleCount = currentUser.role === "CLIENT" ? items.length : 4;
+        closeModal();
+        modal("Navigation mobile", `<p class="muted">Les ${visibleCount} premières rubriques apparaissent dans la barre. Les suivantes restent accessibles dans « Plus ».</p><div class="nav-customizer">${items.map((item, index) => `${index === visibleCount ? '<div class="nav-customizer-divider">Dans « Plus »</div>' : ""}<div class="nav-customizer-row ${index >= visibleCount ? "is-more" : ""}"><span>${icon(item.icon)}<strong>${escapeHtml(item.label)}</strong></span><div class="actions"><button class="secondary icon-only" type="button" data-nav-up="${index}" ${index === 0 ? "disabled" : ""} aria-label="Monter ${escapeHtml(item.label)}" title="Monter">↑</button><button class="secondary icon-only" type="button" data-nav-down="${index}" ${index === items.length - 1 ? "disabled" : ""} aria-label="Descendre ${escapeHtml(item.label)}" title="Descendre">↓</button></div></div>`).join("")}</div><div class="actions"><button class="secondary" id="reset-mobile-navigation" type="button">Réinitialiser</button><button class="primary" id="save-mobile-navigation" type="button">Enregistrer</button></div>`);
+        const move = (index, direction) => { const target = index + direction; if (target < 0 || target >= items.length) return; [items[index], items[target]] = [items[target], items[index]]; try { localStorage.setItem(mobileNavStorageKey(), JSON.stringify(items.map((item) => item.view))); } catch {} render(); };
+        document.querySelectorAll("[data-nav-up]").forEach((button) => button.addEventListener("click", () => move(Number(button.dataset.navUp), -1)));
+        document.querySelectorAll("[data-nav-down]").forEach((button) => button.addEventListener("click", () => move(Number(button.dataset.navDown), 1)));
+        document.getElementById("reset-mobile-navigation").addEventListener("click", () => { try { localStorage.removeItem(mobileNavStorageKey()); } catch {} render(); });
+        document.getElementById("save-mobile-navigation").addEventListener("click", () => { closeModal(); renderMain(currentView); toast("Navigation mobile enregistrée."); });
+    };
+    render();
 }
 
 async function saveCompanyReportSettings(event) {
