@@ -181,29 +181,28 @@ app.use((error, req, res, _next) => {
     return res.status(500).json({ error: "Erreur interne du serveur.", request_id: req.requestId });
 });
 
-try {
+export async function startServer() {
     console.log("Vérification des migrations PostgreSQL...");
     await runMigrations();
     await ensureUploadDirectories();
-} catch (error) {
-    console.error("Erreur lors de la migration ou de l'initialisation :", error);
-    await pool.end().catch(() => {});
-    process.exit(1);
+    const server = app.listen(port, "0.0.0.0", () => console.log(`Intervium écoute sur le port ${port}`));
+    const shutdown = (signal) => {
+        console.log(`${signal} reçu, arrêt propre du serveur...`);
+        server.close(async () => { await pool.end(); process.exit(0); });
+        setTimeout(() => process.exit(1), 10_000).unref();
+    };
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    return server;
 }
 
-const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`Intervium écoute sur le port ${port}`);
-});
+export { app };
 
-async function shutdown(signal) {
-    console.log(`${signal} reçu, arrêt propre du serveur...`);
-    server.close(async () => {
-        await pool.end();
-        process.exit(0);
+const launchedDirectly = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+if (launchedDirectly) {
+    startServer().catch(async (error) => {
+        console.error("Erreur lors de la migration ou de l'initialisation :", error);
+        await pool.end().catch(() => {});
+        process.exit(1);
     });
-
-    setTimeout(() => process.exit(1), 10_000).unref();
 }
-
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
