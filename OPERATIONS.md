@@ -16,6 +16,8 @@ Scanner immédiatement l'URI TOTP affichée, vérifier la connexion, puis suppri
 - la production `intervium` n'est plus déployée automatiquement ; une promotion manuelle est nécessaire après validation du staging ;
 - créer le tag correspondant à la version après validation de production, par exemple `v2.2.0`.
 
+Avant toute publication, exécuter `npm run check`, `npm test` puis `npm run release:check`. Dans l’environnement de déploiement, utiliser `RELEASE_ENV_CHECK=true npm run release:check` pour contrôler également la présence des secrets sans les afficher.
+
 ## Sauvegardes
 
 Activer les sauvegardes et la restauration point-in-time dans Neon. Vérifier mensuellement une restauration dans un projet isolé. Pour une deuxième copie, planifier un `pg_dump` chiffré vers un stockage privé avec une durée de conservation définie. Ne jamais déposer un dump dans Git, les logs ou les artefacts publics.

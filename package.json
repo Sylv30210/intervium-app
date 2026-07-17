@@ -10,7 +10,8 @@
     "dev": "npm --prefix Backend run dev",
     "migrate": "npm --prefix Backend run migrate",
     "check": "node Backend/scripts/check-js.js",
-    "test": "npm --prefix Backend test"
+    "test": "npm --prefix Backend test",
+    "release:check": "node Backend/scripts/release-preflight.js"
   },
   "engines": {
     "node": ">=20"
