@@ -292,7 +292,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         sectionTitle(doc, "Informations du rapport");
         if (pdfConfig.showClient !== false) {
             detailLine(doc, "Client", intervention.client_nom);
-            detailLine(doc, "Adresse", intervention.client_adresse);
+            detailLine(doc, "Adresse du chantier", intervention.adresse_chantier || intervention.client_adresse);
         }
         detailLine(doc, "Date", `${formatDate(intervention.date_intervention)}${intervention.heure ? ` à ${String(intervention.heure).slice(0, 5)}` : ""}`);
         if (!hasReportTemplate) {
@@ -303,6 +303,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         if (!hasReportTemplate && intervention.description) {
             sectionTitle(doc, "Description");
             doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text(intervention.description, { lineGap: 3 });
+        }
+
+        if (intervention.travaux_demandes) {
+            sectionTitle(doc, "Travaux demandés");
+            doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
+                .text(intervention.travaux_demandes, { lineGap: 3 });
         }
 
         if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Matériel du client");

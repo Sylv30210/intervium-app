@@ -46,14 +46,7 @@ async function validClientUser(utilisateurId, entrepriseId) {
 async function accessibleClient(clientId, user) {
     const values = [clientId, user.entreprise_id];
     let accessFilter = "";
-    if (user.role === "TECHNICIEN") {
-        values.push(user.id);
-        accessFilter = `AND EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i.client_id = c.id AND i.entreprise_id = c.entreprise_id
-              AND i.technicien_id = $3
-        )`;
-    } else if (user.role === "CLIENT") {
+    if (user.role === "CLIENT") {
         values.push(user.id);
         accessFilter = "AND c.utilisateur_id = $3";
     }
@@ -75,14 +68,7 @@ router.get("/", async (req, res) => {
     const pagination = paginationFromRequest(req);
     const values = [req.user.entreprise_id];
     let accessFilter = "";
-    if (req.user.role === "TECHNICIEN") {
-        values.push(req.user.id);
-        accessFilter = `AND EXISTS (
-            SELECT 1 FROM interventions i
-            WHERE i.client_id = c.id AND i.entreprise_id = c.entreprise_id
-              AND i.technicien_id = $${values.length}
-        )`;
-    } else if (req.user.role === "CLIENT") {
+    if (req.user.role === "CLIENT") {
         values.push(req.user.id);
         accessFilter = `AND c.utilisateur_id = $${values.length}`;
     }

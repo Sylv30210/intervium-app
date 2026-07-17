@@ -137,6 +137,8 @@ CREATE TABLE interventions (
     technicien_id BIGINT,
     titre VARCHAR(200) NOT NULL CHECK (btrim(titre) <> ''),
     description TEXT,
+    adresse_chantier TEXT,
+    travaux_demandes TEXT,
     compte_rendu TEXT,
     statut VARCHAR(30) NOT NULL DEFAULT 'PLANIFIEE'
         CHECK (statut IN ('PLANIFIEE', 'EN_COURS', 'TERMINEE', 'ANNULEE')),

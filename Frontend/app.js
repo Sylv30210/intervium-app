@@ -628,7 +628,7 @@ function renderPlanning() {
         const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
         const key = localDateKey(date);
         const events = interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT" && String(item.date_intervention || "").slice(0, 10) === key);
-        return `<div class="calendar-day ${date.getMonth() === month ? "" : "outside"} ${key === todayKey ? "today" : ""}"><span class="calendar-number">${date.getDate()}</span>${events.map((event) => `<button class="calendar-event" data-edit-intervention="${event.id}" title="${escapeHtml(event.titre)} — ${escapeHtml(event.client_nom)}">${escapeHtml(event.heure?.slice(0,5) || "")} ${escapeHtml(event.titre)}</button>`).join("")}</div>`;
+        return `<div class="calendar-day ${date.getMonth() === month ? "" : "outside"} ${key === todayKey ? "today" : ""}"><span class="calendar-number">${date.getDate()}</span>${events.map((event) => `<button class="calendar-event" data-edit-intervention="${event.id}" title="${escapeHtml(event.titre)} — ${escapeHtml(event.client_nom)}${event.adresse_chantier ? ` — ${escapeHtml(event.adresse_chantier)}` : ""}">${escapeHtml(event.heure?.slice(0,5) || "")} ${escapeHtml(event.titre)}</button>`).join("")}</div>`;
     }).join("");
     const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(planningCursor);
     return `<section class="panel"><div class="calendar-head"><button class="secondary" id="planning-prev" aria-label="Mois précédent">‹</button><h2>${capitalize(monthLabel)}</h2><button class="secondary" id="planning-next" aria-label="Mois suivant">›</button></div><div class="calendar-grid">${["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${cells}</div></section>`;
@@ -1687,11 +1687,21 @@ async function openNewIntervention(creationType = null) {
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
         : !isDirect ? `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>` : "";
     const scheduleFields = isDirect ? "" : `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
-    modal(isDirect ? "Nouveau rapport direct" : "Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="${creationType}"><input type="hidden" name="statut" value="${isDirect ? "TERMINEE" : "PLANIFIEE"}"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field(isDirect ? "Titre du rapport" : "Objet de l’intervention", "titre", "text", true)}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">${isDirect ? "Créer le rapport" : "Planifier l’intervention"}</button></form>`);
+    const siteAddressField = isDirect ? "" : `<div class="field"><label>Adresse du chantier</label><input id="new-site-address" name="adresse_chantier" autocomplete="street-address"><label class="setting-check"><input id="copy-client-address" type="checkbox"> Reprendre l’adresse du client</label></div>`;
+    modal(isDirect ? "Nouveau rapport direct" : "Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="${creationType}"><input type="hidden" name="statut" value="${isDirect ? "TERMINEE" : "PLANIFIEE"}"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field(isDirect ? "Titre du rapport" : "Objet de l’intervention", "titre", "text", true)}${siteAddressField}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">${isDirect ? "Créer le rapport" : "Planifier l’intervention"}</button></form>`);
     document.getElementById("new-client").addEventListener("change", (event) => {
         const equipmentSelect = document.getElementById("new-equipment");
         equipmentSelect.innerHTML = `<option value="">Aucun matériel / sélectionner</option>${creationEquipmentOptions(event.target.value)}`;
         equipmentSelect.disabled = !event.target.value;
+        if (document.getElementById("copy-client-address")?.checked) {
+            const client = creationClients.find((item) => String(item.id) === String(event.target.value));
+            document.getElementById("new-site-address").value = client?.adresse || "";
+        }
+    });
+    document.getElementById("copy-client-address")?.addEventListener("change", (event) => {
+        if (!event.target.checked) return;
+        const client = creationClients.find((item) => String(item.id) === String(document.getElementById("new-client").value));
+        document.getElementById("new-site-address").value = client?.adresse || "";
     });
     document.getElementById("new-report-template").addEventListener("change", (event) => {
         const template = reportTemplates.find((item) => String(item.id) === String(event.target.value));
@@ -1760,7 +1770,7 @@ function renderReportFields(template, data = {}, interventionId = null) {
             return wrapper(`<div class="field">${label}<select ${attributes}><option value="">${escapeHtml(section.placeholder || "Sélectionner")}</option>${choices.map((option) => `<option value="${escapeHtml(option)}" ${String(value) === String(option) || (option === "Autre" && customValue) ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select>${otherInput}</div>`);
         }
         if (section.type === "checkbox" && (section.options || []).length) {
-            const selected = Array.isArray(value) ? value : [];
+            const selected = Array.isArray(value) ? value : (value ? [value] : []);
             return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options">${section.options.map((option) => `<label><input type="checkbox" data-report-checkbox-group="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
         }
         if (section.type === "checkbox") return wrapper(`<div class="field"><label><input type="checkbox" ${attributes} ${value ? "checked" : ""}> ${escapeHtml(section.label)}${section.required ? " *" : ""}</label></div>`);
@@ -1800,7 +1810,11 @@ function collectReportData(form) {
         return result;
     }, {});
     const groupKeys = new Set([...form.querySelectorAll("[data-report-checkbox-group]")].map((input) => input.dataset.reportCheckboxGroup));
-    groupKeys.forEach((key) => { data[key] = [...form.querySelectorAll(`[data-report-checkbox-group="${CSS.escape(key)}"]:checked`)].map((input) => input.value); });
+    groupKeys.forEach((key) => {
+        const inputs = [...form.querySelectorAll(`[data-report-checkbox-group="${CSS.escape(key)}"]`)];
+        const checked = inputs.filter((input) => input.checked).map((input) => input.value);
+        data[key] = inputs[0]?.type === "radio" ? (checked[0] || "") : checked;
+    });
     form.querySelectorAll("[data-report-other-for]").forEach((input) => {
         const key = input.dataset.reportOtherFor;
         const custom = input.value.trim();
@@ -1903,7 +1917,7 @@ function openIntervention(id) {
 
     const selectedTemplateId = item.modele_rapport_id || (item.modele_rapport_sections?.length ? "__snapshot__" : "");
     const templateSelector = `<div class="field"><label>Modèle de rapport</label><select id="edit-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${selectedTemplateId === "__snapshot__" ? `<option value="__snapshot__" selected>${escapeHtml(item.modele_rapport_nom || "Modèle supprimé")} (contenu conservé)</option>` : ""}${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}" ${String(template.id) === String(selectedTemplateId) ? "selected" : ""}>${escapeHtml(template.nom)}</option>`).join("")}</select></div>`;
-    const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${field("Titre", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
+    const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${field("Objet de l’intervention", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
     const localDraft = loadReportDraft(item);
     const customReportFields = Array.isArray(item.modele_rapport_sections) && item.modele_rapport_sections.length
         ? renderReportFields(item, localDraft?.payload?.donnees_rapport || item.donnees_rapport || {}, item.id)
@@ -1912,6 +1926,8 @@ function openIntervention(id) {
       <p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p>
       ${adminFields}
       <input type="hidden" name="statut" value="${escapeHtml(item.statut || "TERMINEE")}">
+      <div class="field"><label>Adresse du chantier</label><input name="adresse_chantier" autocomplete="street-address" value="${escapeHtml(item.adresse_chantier || "")}"></div>
+      <div class="field"><label>Travaux demandés</label><textarea name="travaux_demandes" rows="4">${escapeHtml(item.travaux_demandes ?? item.titre ?? "")}</textarea></div>
       <div class="field"><label>Compte-rendu</label><textarea name="compte_rendu" rows="5">${escapeHtml(item.compte_rendu || "")}</textarea></div>
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
@@ -1976,7 +1992,7 @@ function setAutosaveStatus(state, label) {
 }
 function currentReportPayload(form) {
     const data = Object.fromEntries(new FormData(form));
-    return { statut: data.statut, compte_rendu: data.compte_rendu || null, donnees_rapport: collectReportData(form) };
+    return { statut: data.statut, adresse_chantier: data.adresse_chantier || null, travaux_demandes: data.travaux_demandes || null, compte_rendu: data.compte_rendu || null, donnees_rapport: collectReportData(form) };
 }
 function persistReportDraft(item, payload) {
     try { localStorage.setItem(reportDraftKey(item.id), JSON.stringify({ interventionId: item.id, version: item.report_version || 1, payload, savedAt: new Date().toISOString() })); } catch {}
@@ -1985,6 +2001,8 @@ function restoreReportDraft(item, form) {
     const draft = loadReportDraft(item);
     if (!draft) return;
     if (draft.payload.statut && form.elements.statut) form.elements.statut.value = draft.payload.statut;
+    if (form.elements.adresse_chantier && draft.payload.adresse_chantier !== undefined) form.elements.adresse_chantier.value = draft.payload.adresse_chantier || "";
+    if (form.elements.travaux_demandes && draft.payload.travaux_demandes !== undefined) form.elements.travaux_demandes.value = draft.payload.travaux_demandes || "";
     if (form.elements.compte_rendu && draft.payload.compte_rendu !== null) form.elements.compte_rendu.value = draft.payload.compte_rendu;
     Object.entries(draft.payload.donnees_rapport || {}).forEach(([key, value]) => {
         const input = form.querySelector(`[data-report-key="${CSS.escape(key)}"]`);
@@ -1996,7 +2014,7 @@ function restoreReportDraft(item, form) {
 function bindReportAutosave(item, form) {
     const schedule = (event) => {
         const target = event.target;
-        const reportInput = target.matches('[name="statut"],[name="compte_rendu"],[data-report-key],[data-report-checkbox-group],[data-table-column]');
+        const reportInput = target.matches('[name="statut"],[name="adresse_chantier"],[name="travaux_demandes"],[name="compte_rendu"],[data-report-key],[data-report-checkbox-group],[data-table-column]');
         if (!reportInput) return;
         reportAutosavePending = true;
         const payload = currentReportPayload(form);
@@ -2016,6 +2034,8 @@ async function saveReportDraft(item, form) {
         const updated = await api(`/interventions/${item.id}`, { method: "PUT", body: JSON.stringify(payload) });
         item.report_version = updated.report_version;
         item.statut = updated.statut;
+        item.adresse_chantier = updated.adresse_chantier;
+        item.travaux_demandes = updated.travaux_demandes;
         item.compte_rendu = updated.compte_rendu;
         item.donnees_rapport = updated.donnees_rapport;
         reportAutosavePending = false;

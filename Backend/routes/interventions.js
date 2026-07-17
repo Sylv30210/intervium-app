@@ -92,7 +92,13 @@ export function validateTemplateData(template, data, { requireSignatures = true 
         if (section.required && (!signatureType || requireSignatures) && (empty || (section.type === "checkbox" && !(section.options || []).length && value !== true))) {
             return `Le champ « ${section.label} » est requis.`;
         }
-        if (section.type === "select" && value && !(section.options || []).includes(value) && section.allowOther !== true) {
+        if (section.type === "select" && Array.isArray(value)) {
+            const acceptsMultiple = section.multiple === true || section.listMode === "checkboxes";
+            if (!acceptsMultiple) return `Une seule valeur est autorisée pour « ${section.label} ».`;
+            if (value.some((entry) => !(section.options || []).includes(entry)) && section.allowOther !== true) {
+                return `Valeur invalide pour « ${section.label} ».`;
+            }
+        } else if (section.type === "select" && value && !(section.options || []).includes(value) && section.allowOther !== true) {
             return `Valeur invalide pour « ${section.label} ».`;
         }
         if (section.type === "checkbox" && Array.isArray(value)) {
@@ -191,7 +197,8 @@ router.get("/", async (req, res) => {
         }
         const result = await pool.query(
             `SELECT i.id, i.entreprise_id, i.client_id, i.equipement_id, i.technicien_id,
-                    i.titre, i.description, i.compte_rendu, i.statut,
+                    i.titre, i.description, i.adresse_chantier, i.travaux_demandes,
+                    i.compte_rendu, i.statut,
                     i.date_intervention, i.heure, i.signature_url, i.creation_type, i.numero_rapport,
                     i.modele_rapport_id, i.donnees_rapport, i.modele_rapport_snapshot,
                     i.report_version,
@@ -239,7 +246,7 @@ router.get("/options", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) =>
     try {
         const [clientResult, equipmentResult] = await Promise.all([
             pool.query(
-                `SELECT id, nom FROM clients
+                `SELECT id, nom, adresse FROM clients
                  WHERE entreprise_id = $1 ORDER BY nom ASC, id ASC`,
                 [req.user.entreprise_id]
             ),
@@ -324,9 +331,10 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
              )
              INSERT INTO interventions
                 (entreprise_id, client_id, equipement_id, technicien_id, titre, description,
+                 adresse_chantier, travaux_demandes,
                  creation_type, compte_rendu, statut, date_intervention, heure, modele_rapport_id,
                  donnees_rapport, modele_rapport_snapshot, numero_rapport)
-             SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb,
+             SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb,
                     year::text || '-' || LPAD(sequence::text, 4, '0')
              FROM next_report_number
              RETURNING *`,
@@ -337,6 +345,8 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                 technicienId,
                 titre,
                 nullableText(req.body.description) ?? null,
+                nullableText(req.body.adresse_chantier) ?? null,
+                nullableText(req.body.travaux_demandes) ?? (creationType === "PLANIFIEE" ? titre : null),
                 creationType,
                 nullableText(req.body.compte_rendu) ?? null,
                 statut,
@@ -505,10 +515,11 @@ router.put("/:id", async (req, res) => {
     if (req.user.role === "CLIENT") return res.status(403).json({ error: "Droits insuffisants." });
 
     const adminFields = [
-        "client_id", "equipement_id", "technicien_id", "titre", "description", "compte_rendu",
+        "client_id", "equipement_id", "technicien_id", "titre", "description", "adresse_chantier",
+        "travaux_demandes", "compte_rendu",
         "statut", "date_intervention", "heure", "modele_rapport_id", "donnees_rapport",
     ];
-    const technicianFields = ["statut", "compte_rendu", "donnees_rapport"];
+    const technicianFields = ["statut", "adresse_chantier", "travaux_demandes", "compte_rendu", "donnees_rapport"];
     const allowed = req.user.role === "ADMIN" ? adminFields : technicianFields;
     const expectedVersion = req.body.expected_version === undefined ? null : Number(req.body.expected_version);
     if (expectedVersion !== null && (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1)) {
