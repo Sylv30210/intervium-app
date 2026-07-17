@@ -8,6 +8,9 @@ import { createRateLimiter } from "../middleware/security.js";
 
 const router = express.Router();
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+const SUPPORT_DURATION_SECONDS = 30 * 60;
+const SUPPORT_WRITE_SECONDS = 10 * 60;
+const TERMS_VERSION = "2026-07-17";
 const ROLES = new Set(["ADMIN", "TECHNICIEN", "CLIENT"]);
 const REPORT_HEADER_STYLES = new Set(["minimal", "band", "none"]);
 const authRateLimit = createRateLimiter({
@@ -48,7 +51,24 @@ function publicUser(user) {
         role: user.role === "SUPER_DEVELOPPEUR" ? "ADMIN" : user.role,
         is_super_developer: user.role === "SUPER_DEVELOPPEUR",
         doit_changer_mot_de_passe: user.doit_changer_mot_de_passe === true,
+        support_session: user.impersonated_company_id ? {
+            company_id: user.impersonated_company_id,
+            expires_at: user.support_expires_at,
+            write_enabled: user.support_write === true,
+        } : null,
+        consent_required: user.conditions_version !== TERMS_VERSION,
+        cookies_choice: user.cookies_choice || "necessary",
     };
+}
+
+function signSession(user, support = {}) {
+    return jwt.sign({
+        id: user.id,
+        entreprise_id: user.home_entreprise_id ?? user.entreprise_id,
+        nom: user.nom,
+        role: user.role,
+        ...(support.impersonated_company_id ? support : {}),
+    }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "24h" });
 }
 
 router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
@@ -143,7 +163,8 @@ router.post("/login", authRateLimit, async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe
+            `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe,
+                    conditions_version, cookies_choice
              FROM utilisateurs
              WHERE email = $1 AND actif = TRUE
              LIMIT 1`,
@@ -155,16 +176,7 @@ router.post("/login", authRateLimit, async (req, res) => {
             return res.status(401).json({ error: "Identifiants incorrects." });
         }
 
-        const token = jwt.sign(
-            {
-                id: user.id,
-                entreprise_id: user.entreprise_id,
-                nom: user.nom,
-                role: user.role,
-            },
-            process.env.JWT_SECRET,
-            { algorithm: "HS256", expiresIn: "24h" }
-        );
+        const token = signSession(user);
 
         res.cookie(COOKIE_NAME, token, sessionCookieOptions());
         return res.json({ user: publicUser(user) });
@@ -178,13 +190,15 @@ router.get("/me", verifyToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT u.id, $2::bigint AS entreprise_id, u.nom, u.email, u.role, u.doit_changer_mot_de_passe,
+                    u.conditions_version, u.cookies_choice,
                     e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
                     e.report_settings AS entreprise_report_settings
              FROM utilisateurs u
              JOIN entreprises e
                ON e.id = $2
-             WHERE u.id = $1 AND (u.entreprise_id = $2 OR u.role = 'SUPER_DEVELOPPEUR') AND u.actif = TRUE`,
-            [req.user.id, req.user.entreprise_id]
+             WHERE u.id = $1 AND u.actif = TRUE
+               AND (u.entreprise_id = $2 OR (u.role = 'SUPER_DEVELOPPEUR' AND $2 = $3))`,
+            [req.user.id, req.user.entreprise_id, req.user.impersonated_company_id]
         );
         const user = result.rows[0];
 
@@ -195,7 +209,7 @@ router.get("/me", verifyToken, async (req, res) => {
         }
 
         return res.json({
-            user: publicUser(user),
+            user: publicUser({ ...user, ...req.user }),
             entreprise: companyPayload(user),
         });
     } catch (error) {
@@ -216,7 +230,7 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
     try {
         const result = await pool.query(
             "SELECT password FROM utilisateurs WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE",
-            [req.user.id, req.user.entreprise_id]
+            [req.user.id, req.user.home_entreprise_id]
         );
         if (!result.rowCount || !(await bcrypt.compare(currentPassword, result.rows[0].password))) {
             return res.status(401).json({ error: "Mot de passe actuel incorrect." });
@@ -224,7 +238,7 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, 12);
         await pool.query(
             "UPDATE utilisateurs SET password = $1, doit_changer_mot_de_passe = FALSE, updated_at = NOW() WHERE id = $2 AND (entreprise_id = $3 OR role = 'SUPER_DEVELOPPEUR')",
-            [hashedPassword, req.user.id, req.user.entreprise_id]
+            [hashedPassword, req.user.id, req.user.home_entreprise_id]
         );
         await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Mot de passe modifié." });
         return res.status(204).send();
@@ -234,21 +248,60 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
     }
 });
 
+router.put("/consent", verifyToken, async (req, res) => {
+    const acceptsTerms = req.body.accept_terms === true;
+    const cookiesChoice = req.body.cookies_choice === "all" ? "all" : "necessary";
+    if (!acceptsTerms) return res.status(400).json({ error: "L'acceptation des conditions d'utilisation est requise." });
+    await pool.query(
+        `UPDATE utilisateurs SET conditions_version=$1, conditions_acceptees_at=NOW(),
+         cookies_choice=$2, updated_at=NOW() WHERE id=$3 AND entreprise_id=$4`,
+        [TERMS_VERSION, cookiesChoice, req.user.id, req.user.home_entreprise_id]
+    );
+    return res.status(204).send();
+});
+
 router.get("/companies", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
     const result = await pool.query("SELECT id, nom, created_at FROM entreprises ORDER BY nom ASC, id ASC");
     return res.json(result.rows);
 });
 
-router.post("/switch-company", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+router.post("/support-session", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
     const entrepriseId = Number(req.body.entreprise_id);
     if (!Number.isSafeInteger(entrepriseId) || entrepriseId <= 0) return res.status(400).json({ error: "Entreprise invalide." });
     const company = await pool.query("SELECT id, nom FROM entreprises WHERE id=$1", [entrepriseId]);
     if (!company.rowCount) return res.status(404).json({ error: "Entreprise introuvable." });
-    const token = jwt.sign({ id: req.user.id, entreprise_id: entrepriseId, nom: req.user.nom, role: "SUPER_DEVELOPPEUR" }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "24h" });
+    const now = Math.floor(Date.now() / 1000);
+    const token = signSession(req.user, {
+        impersonated_company_id: entrepriseId,
+        support_expires_at: now + SUPPORT_DURATION_SECONDS,
+    });
     res.cookie(COOKIE_NAME, token, sessionCookieOptions());
+    await logActivity({ user: { ...req.user, entreprise_id: entrepriseId }, action: "SUPPORT_START", resourceType: "entreprise", resourceId: entrepriseId, summary: `Session d'assistance ouverte en lecture seule par ${req.user.nom}.` });
     return res.json({ entreprise: company.rows[0] });
+});
+
+router.post("/support-session/elevate", verifyToken, authRateLimit, async (req, res) => {
+    if (req.user.role !== "SUPER_DEVELOPPEUR" || !req.user.impersonated_company_id) return res.status(403).json({ error: "Aucune session d'assistance active." });
+    const password = typeof req.body.password === "string" ? req.body.password : "";
+    const result = await pool.query("SELECT password FROM utilisateurs WHERE id=$1 AND entreprise_id=$2 AND actif=TRUE", [req.user.id, req.user.home_entreprise_id]);
+    if (!result.rowCount || !(await bcrypt.compare(password, result.rows[0].password))) return res.status(401).json({ error: "Mot de passe incorrect." });
+    const now = Math.floor(Date.now() / 1000);
+    const token = signSession(req.user, {
+        impersonated_company_id: req.user.impersonated_company_id,
+        support_expires_at: req.user.support_expires_at,
+        support_write_until: Math.min(now + SUPPORT_WRITE_SECONDS, req.user.support_expires_at),
+    });
+    res.cookie(COOKIE_NAME, token, sessionCookieOptions());
+    await logActivity({ user: req.user, action: "SUPPORT_ELEVATE", resourceType: "entreprise", resourceId: req.user.entreprise_id, summary: "Élévation d'assistance en écriture pour 10 minutes." });
+    return res.status(204).send();
+});
+
+router.delete("/support-session", verifyToken, async (req, res) => {
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    res.cookie(COOKIE_NAME, signSession(req.user), sessionCookieOptions());
+    return res.status(204).send();
 });
 
 router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => {

@@ -49,7 +49,7 @@ html[data-theme="glass"] .bottom-nav,html.theme-glass .bottom-nav{overflow:hidde
 html[data-theme="glass"] .modal-head,html.theme-glass .modal-head{min-width:0;margin:-5px -5px 12px;padding:12px 8px;background:rgba(238,245,252,.78);border-bottom:1px solid rgba(255,255,255,.1);border-radius:12px;-webkit-backdrop-filter:blur(20px) saturate(145%);backdrop-filter:blur(20px) saturate(145%)}html[data-theme="glass"] .modal-head h2,html.theme-glass .modal-head h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 html[data-theme="glass"] :is(.field input,.field select,.field textarea),html.theme-glass :is(.field input,.field select,.field textarea){background:rgba(255,255,255,.5);border-color:rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.36);color:#14213a}html[data-theme="glass"] :is(.field input,.field textarea)::placeholder,html.theme-glass :is(.field input,.field textarea)::placeholder{color:#64748b;opacity:.9}
 html[data-theme="glass"] :is(.auth,.app-loading),html.theme-glass :is(.auth,.app-loading){background:transparent}html[data-theme="glass"] .bottom-nav button.active,html.theme-glass .bottom-nav button.active{background:rgba(255,255,255,.46);box-shadow:0 3px 14px rgba(30,64,175,.08)}html[data-theme="glass"] .settings-intro,html.theme-glass .settings-intro{overflow:hidden;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.1)}
-.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.icon-button{border:1px solid #ffffff2b;background:#ffffff12;color:inherit;border-radius:10px;padding:8px 10px;min-height:40px}.mobile-settings{border:1px solid #ffffff30;background:#ffffff12;color:white;border-radius:999px;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;font-size:17px}.settings-intro{padding:14px;border-radius:14px;background:#eff6ff;color:#1e3a5f;margin:14px 0}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}.setting-copy{min-width:0}.setting-copy strong{display:block;margin-bottom:4px}.switch{position:relative;display:inline-flex;flex:none;width:54px;height:32px}.switch input{position:absolute;opacity:0;pointer-events:none}.switch-track{position:absolute;inset:0;border-radius:999px;background:#cbd5e1;box-shadow:inset 0 2px 5px #0f172a18;transition:all .22s ease}.switch-track::after{content:"";position:absolute;width:24px;height:24px;left:4px;top:4px;border-radius:50%;background:white;box-shadow:0 3px 8px #0f172a35;transition:transform .22s ease}.switch input:checked+.switch-track{background:#2563eb}.switch input:checked+.switch-track::after{transform:translateX(22px)}.switch input:focus-visible+.switch-track{outline:3px solid #2563eb45;outline-offset:2px}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.support-banner{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b}.support-banner button{margin-left:auto}.icon-button{border:1px solid #ffffff2b;background:#ffffff12;color:inherit;border-radius:10px;padding:8px 10px;min-height:40px}.mobile-settings{border:1px solid #ffffff30;background:#ffffff12;color:white;border-radius:999px;width:40px;min-width:40px;height:40px;min-height:40px;padding:0;font-size:17px}.settings-intro{padding:14px;border-radius:14px;background:#eff6ff;color:#1e3a5f;margin:14px 0}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}.setting-copy{min-width:0}.setting-copy strong{display:block;margin-bottom:4px}.switch{position:relative;display:inline-flex;flex:none;width:54px;height:32px}.switch input{position:absolute;opacity:0;pointer-events:none}.switch-track{position:absolute;inset:0;border-radius:999px;background:#cbd5e1;box-shadow:inset 0 2px 5px #0f172a18;transition:all .22s ease}.switch-track::after{content:"";position:absolute;width:24px;height:24px;left:4px;top:4px;border-radius:50%;background:white;box-shadow:0 3px 8px #0f172a35;transition:transform .22s ease}.switch input:checked+.switch-track{background:#2563eb}.switch input:checked+.switch-track::after{transform:translateX(22px)}.switch input:focus-visible+.switch-track{outline:3px solid #2563eb45;outline-offset:2px}
 .theme-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.theme-option{display:block;min-width:0;cursor:pointer}.theme-option input{position:absolute;opacity:0;pointer-events:none}.theme-option-card{display:grid;place-items:center;gap:7px;min-height:96px;padding:12px 8px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;color:#334155;text-align:center;font-size:13px;font-weight:750;transition:all .2s ease}.theme-option-icon{font-size:25px;line-height:1}.theme-option input:checked+.theme-option-card{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.14);color:#1d4ed8}.theme-option input:focus-visible+.theme-option-card{outline:3px solid rgba(37,99,235,.35);outline-offset:2px}.company-branding{margin-top:22px;padding-top:18px;border-top:1px solid #e2e8f0}.company-logo-preview{display:grid;place-items:center;min-height:110px;padding:14px;border:1px dashed #94a3b8;border-radius:12px;background:#f8fafc}.company-logo-preview img{display:block;max-width:100%;max-height:90px;object-fit:contain}.color-field{grid-template-columns:80px 1fr;align-items:center}.color-field input[type="color"]{height:48px;padding:4px}
 @supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){html[data-theme="glass"] :is(.stat,.panel,.modal,.bottom-nav,.template-card,.document-card,.calendar-day),html.theme-glass :is(.stat,.panel,.modal,.bottom-nav,.template-card,.document-card,.calendar-day){background:rgba(245,249,253,.94)}}
 @media(max-width:768px){html[data-theme="glass"] .main,html.theme-glass .main{padding-left:16px;padding-right:16px}html[data-theme="glass"] :is(.stat,.panel),html.theme-glass :is(.stat,.panel){padding:16px}html[data-theme="glass"] .modal-backdrop,html.theme-glass .modal-backdrop{padding:8px 8px 0}html[data-theme="glass"] .modal,html.theme-glass .modal{width:100%;padding:18px 16px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0}html[data-theme="glass"] tbody tr,html.theme-glass tbody tr{min-width:0;max-width:100%;overflow:hidden;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);box-shadow:0 8px 24px rgba(15,35,65,.07);-webkit-backdrop-filter:blur(20px) saturate(145%);backdrop-filter:blur(20px) saturate(145%)}html[data-theme="glass"] :is(.template-card,.document-card,.template-field-row,.document-line),html.theme-glass :is(.template-card,.document-card,.template-field-row,.document-line){width:100%;min-width:0;overflow:hidden}html[data-theme="glass"] .calendar-head h2,html.theme-glass .calendar-head h2{min-width:0}html[data-theme="glass"] .document-line>*,html.theme-glass .document-line>*{min-width:0;max-width:100%}}
@@ -210,6 +210,10 @@ async function initApp() {
         const session = await api("/auth/me");
         currentUser = session.user;
         currentEntreprise = session.entreprise;
+        if (currentUser.consent_required) {
+            showConsent();
+            return;
+        }
         await loadAllData();
         navigateTo(viewFromLocation(), true);
     } catch (error) {
@@ -221,6 +225,18 @@ async function initApp() {
             toast(error.message, true);
         }
     }
+}
+
+function showConsent() {
+    app.innerHTML = `<main class="auth"><section class="auth-card"><div>${logoLockup("auth-logo")}</div><h1>Vos préférences</h1><p>Avant d’accéder à Intervium, prenez connaissance des <a href="/conditions.html" target="_blank" rel="noopener">conditions d’utilisation</a> et de la <a href="/confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>.</p><form id="consent-form"><label class="setting-row"><span class="setting-copy"><strong>Conditions d’utilisation</strong><span>J’ai lu et j’accepte les conditions d’utilisation.</span></span><input name="accept_terms" type="checkbox" required></label><fieldset><legend>Cookies</legend><label><input type="radio" name="cookies_choice" value="necessary" checked> Cookies strictement nécessaires uniquement</label><br><label><input type="radio" name="cookies_choice" value="all"> Tout accepter, y compris les cookies optionnels</label></fieldset><p class="muted">Le cookie de session est indispensable pour sécuriser votre connexion.</p><button class="primary wide" type="submit">Enregistrer et continuer</button><button class="secondary wide" id="consent-logout" type="button">Se déconnecter</button></form></section></main>`;
+    document.getElementById("consent-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const values = Object.fromEntries(new FormData(form));
+        await api("/auth/consent", { method: "PUT", body: JSON.stringify({ accept_terms: values.accept_terms === "on", cookies_choice: values.cookies_choice }) });
+        await initApp();
+    });
+    document.getElementById("consent-logout").addEventListener("click", logout);
 }
 
 function showAuth(mode = "login") {
@@ -481,7 +497,7 @@ function renderMain(view = "dashboard") {
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
-      <main class="main"><header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
+      <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
     </div><div id="modal-root"></div>`;
 
@@ -494,6 +510,10 @@ function renderMain(view = "dashboard") {
     document.getElementById("mobile-more")?.addEventListener("click", openMoreMenu);
     document.getElementById("global-search")?.addEventListener("click", openGlobalSearch);
     document.getElementById("open-notifications")?.addEventListener("click", openNotifications);
+    document.getElementById("leave-support")?.addEventListener("click", async () => {
+        await api("/auth/support-session", { method: "DELETE" });
+        window.location.reload();
+    });
     bindMainActions(view);
     bindMobileNavigationReorder();
     updateInstallUi();
@@ -928,7 +948,7 @@ function openSettings() {
           <div class="field"><label><input name="show_intervium" type="checkbox" ${reportSettings.show_intervium ? "checked" : ""}> Afficher discrètement « Généré avec Intervium »</label></div>
           <button class="primary wide" type="submit">Enregistrer l’identité des PDF</button>
         </form>` : "";
-    const developerSettings = currentUser.is_super_developer ? `<section class="settings-intro"><strong>Super-développeur</strong><p>Entreprise consultée : <strong>${escapeHtml(currentEntreprise?.nom || "")}</strong></p><div class="field"><label>Changer d’entreprise</label><select id="developer-company">${platformCompanies.map((company) => `<option value="${company.id}" ${String(company.id) === String(currentEntreprise?.id) ? "selected" : ""}>${escapeHtml(company.nom)}</option>`).join("")}</select></div><p class="muted">Accès administrateur transversal. Les suppressions définitives sont interdites.</p></section>` : "";
+    const developerSettings = currentUser.is_super_developer ? `<section class="settings-intro"><strong>Super-développeur</strong><p>Entreprise consultée : <strong>${escapeHtml(currentEntreprise?.nom || "")}</strong></p><div class="field"><label>Ouvrir une session d’assistance (30 minutes)</label><select id="developer-company"><option value="">Choisir une entreprise</option>${platformCompanies.map((company) => `<option value="${company.id}" ${String(company.id) === String(currentUser.support_session?.company_id) ? "selected" : ""}>${escapeHtml(company.nom)}</option>`).join("")}</select></div>${currentUser.support_session && !currentUser.support_session.write_enabled ? '<button class="secondary wide" id="elevate-support" type="button">Autoriser l’écriture pendant 10 minutes</button>' : ""}<p class="muted">Lecture seule par défaut. Toutes les ouvertures et élévations sont journalisées. Les suppressions et la gestion des accès restent interdites.</p></section>` : "";
     modal("Paramètres", `
         ${developerSettings}
         <div class="settings-intro">
@@ -965,7 +985,14 @@ function openSettings() {
         toast(({ classic: "Thème classique activé.", glass: "Mode Liquid Glass activé.", dark: "Thème sombre activé." })[theme]);
     }));
     document.getElementById("developer-company")?.addEventListener("change", async (event) => {
-        try { await api("/auth/switch-company", { method: "POST", body: JSON.stringify({ entreprise_id: Number(event.target.value) }) }); window.location.reload(); }
+        if (!event.target.value) return;
+        try { await api("/auth/support-session", { method: "POST", body: JSON.stringify({ entreprise_id: Number(event.target.value) }) }); window.location.reload(); }
+        catch (error) { toast(error.message, true); }
+    });
+    document.getElementById("elevate-support")?.addEventListener("click", async () => {
+        const password = prompt("Confirmez votre mot de passe pour autoriser l’écriture pendant 10 minutes.");
+        if (!password) return;
+        try { await api("/auth/support-session/elevate", { method: "POST", body: JSON.stringify({ password }) }); window.location.reload(); }
         catch (error) { toast(error.message, true); }
     });
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));

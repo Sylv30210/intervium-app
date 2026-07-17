@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "migrate": "node database/migrate.js",
+    "provision:super-developer": "node scripts/provision-super-developer.js",
+    "test": "node --test",
     "start": "node server.js",
     "start:server": "node server.js",
     "dev": "nodemon server.js"
@@ -24,6 +26,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "supertest": "^7.2.2"
   }
 }
