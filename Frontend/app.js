@@ -1118,6 +1118,9 @@ function templateSpecificConfiguration(section, index) {
     if (["photo", "multi_photo", "event_photos"].includes(section.type)) {
         fields.push(`<div class="field"><label>Nombre maximum de photos</label><input type="number" min="1" max="20" ${property("maxPhotos", section.maxPhotos || (section.type === "photo" ? 1 : 5), "number")}></div>`);
     }
+    if (["signature", "electronic_signature"].includes(section.type)) {
+        fields.push(`<p class="field-help">Le titre affiché identifie le signataire (par exemple « Signature du technicien »). Chaque bloc possède sa propre signature.</p>`);
+    }
     return fields.join("");
 }
 
@@ -1697,7 +1700,7 @@ async function openNewIntervention(creationType = null) {
     });
 }
 
-function renderReportFields(template, data = {}) {
+function renderReportFields(template, data = {}, interventionId = null) {
     const sections = Array.isArray(template?.sections || template?.modele_rapport_sections) ? (template.sections || template.modele_rapport_sections) : [];
     if (!sections.length) return "";
     return `<section class="panel"><div class="panel-head"><div><h2>${escapeHtml(template.nom || template.modele_rapport_nom || "Rapport personnalisé")}</h2><p class="muted">Complétez les contrôles définis dans le modèle.</p></div></div><div class="report-fields-grid">${sections.map((section) => {
@@ -1714,7 +1717,11 @@ function renderReportFields(template, data = {}) {
         if (section.type === "title") return `<h3 class="report-section-title">${escapeHtml(section.label)}</h3>`;
         if (section.type === "page_break") return `<div class="report-page-break"><hr><span class="field-help">Saut de page dans le PDF</span></div>`;
         if (["photo", "multi_photo", "event_photos"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">📷 Ajoutez jusqu’à ${Number(section.maxPhotos || (section.type === "photo" ? 1 : 5))} photo(s) depuis la fiche de l’intervention.</p></div>`);
-        if (["signature", "electronic_signature"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">✍ La signature est recueillie dans la fiche de l’intervention et intégrée au PDF.</p></div>`);
+        if (["signature", "electronic_signature"].includes(section.type)) {
+            const signatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
+            if (!interventionId) return wrapper(`<div class="field">${label}<p class="muted">Enregistrez d’abord l’intervention, puis ouvrez sa fiche pour recueillir cette signature.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""></div>`, "signature-field");
+            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${escapeHtml(signatureUrl)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
+        }
         if (section.type === "client") {
             const clientName = document.getElementById("new-client")?.selectedOptions?.[0]?.textContent || template.client_nom || data[section.key] || "Client sélectionné dans le rapport";
             return wrapper(`<div class="field">${label}<input value="${escapeHtml(clientName)}" disabled><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(clientName)}"></div>`);
@@ -1884,7 +1891,7 @@ function openIntervention(id) {
     const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${field("Titre", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
     const localDraft = loadReportDraft(item);
     const customReportFields = Array.isArray(item.modele_rapport_sections) && item.modele_rapport_sections.length
-        ? renderReportFields(item, localDraft?.payload?.donnees_rapport || item.donnees_rapport || {})
+        ? renderReportFields(item, localDraft?.payload?.donnees_rapport || item.donnees_rapport || {}, item.id)
         : "";
     modal("Rapport d’intervention", `<form id="edit-intervention-form" data-intervention-id="${item.id}">
       <p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p>
@@ -1899,6 +1906,7 @@ function openIntervention(id) {
     ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
+    setupReportSignatureCanvases(id, document.getElementById("edit-intervention-form"));
     restoreReportDraft(item, document.getElementById("edit-intervention-form"));
     bindReportAutosave(item, document.getElementById("edit-intervention-form"));
 
@@ -1927,12 +1935,13 @@ function openIntervention(id) {
     });
     document.getElementById("edit-report-template")?.addEventListener("change", (event) => {
         const container = document.getElementById("edit-report-fields");
-        if (event.target.value === "__snapshot__") container.innerHTML = renderReportFields(item, item.donnees_rapport || {});
+        if (event.target.value === "__snapshot__") container.innerHTML = renderReportFields(item, item.donnees_rapport || {}, item.id);
         else {
             const template = reportTemplates.find((entry) => String(entry.id) === String(event.target.value));
-            container.innerHTML = template ? renderReportFields(template, {}) : "";
+            container.innerHTML = template ? renderReportFields(template, {}, item.id) : "";
         }
         bindReportFieldActions(container);
+        setupReportSignatureCanvases(id, container);
     });
     bindFileUpload(document.querySelector("#photo-file")?.closest("[data-file-upload]"));
     document.getElementById("upload-photo").addEventListener("click", () => uploadPhoto(id));
@@ -2056,6 +2065,56 @@ function setupSignatureCanvas(id) {
                 openIntervention(id);
                 toast("Signature enregistrée.");
             } catch (error) { toast(error.message, true); }
+        });
+    });
+}
+
+function setupReportSignatureCanvases(interventionId, root) {
+    root?.querySelectorAll("[data-signature-canvas]").forEach((canvas) => {
+        if (canvas.dataset.ready === "true") return;
+        canvas.dataset.ready = "true";
+        const key = canvas.dataset.signatureCanvas;
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(canvas.clientWidth * ratio);
+        canvas.height = Math.floor(canvas.clientHeight * ratio);
+        const context = canvas.getContext("2d");
+        context.scale(ratio, ratio); context.lineWidth = 2; context.lineCap = "round"; context.strokeStyle = "#172554";
+        let drawing = false, hasInk = false;
+        const point = (event) => { const box = canvas.getBoundingClientRect(); return { x: event.clientX - box.left, y: event.clientY - box.top }; };
+        canvas.addEventListener("pointerdown", (event) => { drawing = true; canvas.setPointerCapture(event.pointerId); const p = point(event); context.beginPath(); context.moveTo(p.x, p.y); });
+        canvas.addEventListener("pointermove", (event) => { if (!drawing) return; const p = point(event); context.lineTo(p.x, p.y); context.stroke(); hasInk = true; });
+        canvas.addEventListener("pointerup", () => { drawing = false; });
+        const field = canvas.closest("[data-signature-field]");
+        field?.querySelector("[data-clear-report-signature]")?.addEventListener("click", () => { context.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; });
+        field?.querySelector("[data-save-report-signature]")?.addEventListener("click", async (event) => {
+            if (!hasInk) return toast("La signature est vide.", true);
+            const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
+            await withBusy(event.currentTarget, async () => {
+                try {
+                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData: canvas.toDataURL("image/png") }) });
+                    const item = interventions.find((entry) => String(entry.id) === String(interventionId));
+                    item.donnees_rapport = { ...(item.donnees_rapport || {}), [key]: result.signature_url };
+                    item.report_version = result.report_version;
+                    pendingPayload.donnees_rapport = { ...(pendingPayload.donnees_rapport || {}), [key]: result.signature_url };
+                    persistReportDraft(item, pendingPayload); reportAutosavePending = true;
+                    openIntervention(interventionId); toast("Signature enregistrée.");
+                } catch (error) { toast(error.message, true); }
+            });
+        });
+        field?.querySelector("[data-delete-report-signature]")?.addEventListener("click", async (event) => {
+            if (!confirm("Supprimer cette signature ?")) return;
+            const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
+            await withBusy(event.currentTarget, async () => {
+                try {
+                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "DELETE" });
+                    const item = interventions.find((entry) => String(entry.id) === String(interventionId));
+                    item.donnees_rapport = { ...(item.donnees_rapport || {}) }; delete item.donnees_rapport[key];
+                    item.report_version = result.report_version;
+                    pendingPayload.donnees_rapport = { ...(pendingPayload.donnees_rapport || {}) }; delete pendingPayload.donnees_rapport[key];
+                    persistReportDraft(item, pendingPayload); reportAutosavePending = true;
+                    openIntervention(interventionId); toast("Signature supprimée.");
+                } catch (error) { toast(error.message, true); }
+            });
         });
     });
 }

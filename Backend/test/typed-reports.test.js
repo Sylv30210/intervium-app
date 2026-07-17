@@ -14,6 +14,13 @@ test("un rapport typé valide est accepté", () => {
     assert.equal(validateTemplateData(template, { temperature: 20, result: "Conforme", rows: [{ value: 2.5 }] }), null);
 });
 
+test("une signature de modèle obligatoire doit être enregistrée", () => {
+    const signatureTemplate = { sections: [{ key: "validation_technicien", label: "Signature du technicien", type: "signature", required: true }] };
+    assert.match(validateTemplateData(signatureTemplate, {}), /Signature du technicien/);
+    assert.equal(validateTemplateData(signatureTemplate, { validation_technicien: "https://example.test/signature.png" }), null);
+    assert.equal(validateTemplateData(signatureTemplate, {}, { requireSignatures: false }), null);
+});
+
 test("les bornes, choix et colonnes typées sont contrôlés", () => {
     assert.match(validateTemplateData(template, { temperature: 120, result: "Conforme", rows: [{ value: 2 }] }), /inférieur ou égal/);
     assert.match(validateTemplateData(template, { temperature: 20, result: "Autre", rows: [{ value: 2 }] }), /Valeur invalide/);

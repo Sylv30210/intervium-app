@@ -250,6 +250,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
     const pdfConfig = intervention.modele_pdf_config && typeof intervention.modele_pdf_config === "object" ? intervention.modele_pdf_config : {};
     const margin = Math.min(90, Math.max(24, Number(pdfConfig.margin) || 48));
     const titleSize = Math.min(28, Math.max(14, Number(pdfConfig.titleSize) || 20));
+    const templateSections = Array.isArray(intervention.modele_rapport_sections) ? intervention.modele_rapport_sections : [];
+    const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object" ? intervention.donnees_rapport : {};
+    const templateSignatureBuffers = new Map((await Promise.all(templateSections
+        .filter((section) => ["signature", "electronic_signature"].includes(section.type))
+        .map(async (section) => [section.key, await localImage(templateData[section.key])])))
+        .filter(([, buffer]) => buffer));
 
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({ size: "A4", margin, bufferPages: true, info: {
@@ -301,16 +307,9 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 .text(intervention.compte_rendu || "Compte-rendu non renseigné.", { lineGap: 3 });
         }
 
-        const templateSections = Array.isArray(intervention.modele_rapport_sections)
-            ? intervention.modele_rapport_sections
-            : [];
-        const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object"
-            ? intervention.donnees_rapport
-            : {};
         const photoTypes = new Set(["photo", "multi_photo", "event_photos"]);
         const signatureTypes = new Set(["signature", "electronic_signature"]);
         const photoSection = templateSections.find((section) => photoTypes.has(section.type));
-        const signatureSection = templateSections.find((section) => signatureTypes.has(section.type));
         if (templateSections.length > 0) {
             sectionTitle(doc, intervention.modele_rapport_nom || "Informations du rapport");
             for (let fieldIndex = 0; fieldIndex < templateSections.length; fieldIndex += 1) {
@@ -323,7 +322,24 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     sectionTitle(doc, field.label || "Section");
                     continue;
                 }
-                if (photoTypes.has(field.type) || signatureTypes.has(field.type)) continue;
+                if (signatureTypes.has(field.type)) {
+                    if (pdfConfig.showSignature === false) continue;
+                    const fieldSignature = templateSignatureBuffers.get(field.key);
+                    const signatureBlockHeight = fieldSignature ? 95 : 38;
+                    ensureSpace(doc, signatureBlockHeight + 38);
+                    sectionTitle(doc, field.label || "Signature");
+                    if (fieldSignature) {
+                        const y = doc.y;
+                        doc.rect(48, y, 245, 75).strokeColor(LIGHT).stroke();
+                        doc.image(fieldSignature, 58, y + 8, { fit: [225, 50], align: "center", valign: "center" });
+                        doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(field.label || "Signature", 58, y + 61);
+                        doc.y = y + signatureBlockHeight;
+                    } else {
+                        doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
+                    }
+                    continue;
+                }
+                if (photoTypes.has(field.type)) continue;
                 if (field.type === "equipment") {
                     const equipment = equipments[0];
                     const value = equipment
@@ -369,10 +385,10 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             }
         }
 
-        if (pdfConfig.showSignature !== false && (signatureBuffer || signatureSection)) {
+        if (pdfConfig.showSignature !== false && signatureBuffer) {
             const signatureBlockHeight = signatureBuffer ? 95 : 38;
             ensureSpace(doc, signatureBlockHeight + 38);
-            sectionTitle(doc, signatureSection?.label || "Validation du client");
+            sectionTitle(doc, "Signature client");
             if (signatureBuffer) {
                 const y = doc.y;
                 doc.rect(48, y, 245, 75).strokeColor(LIGHT).stroke();

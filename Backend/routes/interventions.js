@@ -80,15 +80,16 @@ function reportSnapshot(template) {
     return template ? { nom: template.nom, description: template.description, sections: template.sections, pdf_config: template.pdf_config || {} } : null;
 }
 
-export function validateTemplateData(template, data) {
+export function validateTemplateData(template, data, { requireSignatures = true } = {}) {
     if (!template) return null;
-    const dataTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table"]);
+    const dataTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table", "signature", "electronic_signature"]);
     for (const section of Array.isArray(template.sections) ? template.sections : []) {
         if (!dataTypes.has(section.type)) continue;
         const value = data[section.key];
         const empty = value === undefined || value === null || value === "" ||
             (Array.isArray(value) && value.length === 0);
-        if (section.required && (empty || (section.type === "checkbox" && !(section.options || []).length && value !== true))) {
+        const signatureType = ["signature", "electronic_signature"].includes(section.type);
+        if (section.required && (!signatureType || requireSignatures) && (empty || (section.type === "checkbox" && !(section.options || []).length && value !== true))) {
             return `Le champ « ${section.label} » est requis.`;
         }
         if (section.type === "select" && value && !(section.options || []).includes(value) && section.allowOther !== true) {
@@ -308,7 +309,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
         if (modeleRapportId && !template) {
             return res.status(400).json({ error: "Modèle de rapport invalide pour cette entreprise." });
         }
-        const templateDataError = validateTemplateData(template, donneesRapport);
+        const templateDataError = validateTemplateData(template, donneesRapport, { requireSignatures: false });
         if (templateDataError) return res.status(400).json({ error: templateDataError });
 
         const result = await pool.query(
