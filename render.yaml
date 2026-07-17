@@ -45,6 +45,8 @@ services:
         sync: false
       - key: APP_ENV
         value: production
+      - key: NEON_BACKUPS_CONFIRMED
+        value: "false"
   - type: web
     name: intervium-staging
     runtime: node
@@ -75,3 +77,5 @@ services:
         sync: false
       - key: APP_ENV
         value: staging
+      - key: NEON_BACKUPS_CONFIRMED
+        value: "false"

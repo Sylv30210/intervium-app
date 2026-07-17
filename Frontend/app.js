@@ -1,9 +1,7 @@
 import { applyStoredTheme, setTheme } from "./utils/theme.js";
 import { icon } from "./components/icons.js";
 import { capitalize, equipmentLabel, escapeHtml, formatDate, formatMoney, localDateKey, statusLabel } from "./utils/format.js";
-
-// L'API est servie par le même domaine en local comme en production.
-const API_URL = "/api";
+import { createApiClient } from "./api/client.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -29,9 +27,15 @@ let platformCompanies = [];
 let publicRegistrationEnabled = null;
 let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equipments: 0 };
 let appVersion = "2.2.0";
+const collectionPages = {
+    interventions: { page: 1, limit: 50, total: 0 },
+    clients: { page: 1, limit: 50, total: 0 },
+    equipements: { page: 1, limit: 50, total: 0 },
+};
 
 const app = document.getElementById("app");
 applyStoredTheme();
+const api = createApiClient({ onUnauthorized: () => { currentUser = null; showAuth(); } });
 
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -113,44 +117,6 @@ function navigateTo(view, replace = false) {
     const method = replace ? "replaceState" : "pushState";
     history[method]({ view }, "", `#${view}`);
     renderMain(view);
-}
-
-async function api(path, options = {}) {
-    const headers = new Headers(options.headers || {});
-    if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
-
-    let response;
-    try {
-        response = await fetch(`${API_URL}${path}`, {
-            ...options,
-            headers,
-            credentials: "include",
-        });
-    } catch {
-        throw new Error("Le serveur est inaccessible. Vérifiez qu'il est bien démarré.");
-    }
-
-    if (response.status === 401 && path !== "/auth/login") {
-        currentUser = null;
-        showAuth();
-        throw new Error("Votre session a expiré.");
-    }
-
-    let data = null;
-    if (response.status !== 204) {
-        const text = await response.text();
-        if (text) {
-            try { data = JSON.parse(text); }
-            catch { data = response.ok ? text : null; }
-        }
-    }
-    if (!response.ok) {
-        const error = new Error(data?.error || `La requête a échoué (${response.status}).`);
-        error.status = response.status;
-        error.code = data?.code;
-        throw error;
-    }
-    return data;
 }
 
 function showOfflineScreen(message = "Les données sécurisées nécessitent une connexion au serveur.") {
@@ -351,6 +317,7 @@ async function loadAllData() {
     if (currentUser.role === "CLIENT") {
         const page = await api("/interventions?page=1&limit=50");
         interventions = page.items;
+        Object.assign(collectionPages.interventions, page);
         dashboardStats = await api("/interventions/stats");
         clients = [];
         equipements = [];
@@ -369,9 +336,9 @@ async function loadAllData() {
         api("/modeles"),
     ]);
     const stateTargets = [
-        (value) => { interventions = value.items; },
-        (value) => { clients = value.items; },
-        (value) => { equipements = value.items; },
+        (value) => { interventions = value.items; Object.assign(collectionPages.interventions, value); },
+        (value) => { clients = value.items; Object.assign(collectionPages.clients, value); },
+        (value) => { equipements = value.items; Object.assign(collectionPages.equipements, value); },
         (value) => { technicians = value; },
         (value) => { dashboardStats = value; },
         (value) => { reportTemplates = value; },
@@ -413,6 +380,7 @@ function renderMain(view = "dashboard") {
         window.location.reload();
     });
     bindMainActions(view);
+    bindServerPagination();
     bindMobileNavigationReorder();
     updateInstallUi();
     refreshNotificationCount();
@@ -599,7 +567,31 @@ function renderDashboard() {
     return `<section class="stats"><div class="stat"><span class="muted">Rapports</span><strong>${dashboardStats.reports}</strong></div><div class="stat"><span class="muted">Terminés</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients visibles</span><strong>${dashboardStats.visible_clients}</strong></div><div class="stat"><span class="muted">Matériels visibles</span><strong>${dashboardStats.visible_equipments}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT").slice(0, 5), false)}</section>`;
 }
 
-function renderInterventions() { return `<section class="panel">${interventionTable(interventions, true)}</section>`; }
+function serverPager(view) {
+    const state = collectionPages[view];
+    if (!state || state.total <= state.limit) return "";
+    const pages = Math.max(1, Math.ceil(state.total / state.limit));
+    return `<div class="pagination server-pagination"><button class="secondary" data-server-page="${state.page - 1}" data-server-view="${view}" ${state.page <= 1 ? "disabled" : ""}>Précédent</button><span>${state.total} résultat(s) · page ${state.page}/${pages}</span><button class="secondary" data-server-page="${state.page + 1}" data-server-view="${view}" ${state.page >= pages ? "disabled" : ""}>Suivant</button></div>`;
+}
+
+async function loadCollectionPage(view, page) {
+    const state = collectionPages[view];
+    if (!state) return;
+    const result = await api(`/${view}?page=${page}&limit=${state.limit}`);
+    if (view === "interventions") interventions = result.items;
+    if (view === "clients") clients = result.items;
+    if (view === "equipements") equipements = result.items;
+    Object.assign(state, result);
+    renderMain(view);
+}
+
+function bindServerPagination() {
+    document.querySelectorAll("[data-server-page]").forEach((button) => button.addEventListener("click", () => {
+        loadCollectionPage(button.dataset.serverView, Number(button.dataset.serverPage)).catch((error) => toast(error.message, true));
+    }));
+}
+
+function renderInterventions() { return `<section class="panel">${interventionTable(interventions, true)}${serverPager("interventions")}</section>`; }
 
 function renderPlanning() {
     const year = planningCursor.getFullYear();
@@ -634,12 +626,12 @@ function interventionTable(items, actions) {
 
 function renderClients() {
     if (!clients.length) return `<section class="panel"><div class="empty">Aucun client.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Adresse</th><th></th></tr></thead><tbody>${clients.map((c) => `<tr><td data-label="Nom"><strong>${escapeHtml(c.nom)}</strong></td><td data-label="Email">${escapeHtml(c.email || "—")}</td><td data-label="Téléphone">${escapeHtml(c.telephone || "—")}</td><td data-label="Adresse">${escapeHtml(c.adresse || "—")}</td><td data-label="Actions" class="actions"><button class="secondary" data-open-client="${c.id}">Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-client="${c.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
+    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Adresse</th><th></th></tr></thead><tbody>${clients.map((c) => `<tr><td data-label="Nom"><strong>${escapeHtml(c.nom)}</strong></td><td data-label="Email">${escapeHtml(c.email || "—")}</td><td data-label="Téléphone">${escapeHtml(c.telephone || "—")}</td><td data-label="Adresse">${escapeHtml(c.adresse || "—")}</td><td data-label="Actions" class="actions"><button class="secondary" data-open-client="${c.id}">Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-client="${c.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${serverPager("clients")}</section>`;
 }
 
 function renderEquipements() {
     if (!equipements.length) return `<section class="panel"><div class="empty">Aucun matériel.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions" class="actions">${currentUser.role === "ADMIN" ? `<button class="secondary" data-edit-equipment="${e.id}">${icon("edit")} Modifier</button><button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div></section>`;
+    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions" class="actions">${currentUser.role === "ADMIN" ? `<button class="secondary" data-edit-equipment="${e.id}">${icon("edit")} Modifier</button><button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${serverPager("equipements")}</section>`;
 }
 
 function renderTeam() {
@@ -901,7 +893,7 @@ function openSettings() {
     document.getElementById("open-admin-status")?.addEventListener("click", async () => {
         try {
             const status = await api("/admin/status");
-            modal("État interne", `<div class="stats"><div class="stat"><span class="muted">Base Neon</span><strong>${escapeHtml((status.database_bytes / 1024 / 1024).toFixed(1))} Mo</strong></div><div class="stat"><span class="muted">Entreprises</span><strong>${status.companies}</strong></div><div class="stat"><span class="muted">Utilisateurs actifs</span><strong>${status.active_users}</strong></div><div class="stat"><span class="muted">Rapports</span><strong>${status.reports}</strong></div></div><p>Stockage : <strong>${escapeHtml(status.storage_driver)}</strong>${status.cloudinary?.credits_used != null ? ` · ${escapeHtml(status.cloudinary.credits_used)} / ${escapeHtml(status.cloudinary.credits_limit || "—")} crédits` : ""}</p><p>Version serveur : <strong>${escapeHtml(status.version)}</strong> · Disponibilité du processus : ${Math.floor(status.uptime_seconds / 60)} min</p>`);
+            modal("État interne", `<div class="stats"><div class="stat"><span class="muted">Base Neon</span><strong>${escapeHtml((status.database_bytes / 1024 / 1024).toFixed(1))} Mo</strong></div><div class="stat"><span class="muted">Entreprises</span><strong>${status.companies}</strong></div><div class="stat"><span class="muted">Utilisateurs actifs</span><strong>${status.active_users}</strong></div><div class="stat"><span class="muted">Rapports</span><strong>${status.reports}</strong></div></div><p>Stockage : <strong>${escapeHtml(status.storage_driver)}</strong>${status.cloudinary?.credits_used != null ? ` · ${escapeHtml(status.cloudinary.credits_used)} / ${escapeHtml(status.cloudinary.credits_limit || "—")} crédits` : ""}</p><p>Sauvegardes Neon : <strong>${status.backups_configured ? "confirmées" : "à configurer et tester"}</strong></p><p>Version serveur : <strong>${escapeHtml(status.version)}</strong> · Disponibilité du processus : ${Math.floor(status.uptime_seconds / 60)} min</p>`);
         } catch (error) { toast(error.message, true); }
     });
     document.getElementById("connect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {
@@ -2243,7 +2235,7 @@ function bindPdfDownload() {
                 ? [...document.querySelectorAll("[data-pdf-photo-id]:checked")].map((input) => input.dataset.pdfPhotoId)
                 : null;
             const query = selectedPhotoIds === null ? "" : `?photo_ids=${encodeURIComponent(selectedPhotoIds.join(","))}`;
-            const response = await fetch(`${API_URL}/interventions/${button.dataset.downloadPdf}/pdf${query}`, { credentials: "include" });
+            const response = await fetch(`/api/interventions/${button.dataset.downloadPdf}/pdf${query}`, { credentials: "include" });
             if (!response.ok) {
                 const data = await response.json().catch(() => null);
                 throw new Error(data?.error || "Impossible de générer le PDF.");

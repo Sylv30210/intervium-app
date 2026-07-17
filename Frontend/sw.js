@@ -8,6 +8,7 @@ const SHELL_RESOURCES = [
   "/utils/theme.js",
   "/utils/format.js",
   "/components/icons.js",
+  "/api/client.js",
   "/offline.html",
   "/offline.css",
   "/offline.js",

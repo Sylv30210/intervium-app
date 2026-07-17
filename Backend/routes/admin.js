@@ -28,6 +28,7 @@ router.get("/status", async (_req, res) => {
         database_bytes: Number(database.rows[0].bytes),
         ...counts.rows[0], storage_driver: STORAGE_DRIVER, cloudinary,
         uptime_seconds: Math.round(process.uptime()), version: process.env.npm_package_version || "2.2.0",
+        backups_configured: process.env.NEON_BACKUPS_CONFIRMED === "true",
     });
 });
 
