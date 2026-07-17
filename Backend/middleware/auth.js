@@ -114,6 +114,16 @@ export async function verifyToken(req, res, next) {
             && !["/api/auth/me", "/api/auth/consent", "/api/auth/logout", "/api/auth/password"].includes(req.originalUrl.split("?")[0])) {
             return res.status(428).json({ error: "Les conditions d'utilisation doivent être acceptées avant de continuer.", code: "CONSENT_REQUIRED" });
         }
+        if (req.user.role === "SUPER_DEVELOPPEUR" && req.method === "DELETE"
+            && !["/api/auth/support-session", "/api/google/connection"].includes(req.originalUrl.split("?")[0])) {
+            return res.status(403).json({ error: "La suppression définitive est désactivée pour le super-développeur." });
+        }
+        if (req.user.role === "SUPER_DEVELOPPEUR" && req.user.impersonated_company_id
+            && req.method !== "GET"
+            && (/^\/api\/auth\/password(?:\/|$)/.test(req.originalUrl)
+                || /^\/api\/auth\/users(?:\/|$)/.test(req.originalUrl))) {
+            return res.status(403).json({ error: "Les mots de passe, rôles et permissions ne peuvent pas être modifiés pendant une assistance." });
+        }
         return next();
     } catch (error) {
         const status = error.status ?? 500;

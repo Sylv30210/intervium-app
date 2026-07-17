@@ -2,6 +2,8 @@ import { applyStoredTheme, setTheme } from "./utils/theme.js";
 import { icon } from "./components/icons.js";
 import { capitalize, equipmentLabel, escapeHtml, formatDate, formatMoney, localDateKey, statusLabel } from "./utils/format.js";
 import { createApiClient } from "./api/client.js";
+import { renderClientsView, renderEquipmentsView, renderTeamView } from "./views/resources.js";
+import { titleForView, viewFromHash } from "./navigation/routes.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -107,10 +109,7 @@ function initPwa() {
 }
 
 function viewFromLocation() {
-    const view = location.hash.replace(/^#/, "");
-    return ["dashboard", "interventions", "planning", "clients", "equipements", "modeles", "documents", "equipe", "activity"].includes(view)
-        ? view
-        : "dashboard";
+    return viewFromHash(location.hash);
 }
 
 function navigateTo(view, replace = false) {
@@ -362,7 +361,7 @@ function renderMain(view = "dashboard") {
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
-      <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleFor(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
+      <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleForView(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
     </div><div id="modal-root"></div>`;
 
@@ -541,7 +540,6 @@ function bindMobileNavigationReorder() {
     nav.addEventListener("contextmenu", (event) => { if (event.target.closest("[data-mobile-nav-item]")) event.preventDefault(); });
     nav.addEventListener("click", (event) => { if (suppressClick && event.target.closest("[data-mobile-nav-item]")) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
 }
-function titleFor(view) { return ({ dashboard: "Tableau de bord", interventions: "Rapports", planning: "Planning", clients: "Clients", equipements: "Matériels", modeles: "Modèles de rapport", equipe: "Équipe", activity: "Historique d’activité" })[view] || "Intervium"; }
 function adminButtonFor(view) {
     const canAdd = currentUser.role === "ADMIN" ||
         (currentUser.role === "TECHNICIEN" && ["interventions", "planning"].includes(view));
@@ -624,22 +622,11 @@ function interventionTable(items, actions) {
     return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport"><strong>${escapeHtml(item.numero_rapport || "Historique")}</strong><br>${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
-function renderClients() {
-    if (!clients.length) return `<section class="panel"><div class="empty">Aucun client.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Adresse</th><th></th></tr></thead><tbody>${clients.map((c) => `<tr><td data-label="Nom"><strong>${escapeHtml(c.nom)}</strong></td><td data-label="Email">${escapeHtml(c.email || "—")}</td><td data-label="Téléphone">${escapeHtml(c.telephone || "—")}</td><td data-label="Adresse">${escapeHtml(c.adresse || "—")}</td><td data-label="Actions" class="actions"><button class="secondary" data-open-client="${c.id}">Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-client="${c.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${serverPager("clients")}</section>`;
-}
+function renderClients() { return renderClientsView({ clients, currentUser, pager: serverPager("clients") }); }
 
-function renderEquipements() {
-    if (!equipements.length) return `<section class="panel"><div class="empty">Aucun matériel.</div></section>`;
-    return `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Type</th><th>Marque / modèle</th><th>N° série</th><th></th></tr></thead><tbody>${equipements.map((e) => `<tr><td data-label="Client">${escapeHtml(e.client_nom)}</td><td data-label="Type">${escapeHtml(e.type || "—")}</td><td data-label="Marque / modèle">${escapeHtml([e.marque, e.modele].filter(Boolean).join(" · ") || "—")}</td><td data-label="N° série">${escapeHtml(e.numero_serie || "—")}</td><td data-label="Actions" class="actions">${currentUser.role === "ADMIN" ? `<button class="secondary" data-edit-equipment="${e.id}">${icon("edit")} Modifier</button><button class="danger" data-delete-equipment="${e.id}">Supprimer</button>` : ""}</td></tr>`).join("")}</tbody></table></div>${serverPager("equipements")}</section>`;
-}
+function renderEquipements() { return renderEquipmentsView({ equipments: equipements, currentUser, pager: serverPager("equipements") }); }
 
-function renderTeam() {
-    if (!technicians.length) {
-        return `<section class="panel"><div class="empty">Aucun technicien. Utilisez “Ajouter” pour créer le premier compte.</div></section>`;
-    }
-    return `<section class="panel"><div class="panel-head"><div><h2>Collaborateurs techniques</h2><p class="muted">La désactivation conserve le compte. La suppression définitive efface le technicien de la base et désassigne ses interventions.</p></div></div><div class="table-wrap"><table><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Créé le</th><th>Actions</th></tr></thead><tbody>${technicians.map((user) => `<tr><td data-label="Nom"><strong>${escapeHtml(user.nom)}</strong></td><td data-label="Email">${escapeHtml(user.email)}</td><td data-label="Statut"><span class="badge ${user.actif ? "" : "off"}">${user.actif ? "Actif" : "Désactivé"}</span></td><td data-label="Créé le">${formatDate(user.created_at)}</td><td data-label="Actions" class="actions"><button class="secondary" data-edit-technician-email="${user.id}">Modifier l’e-mail</button>${user.actif ? `<button class="secondary" data-disable-technician="${user.id}">Désactiver</button>` : `<button class="primary" data-enable-technician="${user.id}">Réactiver</button>`}<button class="danger" data-delete-technician="${user.id}" data-technician-name="${escapeHtml(user.nom)}">Supprimer définitivement</button></td></tr>`).join("")}</tbody></table></div></section>`;
-}
+function renderTeam() { return renderTeamView({ technicians }); }
 
 function bindMainActions(view) {
     document.getElementById(`add-${view}`)?.addEventListener("click", () => {

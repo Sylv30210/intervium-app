@@ -31,3 +31,8 @@ test("une élévation temporaire autorise l'écriture mais jamais la suppression
 test("un technicien ne reçoit pas les droits administrateur", async () => {
     await request(testApp({ user: { role: "TECHNICIEN" } })).get("/resource").expect(403);
 });
+
+test("la protection de rôle interdit toujours les suppressions au super-développeur", async () => {
+    await request(testApp({ method: "delete", user: { role: "SUPER_DEVELOPPEUR", support_write: true } }))
+        .delete("/resource").expect(403);
+});

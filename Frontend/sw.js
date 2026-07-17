@@ -9,6 +9,8 @@ const SHELL_RESOURCES = [
   "/utils/format.js",
   "/components/icons.js",
   "/api/client.js",
+  "/views/resources.js",
+  "/navigation/routes.js",
   "/offline.html",
   "/offline.css",
   "/offline.js",
