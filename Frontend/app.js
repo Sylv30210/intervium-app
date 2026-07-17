@@ -32,10 +32,21 @@ let platformCompanies = [];
 let publicRegistrationEnabled = null;
 let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equipments: 0 };
 let appVersion = "2.2.0";
+let collectionResizeTimer = null;
+
+function responsiveCollectionLimit() {
+    const height = window.visualViewport?.height || window.innerHeight || 800;
+    if (window.matchMedia("(max-width: 768px)").matches) {
+        return Math.max(3, Math.min(8, Math.floor((height - 250) / 170)));
+    }
+    return Math.max(5, Math.min(20, Math.floor((height - 300) / 62)));
+}
+
+const initialCollectionLimit = responsiveCollectionLimit();
 const collectionPages = {
-    interventions: { page: 1, limit: 50, total: 0 },
-    clients: { page: 1, limit: 50, total: 0 },
-    equipements: { page: 1, limit: 50, total: 0 },
+    interventions: { page: 1, limit: initialCollectionLimit, total: 0 },
+    clients: { page: 1, limit: initialCollectionLimit, total: 0 },
+    equipements: { page: 1, limit: initialCollectionLimit, total: 0 },
 };
 
 const app = document.getElementById("app");
@@ -46,6 +57,17 @@ const api = createApiClient({ onUnauthorized: () => { currentUser = null; showAu
 document.addEventListener("DOMContentLoaded", async () => {
     initPwa();
     await initApp();
+});
+
+window.addEventListener("resize", () => {
+    clearTimeout(collectionResizeTimer);
+    collectionResizeTimer = setTimeout(() => {
+        const state = collectionPages[currentView];
+        const limit = responsiveCollectionLimit();
+        if (!currentUser || !state || state.limit === limit) return;
+        state.limit = limit;
+        loadCollectionPage(currentView, 1).catch((error) => toast(error.message, true));
+    }, 180);
 });
 
 function isStandaloneMode() {
@@ -313,11 +335,13 @@ async function logout() {
 }
 
 async function loadAllData() {
+    const collectionLimit = responsiveCollectionLimit();
+    Object.values(collectionPages).forEach((state) => { state.limit = collectionLimit; });
     appVersion = (await api("/version").catch(() => ({ version: appVersion }))).version;
     googleMailStatus = await api("/google/status").catch(() => ({ enabled: false, connection: null }));
     platformCompanies = currentUser.is_super_developer ? await api("/auth/companies") : [];
     if (currentUser.role === "CLIENT") {
-        const page = await api("/interventions?page=1&limit=50");
+        const page = await api(`/interventions?page=1&limit=${collectionLimit}`);
         interventions = page.items;
         Object.assign(collectionPages.interventions, page);
         dashboardStats = await api("/interventions/stats");
@@ -330,9 +354,9 @@ async function loadAllData() {
         return;
     }
     const results = await Promise.allSettled([
-        api("/interventions?page=1&limit=50"),
-        api("/clients?page=1&limit=50"),
-        api("/equipements?page=1&limit=50"),
+        api(`/interventions?page=1&limit=${collectionLimit}`),
+        api(`/clients?page=1&limit=${collectionLimit}`),
+        api(`/equipements?page=1&limit=${collectionLimit}`),
         currentUser.role === "ADMIN" ? api("/auth/users") : Promise.resolve([]),
         api("/interventions/stats"),
         api("/modeles"),
@@ -669,12 +693,13 @@ function enhanceBusinessTables(view) {
         if (!table || rows.length < 2 || wrap.dataset.enhanced) return;
         wrap.dataset.enhanced = "true";
         const storageKey = `intervium_table:${view}:${tableIndex}`;
+        const serverBacked = Boolean(collectionPages[view]);
         let saved = {}; try { saved = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch {}
-        let page = 1; const pageSize = 10; let sortIndex = Number.isInteger(saved.sortIndex) ? saved.sortIndex : -1; let direction = saved.direction || "asc";
+        let page = 1; const pageSize = serverBacked ? Number.MAX_SAFE_INTEGER : 10; let sortIndex = Number.isInteger(saved.sortIndex) ? saved.sortIndex : -1; let direction = saved.direction || "asc";
         const tools = document.createElement("div"); tools.className = "table-tools";
         tools.innerHTML = `<label class="sr-only" for="table-search-${tableIndex}">Filtrer ce tableau</label><input id="table-search-${tableIndex}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(saved.query || "")}"><button class="secondary" type="button">Réinitialiser</button>`;
         wrap.before(tools);
-        const pager = document.createElement("div"); pager.className = "pagination"; wrap.after(pager);
+        const pager = document.createElement("div"); pager.className = "pagination"; pager.hidden = serverBacked; wrap.after(pager);
         const search = tools.querySelector("input");
         const render = () => {
             const query = search.value.trim().toLocaleLowerCase("fr");
