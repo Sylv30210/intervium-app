@@ -1,0 +1,28 @@
+import { createDecipheriv } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { open, stat } from "node:fs/promises";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { BACKUP_MAGIC, IV_LENGTH, TAG_LENGTH, backupKey } from "./backup-utils.js";
+
+const backupPath = path.resolve(process.argv[2] || "");
+if (!process.argv[2]) throw new Error("Usage : npm run backup:verify -- <fichier.dump.enc>");
+const metadata = await stat(backupPath);
+const headerLength = BACKUP_MAGIC.length + IV_LENGTH;
+if (metadata.size <= headerLength + TAG_LENGTH) throw new Error("Fichier de sauvegarde incomplet.");
+const handle = await open(backupPath, "r");
+const header = Buffer.alloc(headerLength);
+const tag = Buffer.alloc(TAG_LENGTH);
+await handle.read(header, 0, header.length, 0);
+await handle.read(tag, 0, tag.length, metadata.size - TAG_LENGTH);
+await handle.close();
+if (!header.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)) throw new Error("Format de sauvegarde Intervium invalide.");
+const decipher = createDecipheriv("aes-256-gcm", backupKey(), header.subarray(BACKUP_MAGIC.length));
+decipher.setAuthTag(tag);
+const restore = spawn(process.env.PG_RESTORE_BIN || "pg_restore", ["--list"], { stdio: ["pipe", "ignore", "pipe"], windowsHide: true });
+let stderr = "";
+restore.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
+createReadStream(backupPath, { start: headerLength, end: metadata.size - TAG_LENGTH - 1 }).pipe(decipher).pipe(restore.stdin);
+const exitCode = await new Promise((resolve, reject) => { restore.once("error", reject); restore.once("close", resolve); });
+if (exitCode !== 0) throw new Error(`La vérification pg_restore a échoué (code ${exitCode}). ${stderr.trim()}`);
+console.log(`Sauvegarde vérifiée : ${backupPath}`);

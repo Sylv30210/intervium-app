@@ -22,6 +22,8 @@ Avant toute publication, exécuter `npm run check`, `npm test` puis `npm run rel
 
 Activer les sauvegardes et la restauration point-in-time dans Neon. Vérifier mensuellement une restauration dans un projet isolé. Pour une deuxième copie, planifier un `pg_dump` chiffré vers un stockage privé avec une durée de conservation définie. Ne jamais déposer un dump dans Git, les logs ou les artefacts publics.
 
+La copie secondaire peut être créée avec `npm run backup:create`. Définir `BACKUP_DATABASE_URL` et une clé `BACKUP_ENCRYPTION_KEY` aléatoire de 32 octets encodée en Base64 ou hexadécimal. Les fichiers sont chiffrés en AES-256-GCM et écrits dans `backups/`, ignoré par Git. Vérifier chaque sauvegarde avec `npm run backup:verify -- backups/<fichier>.dump.enc`, puis transférer le fichier vers un stockage privé. Conserver la clé dans un gestionnaire de secrets distinct du stockage des sauvegardes.
+
 ## Nettoyage de l'ancien secret Git
 
 La suppression du hash dans la branche courante ne le retire pas des anciens commits. Après révocation du compte, utiliser `git filter-repo` dans un clone dédié, faire vérifier le résultat, prévenir tous les collaborateurs, puis remplacer l'historique distant. Tous les clones existants devront être recréés. Cette opération doit être planifiée séparément d'un déploiement applicatif.

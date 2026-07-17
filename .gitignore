@@ -4,6 +4,7 @@
 !**/.env.example
 Backend/uploads/
 tmp/
+backups/
 *.log
 .DS_Store
 Thumbs.db
