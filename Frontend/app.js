@@ -1917,7 +1917,8 @@ function openIntervention(id) {
 
     const selectedTemplateId = item.modele_rapport_id || (item.modele_rapport_sections?.length ? "__snapshot__" : "");
     const templateSelector = `<div class="field"><label>Modèle de rapport</label><select id="edit-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${selectedTemplateId === "__snapshot__" ? `<option value="__snapshot__" selected>${escapeHtml(item.modele_rapport_nom || "Modèle supprimé")} (contenu conservé)</option>` : ""}${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}" ${String(template.id) === String(selectedTemplateId) ? "selected" : ""}>${escapeHtml(template.nom)}</option>`).join("")}</select></div>`;
-    const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${field("Objet de l’intervention", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
+    const siteAddressField = `<div class="field"><label>Adresse du chantier</label><input name="adresse_chantier" autocomplete="street-address" value="${escapeHtml(item.adresse_chantier || "")}"></div>`;
+    const adminFields = currentUser.role === "ADMIN" ? `<div class="grid2"><div class="field"><label>Client</label><select id="edit-client" name="client_id">${creationClientOptions(creationClients, item.client_id)}</select></div><div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions(item.technicien_id)}</select></div></div><div class="field"><label>Équipement concerné</label><select id="edit-equipment" name="equipement_id">${creationEquipmentOptions(item.client_id, item.equipement_id, true)}</select></div>${siteAddressField}${field("Objet de l’intervention", "titre", "text", true, item.titre)}<div class="field"><label>Description</label><textarea name="description" rows="3">${escapeHtml(item.description || "")}</textarea></div><div class="grid2">${field("Date", "date_intervention", "date", false, String(item.date_intervention || "").slice(0,10))}${field("Heure", "heure", "time", false, String(item.heure || "").slice(0,5))}</div>${templateSelector}` : "";
     const localDraft = loadReportDraft(item);
     const customReportFields = Array.isArray(item.modele_rapport_sections) && item.modele_rapport_sections.length
         ? renderReportFields(item, localDraft?.payload?.donnees_rapport || item.donnees_rapport || {}, item.id)
@@ -1925,10 +1926,8 @@ function openIntervention(id) {
     modal("Rapport d’intervention", `<form id="edit-intervention-form" data-intervention-id="${item.id}">
       <p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p>
       ${adminFields}
+      ${currentUser.role === "ADMIN" ? "" : siteAddressField}
       <input type="hidden" name="statut" value="${escapeHtml(item.statut || "TERMINEE")}">
-      <div class="field"><label>Adresse du chantier</label><input name="adresse_chantier" autocomplete="street-address" value="${escapeHtml(item.adresse_chantier || "")}"></div>
-      <div class="field"><label>Travaux demandés</label><textarea name="travaux_demandes" rows="4">${escapeHtml(item.travaux_demandes ?? item.titre ?? "")}</textarea></div>
-      <div class="field"><label>Compte-rendu</label><textarea name="compte_rendu" rows="5">${escapeHtml(item.compte_rendu || "")}</textarea></div>
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
@@ -1992,7 +1991,7 @@ function setAutosaveStatus(state, label) {
 }
 function currentReportPayload(form) {
     const data = Object.fromEntries(new FormData(form));
-    return { statut: data.statut, adresse_chantier: data.adresse_chantier || null, travaux_demandes: data.travaux_demandes || null, compte_rendu: data.compte_rendu || null, donnees_rapport: collectReportData(form) };
+    return { statut: data.statut, adresse_chantier: data.adresse_chantier || null, donnees_rapport: collectReportData(form) };
 }
 function persistReportDraft(item, payload) {
     try { localStorage.setItem(reportDraftKey(item.id), JSON.stringify({ interventionId: item.id, version: item.report_version || 1, payload, savedAt: new Date().toISOString() })); } catch {}
@@ -2002,8 +2001,6 @@ function restoreReportDraft(item, form) {
     if (!draft) return;
     if (draft.payload.statut && form.elements.statut) form.elements.statut.value = draft.payload.statut;
     if (form.elements.adresse_chantier && draft.payload.adresse_chantier !== undefined) form.elements.adresse_chantier.value = draft.payload.adresse_chantier || "";
-    if (form.elements.travaux_demandes && draft.payload.travaux_demandes !== undefined) form.elements.travaux_demandes.value = draft.payload.travaux_demandes || "";
-    if (form.elements.compte_rendu && draft.payload.compte_rendu !== null) form.elements.compte_rendu.value = draft.payload.compte_rendu;
     Object.entries(draft.payload.donnees_rapport || {}).forEach(([key, value]) => {
         const input = form.querySelector(`[data-report-key="${CSS.escape(key)}"]`);
         if (input && !Array.isArray(value)) input.value = value ?? "";
@@ -2014,7 +2011,7 @@ function restoreReportDraft(item, form) {
 function bindReportAutosave(item, form) {
     const schedule = (event) => {
         const target = event.target;
-        const reportInput = target.matches('[name="statut"],[name="adresse_chantier"],[name="travaux_demandes"],[name="compte_rendu"],[data-report-key],[data-report-checkbox-group],[data-table-column]');
+        const reportInput = target.matches('[name="statut"],[name="adresse_chantier"],[data-report-key],[data-report-checkbox-group],[data-table-column]');
         if (!reportInput) return;
         reportAutosavePending = true;
         const payload = currentReportPayload(form);
@@ -2035,8 +2032,6 @@ async function saveReportDraft(item, form) {
         item.report_version = updated.report_version;
         item.statut = updated.statut;
         item.adresse_chantier = updated.adresse_chantier;
-        item.travaux_demandes = updated.travaux_demandes;
-        item.compte_rendu = updated.compte_rendu;
         item.donnees_rapport = updated.donnees_rapport;
         reportAutosavePending = false;
         clearReportDraft(item.id);
