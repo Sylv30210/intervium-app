@@ -8,6 +8,15 @@ const BLUE = "#1d4ed8";
 const DARK = "#172554";
 const GRAY = "#64748b";
 const LIGHT = "#e2e8f0";
+const PDF_HALF_WIDTH_TYPES = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "client", "equipment"]);
+
+export function pdfHalfWidthPlacement(field, nextField) {
+    const usesHalfWidth = field?.width === "half" && PDF_HALF_WIDTH_TYPES.has(field?.type);
+    return {
+        usesHalfWidth,
+        pairsWithNext: usesHalfWidth && nextField?.width === "half" && PDF_HALF_WIDTH_TYPES.has(nextField?.type),
+    };
+}
 
 function reportBranding(intervention) {
     const source = intervention.entreprise_report_settings && typeof intervention.entreprise_report_settings === "object"
@@ -186,6 +195,13 @@ function reportValue(section, rawValue) {
     return String(rawValue);
 }
 
+function reportFieldValue(section, rawValue, equipment) {
+    if (section.type !== "equipment") return reportValue(section, rawValue);
+    return equipment
+        ? [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`].filter(Boolean).join(" - ")
+        : "Aucun matériel renseigné";
+}
+
 function reportTable(doc, section, rows) {
     const columns = Array.isArray(section.columns) && section.columns.length
         ? section.columns.map((column, index) => typeof column === "string" ? { key: `c${index}`, label: column, type: "text", visiblePdf: true, align: "left", width: 3 } : column).filter((column) => column.visiblePdf !== false)
@@ -340,35 +356,33 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     continue;
                 }
                 if (photoTypes.has(field.type)) continue;
-                if (field.type === "equipment") {
-                    const equipment = equipments[0];
-                    const value = equipment
-                        ? [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`].filter(Boolean).join(" - ")
-                        : "Aucun matériel renseigné";
-                    reportField(doc, field.label, value, field.showLabel !== false);
-                    continue;
-                }
                 const rawValue = templateData[field.key];
                 if (["table", "price_table"].includes(field.type)) {
                     reportTable(doc, field, rawValue);
                     continue;
                 }
                 const nextField = templateSections[fieldIndex + 1];
-                const pairableTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address"]);
-                if (field.width === "half" && nextField?.width === "half" && pairableTypes.has(field.type) && pairableTypes.has(nextField.type)) {
+                const placement = pdfHalfWidthPlacement(field, nextField);
+                if (placement.pairsWithNext) {
                     ensureSpace(doc, 54);
                     const startY = doc.y;
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    reportField(doc, field.label || field.key, reportValue(field, rawValue), field.showLabel !== false, 48, halfWidth);
+                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false, 48, halfWidth);
                     const firstBottom = doc.y;
                     doc.y = startY;
-                    reportField(doc, nextField.label || nextField.key, reportValue(nextField, templateData[nextField.key]), nextField.showLabel !== false, 48 + halfWidth + gap, halfWidth);
+                    reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), nextField.showLabel !== false, 48 + halfWidth + gap, halfWidth);
                     doc.y = Math.max(firstBottom, doc.y);
                     fieldIndex += 1;
                     continue;
                 }
-                reportField(doc, field.label || field.key, reportValue(field, rawValue), field.showLabel !== false);
+                if (placement.usesHalfWidth) {
+                    const gap = 14;
+                    const halfWidth = (doc.page.width - 96 - gap) / 2;
+                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false, 48, halfWidth);
+                    continue;
+                }
+                reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false);
             }
         }
 
