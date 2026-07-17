@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { pdfHalfWidthPlacement } from "../services/pdf.js";
+import { pdfFieldLabelVisible, pdfHalfWidthPlacement } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -21,4 +21,10 @@ test("les tableaux restent en pleine largeur pour préserver leur lisibilité", 
         usesHalfWidth: false,
         pairsWithNext: false,
     });
+});
+
+test("un titre de signature décoché reste masqué dans le PDF", () => {
+    assert.equal(pdfFieldLabelVisible({ type: "signature", showLabel: false }), false);
+    assert.equal(pdfFieldLabelVisible({ type: "signature", showLabel: true }), true);
+    assert.equal(pdfFieldLabelVisible({ type: "signature" }), true);
 });

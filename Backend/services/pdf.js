@@ -18,6 +18,10 @@ export function pdfHalfWidthPlacement(field, nextField) {
     };
 }
 
+export function pdfFieldLabelVisible(field) {
+    return field?.showLabel !== false;
+}
+
 function reportBranding(intervention) {
     const source = intervention.entreprise_report_settings && typeof intervention.entreprise_report_settings === "object"
         ? intervention.entreprise_report_settings
@@ -86,30 +90,6 @@ function drawReportHeader(doc, branding, logoBuffer, reportId) {
     doc.x = 48;
 }
 
-function labelStatus(status) {
-    return ({
-        PLANIFIEE: "Planifiée",
-        EN_COURS: "En cours",
-        TERMINEE: "Terminée",
-        ANNULEE: "Annulée",
-    })[status] ?? status;
-}
-
-function formatDate(value) {
-    if (!value) return "Non planifiée";
-    let isoDate;
-    if (value instanceof Date) {
-        if (Number.isNaN(value.getTime())) return "Date invalide";
-        isoDate = value.toISOString().slice(0, 10);
-    } else {
-        isoDate = String(value).trim().slice(0, 10);
-    }
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-    if (!match) return "Date invalide";
-    const [, year, month, day] = match;
-    return `${day}/${month}/${year}`;
-}
-
 async function localImage(url, convertWebp = false) {
     if (!url) return null;
 
@@ -154,14 +134,6 @@ function sectionTitle(doc, title) {
     doc.moveDown(0.25).strokeColor(LIGHT).lineWidth(1)
         .moveTo(48, doc.y).lineTo(doc.page.width - 48, doc.y).stroke();
     doc.moveDown(0.55);
-}
-
-function detailLine(doc, label, value) {
-    ensureSpace(doc, 22);
-    const y = doc.y;
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY).text(label.toUpperCase(), 48, y, { width: 135 });
-    doc.font("Helvetica").fontSize(10).fillColor(DARK).text(value || "-", 183, y, { width: 360 });
-    doc.y = Math.max(doc.y, y + 19);
 }
 
 function reportField(doc, label, value, showLabel = true, x = 48, width = doc.page.width - 96) {
@@ -265,7 +237,6 @@ export async function generateInterventionPdf({ intervention, equipments, photos
     const branding = reportBranding(intervention);
     const pdfConfig = intervention.modele_pdf_config && typeof intervention.modele_pdf_config === "object" ? intervention.modele_pdf_config : {};
     const margin = Math.min(90, Math.max(24, Number(pdfConfig.margin) || 48));
-    const titleSize = Math.min(28, Math.max(14, Number(pdfConfig.titleSize) || 20));
     const templateSections = Array.isArray(intervention.modele_rapport_sections) ? intervention.modele_rapport_sections : [];
     const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object" ? intervention.donnees_rapport : {};
     const templateSignatureBuffers = new Map((await Promise.all(templateSections
@@ -284,50 +255,6 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         doc.on("end", () => resolve(Buffer.concat(chunks)));
 
         if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.numero_rapport || intervention.id);
-
-        const hasReportTemplate = Array.isArray(intervention.modele_rapport_sections) && intervention.modele_rapport_sections.length > 0;
-        doc.font("Helvetica-Bold").fontSize(titleSize).fillColor(DARK)
-            .text(intervention.titre, margin, doc.y, { width: doc.page.width - (margin * 2) });
-
-        sectionTitle(doc, "Informations du rapport");
-        if (pdfConfig.showClient !== false) {
-            detailLine(doc, "Client", intervention.client_nom);
-            detailLine(doc, "Adresse du chantier", intervention.adresse_chantier || intervention.client_adresse);
-        }
-        detailLine(doc, "Date", `${formatDate(intervention.date_intervention)}${intervention.heure ? ` à ${String(intervention.heure).slice(0, 5)}` : ""}`);
-        if (!hasReportTemplate) {
-            detailLine(doc, "Technicien", intervention.technicien_nom || "Non assigné");
-            detailLine(doc, "Statut", labelStatus(intervention.statut));
-        }
-
-        if (!hasReportTemplate && intervention.description) {
-            sectionTitle(doc, "Description");
-            doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text(intervention.description, { lineGap: 3 });
-        }
-
-        if (intervention.travaux_demandes) {
-            sectionTitle(doc, "Travaux demandés");
-            doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
-                .text(intervention.travaux_demandes, { lineGap: 3 });
-        }
-
-        if (pdfConfig.showEquipment !== false) sectionTitle(doc, "Matériel du client");
-        if (pdfConfig.showEquipment !== false && equipments.length === 0) {
-            doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucun matériel renseigné.");
-        } else if (pdfConfig.showEquipment !== false) {
-            for (const equipment of equipments) {
-                ensureSpace(doc, 30);
-                const summary = [equipment.type, equipment.marque, equipment.modele, equipment.numero_serie && `N° ${equipment.numero_serie}`, equipment.annee_installation && `Année ${equipment.annee_installation}`]
-                    .filter(Boolean).join(" - ");
-                doc.font("Helvetica").fontSize(10).fillColor(DARK).text(`• ${summary || "Matériel sans détail"}`);
-            }
-        }
-
-        if (!hasReportTemplate || intervention.compte_rendu) {
-            sectionTitle(doc, "Compte-rendu");
-            doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
-                .text(intervention.compte_rendu || "Compte-rendu non renseigné.", { lineGap: 3 });
-        }
 
         const photoTypes = new Set(["photo", "multi_photo", "event_photos"]);
         const signatureTypes = new Set(["signature", "electronic_signature"]);
@@ -349,12 +276,14 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const fieldSignature = templateSignatureBuffers.get(field.key);
                     const signatureBlockHeight = fieldSignature ? 95 : 38;
                     ensureSpace(doc, signatureBlockHeight + 38);
-                    sectionTitle(doc, field.label || "Signature");
+                    if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Signature");
                     if (fieldSignature) {
                         const y = doc.y;
                         doc.rect(48, y, 245, 75).strokeColor(LIGHT).stroke();
                         doc.image(fieldSignature, 58, y + 8, { fit: [225, 50], align: "center", valign: "center" });
-                        doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(field.label || "Signature", 58, y + 61);
+                        if (pdfFieldLabelVisible(field)) {
+                            doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(field.label || "Signature", 58, y + 61);
+                        }
                         doc.y = y + signatureBlockHeight;
                     } else {
                         doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
@@ -374,10 +303,10 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const startY = doc.y;
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false, 48, halfWidth);
+                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
                     const firstBottom = doc.y;
                     doc.y = startY;
-                    reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), nextField.showLabel !== false, 48 + halfWidth + gap, halfWidth);
+                    reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
                     doc.y = Math.max(firstBottom, doc.y);
                     fieldIndex += 1;
                     continue;
@@ -385,10 +314,10 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 if (placement.usesHalfWidth) {
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false, 48, halfWidth);
+                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
                     continue;
                 }
-                reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), field.showLabel !== false);
+                reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field));
             }
         }
 

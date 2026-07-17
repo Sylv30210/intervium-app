@@ -324,7 +324,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                  SELECT pg_advisory_xact_lock(hashtextextended($1::text || ':' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 0))
              ), next_report_number AS (
                  SELECT EXTRACT(YEAR FROM CURRENT_DATE)::integer AS year,
-                        COALESCE(MAX(NULLIF(split_part(i.numero_rapport, '-', 2), '')::integer), 0) + 1 AS sequence
+                        COALESCE(MAX(substring(i.numero_rapport FROM '^[0-9]{4}-([0-9]+)$')::integer), 0) + 1 AS sequence
                  FROM interventions i, lock_report_number
                  WHERE i.entreprise_id = $1
                    AND i.numero_rapport LIKE EXTRACT(YEAR FROM CURRENT_DATE)::text || '-%'
@@ -357,9 +357,17 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                 template ? JSON.stringify(reportSnapshot(template)) : null,
             ]
         );
-        await logActivity({ user: req.user, action: "CREATE", resourceType: "intervention", resourceId: result.rows[0].id, summary: `Rapport « ${result.rows[0].titre} » créé.` });
+        const sideEffects = [
+            logActivity({ user: req.user, action: "CREATE", resourceType: "intervention", resourceId: result.rows[0].id, summary: `Rapport « ${result.rows[0].titre} » créé.` }),
+        ];
         if (result.rows[0].technicien_id && Number(result.rows[0].technicien_id) !== Number(req.user.id)) {
-            await createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_ASSIGNED", title: "Nouveau rapport", message: `Le rapport « ${result.rows[0].titre} » vous a été assigné.`, resourceType: "intervention", resourceId: result.rows[0].id });
+            sideEffects.push(createNotification({ entrepriseId: req.user.entreprise_id, userId: result.rows[0].technicien_id, type: "INTERVENTION_ASSIGNED", title: "Nouveau rapport", message: `Le rapport « ${result.rows[0].titre} » vous a été assigné.`, resourceType: "intervention", resourceId: result.rows[0].id }));
+        }
+        const sideEffectResults = await Promise.allSettled(sideEffects);
+        for (const sideEffect of sideEffectResults) {
+            if (sideEffect.status === "rejected") {
+                console.error("Intervention créée, mais opération secondaire échouée", sideEffect.reason);
+            }
         }
         return res.status(201).json(result.rows[0]);
     } catch (error) {
