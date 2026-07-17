@@ -4,6 +4,9 @@ import { capitalize, equipmentLabel, escapeHtml, formatDate, formatMoney, localD
 import { createApiClient } from "./api/client.js";
 import { renderClientsView, renderEquipmentsView, renderTeamView } from "./views/resources.js";
 import { titleForView, viewFromHash } from "./navigation/routes.js";
+import { bindSignatureCanvas } from "./reports/signature-canvas.js";
+import { clientContactFields, equipmentFields, parseEmailList } from "./clients/forms.js";
+import { calculateDocumentTotals } from "./documents/totals.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -1338,10 +1341,7 @@ function documentLines() {
 
 function updateDocumentTotals() {
     if (!document.getElementById("document-total-ht")) return;
-    const totals = documentLines().reduce((result, line) => {
-        const ht = (line.quantite || 0) * (line.prix_unitaire || 0);
-        result.ht += ht; result.tva += ht * (line.taux_tva || 0) / 100; return result;
-    }, { ht: 0, tva: 0 });
+    const totals = calculateDocumentTotals(documentLines());
     document.getElementById("document-total-ht").textContent = formatMoney(totals.ht);
     document.getElementById("document-total-tva").textContent = formatMoney(totals.tva);
     document.getElementById("document-total-ttc").textContent = formatMoney(totals.ht + totals.tva);
@@ -1395,8 +1395,6 @@ function openNewClient() {
     });
 }
 
-function parseEmailList(value) { return String(value || "").split(/[\n,;]+/).map((email) => email.trim()).filter(Boolean); }
-
 async function openClientDetails(id, tab = "info") {
     modal("Fiche client", `<div class="empty"><span class="spinner" aria-hidden="true"></span> Chargement de la fiche…</div>`);
     try {
@@ -1446,12 +1444,8 @@ function renderClientDetail(detail, activeTab = "info") {
     document.querySelectorAll("[data-client-intervention]").forEach((button) => button.addEventListener("click", () => openIntervention(button.dataset.clientIntervention)));
 }
 
-function clientContactFields(contact = {}) {
-    return `${field("Nom complet", "nom", "text", true, contact.nom || "")}${field("Fonction", "fonction", "text", false, contact.fonction || "")}${field("E-mail", "email", "email", false, contact.email || "")}${field("Téléphone", "telephone", "tel", false, contact.telephone || "")}<label class="setting-check"><input name="destinataire_rapport" type="checkbox" ${contact.destinataire_rapport ? "checked" : ""}> Proposer ce contact comme destinataire des rapports</label>`;
-}
-
 function openClientContactForm(detail, contact = null) {
-    modal(contact ? "Modifier le contact" : "Nouveau contact", `<form id="client-contact-form">${clientContactFields(contact || {})}<button class="primary wide" type="submit">Enregistrer le contact</button></form>`);
+    modal(contact ? "Modifier le contact" : "Nouveau contact", `<form id="client-contact-form">${clientContactFields(field, contact || {})}<button class="primary wide" type="submit">Enregistrer le contact</button></form>`);
     document.getElementById("client-contact-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -1505,12 +1499,8 @@ function openEditClient(detail) {
     });
 }
 
-function equipmentFields(equipment = {}) {
-    return `${field("Type", "type", "text", false, equipment.type || "")}${field("Marque", "marque", "text", false, equipment.marque || "")}${field("Modèle", "modele", "text", false, equipment.modele || "")}${field("Numéro de série", "numero_serie", "text", false, equipment.numero_serie || "")}<div class="field"><label>Année d’installation</label><input name="annee_installation" type="number" min="1900" max="2200" inputmode="numeric" value="${escapeHtml(equipment.annee_installation || "")}"></div>`;
-}
-
 function openClientEquipmentForm(detail) {
-    modal(`Nouvel équipement — ${detail.client.nom}`, `<form id="client-equipment-form">${equipmentFields()}<button class="primary wide" type="submit">Créer l’équipement</button></form>`);
+    modal(`Nouvel équipement — ${detail.client.nom}`, `<form id="client-equipment-form">${equipmentFields(field)}<button class="primary wide" type="submit">Créer l’équipement</button></form>`);
     document.getElementById("client-equipment-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -1538,7 +1528,7 @@ function openClientEquipmentDetail(detail, equipmentId) {
 }
 
 function openEditEquipment(detail, equipment) {
-    modal("Modifier l’équipement", `<form id="edit-equipment-form">${equipmentFields(equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
+    modal("Modifier l’équipement", `<form id="edit-equipment-form">${equipmentFields(field, equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
     document.getElementById("edit-equipment-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -1558,14 +1548,14 @@ function openEditEquipment(detail, equipment) {
 }
 
 function openNewEquipment() {
-    modal("Nouveau matériel", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required><option value="">Sélectionner un client</option>${clientOptions()}</select></div>${equipmentFields()}<button class="primary wide">Créer le matériel</button></form>`);
+    modal("Nouveau matériel", `<form id="equipment-form"><div class="field"><label>Client</label><select name="client_id" required><option value="">Sélectionner un client</option>${clientOptions()}</select></div>${equipmentFields(field)}<button class="primary wide">Créer le matériel</button></form>`);
     document.getElementById("equipment-form").addEventListener("submit", async (event) => submitForm(event, "/equipements", "equipements"));
 }
 
 function openEquipmentEditor(id) {
     const equipment = equipements.find((item) => String(item.id) === String(id));
     if (!equipment) return;
-    modal("Modifier le matériel", `<form id="main-equipment-edit-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions(equipment.client_id)}</select></div>${equipmentFields(equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
+    modal("Modifier le matériel", `<form id="main-equipment-edit-form"><div class="field"><label>Client</label><select name="client_id" required>${clientOptions(equipment.client_id)}</select></div>${equipmentFields(field, equipment)}<button class="primary wide" type="submit">Enregistrer</button></form>`);
     document.getElementById("main-equipment-edit-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -2042,56 +2032,39 @@ async function uploadPhoto(id) {
 
 function setupSignatureCanvas(id) {
     const canvas = document.getElementById("signature-canvas");
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(canvas.clientWidth * ratio);
-    canvas.height = Math.floor(canvas.clientHeight * ratio);
-    const context = canvas.getContext("2d");
-    context.scale(ratio, ratio); context.lineWidth = 2; context.lineCap = "round"; context.strokeStyle = "#172554";
-    let drawing = false;
-    let hasInk = false;
-    const point = (event) => { const box = canvas.getBoundingClientRect(); return { x: event.clientX - box.left, y: event.clientY - box.top }; };
-    canvas.addEventListener("pointerdown", (event) => { drawing = true; canvas.setPointerCapture(event.pointerId); const p = point(event); context.beginPath(); context.moveTo(p.x, p.y); });
-    canvas.addEventListener("pointermove", (event) => { if (!drawing) return; const p = point(event); context.lineTo(p.x, p.y); context.stroke(); hasInk = true; });
-    canvas.addEventListener("pointerup", () => { drawing = false; });
-    document.getElementById("clear-signature").addEventListener("click", () => { context.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; });
-    document.getElementById("upload-signature").addEventListener("click", async () => {
-        if (!hasInk) return toast("La signature est vide.", true);
-        const button = document.getElementById("upload-signature");
+    bindSignatureCanvas({
+        canvas,
+        clearButton: document.getElementById("clear-signature"),
+        saveButton: document.getElementById("upload-signature"),
+        onEmpty: () => toast("La signature est vide.", true),
+        onSave: async ({ event, signatureData }) => {
+        const button = event.currentTarget;
         await withBusy(button, async () => {
             try {
-                const result = await api(`/uploads/signature/${id}`, { method: "POST", body: JSON.stringify({ signatureData: canvas.toDataURL("image/png") }) });
+                const result = await api(`/uploads/signature/${id}`, { method: "POST", body: JSON.stringify({ signatureData }) });
                 const item = interventions.find((entry) => String(entry.id) === String(id));
                 item.signature_url = result.signature_url;
                 openIntervention(id);
                 toast("Signature enregistrée.");
             } catch (error) { toast(error.message, true); }
         });
-    });
+    }});
 }
 
 function setupReportSignatureCanvases(interventionId, root) {
     root?.querySelectorAll("[data-signature-canvas]").forEach((canvas) => {
-        if (canvas.dataset.ready === "true") return;
-        canvas.dataset.ready = "true";
         const key = canvas.dataset.signatureCanvas;
-        const ratio = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(canvas.clientWidth * ratio);
-        canvas.height = Math.floor(canvas.clientHeight * ratio);
-        const context = canvas.getContext("2d");
-        context.scale(ratio, ratio); context.lineWidth = 2; context.lineCap = "round"; context.strokeStyle = "#172554";
-        let drawing = false, hasInk = false;
-        const point = (event) => { const box = canvas.getBoundingClientRect(); return { x: event.clientX - box.left, y: event.clientY - box.top }; };
-        canvas.addEventListener("pointerdown", (event) => { drawing = true; canvas.setPointerCapture(event.pointerId); const p = point(event); context.beginPath(); context.moveTo(p.x, p.y); });
-        canvas.addEventListener("pointermove", (event) => { if (!drawing) return; const p = point(event); context.lineTo(p.x, p.y); context.stroke(); hasInk = true; });
-        canvas.addEventListener("pointerup", () => { drawing = false; });
         const field = canvas.closest("[data-signature-field]");
-        field?.querySelector("[data-clear-report-signature]")?.addEventListener("click", () => { context.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; });
-        field?.querySelector("[data-save-report-signature]")?.addEventListener("click", async (event) => {
-            if (!hasInk) return toast("La signature est vide.", true);
+        bindSignatureCanvas({
+            canvas,
+            clearButton: field?.querySelector("[data-clear-report-signature]"),
+            saveButton: field?.querySelector("[data-save-report-signature]"),
+            onEmpty: () => toast("La signature est vide.", true),
+            onSave: async ({ event, signatureData }) => {
             const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
             await withBusy(event.currentTarget, async () => {
                 try {
-                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData: canvas.toDataURL("image/png") }) });
+                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData }) });
                     const item = interventions.find((entry) => String(entry.id) === String(interventionId));
                     item.donnees_rapport = { ...(item.donnees_rapport || {}), [key]: result.signature_url };
                     item.report_version = result.report_version;
@@ -2100,7 +2073,7 @@ function setupReportSignatureCanvases(interventionId, root) {
                     openIntervention(interventionId); toast("Signature enregistrée.");
                 } catch (error) { toast(error.message, true); }
             });
-        });
+        }});
         field?.querySelector("[data-delete-report-signature]")?.addEventListener("click", async (event) => {
             if (!confirm("Supprimer cette signature ?")) return;
             const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };

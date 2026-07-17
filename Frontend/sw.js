@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v13-security-consolidation";
+const CACHE_VERSION = "intervium-shell-v14-modular-frontend";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
@@ -11,6 +11,10 @@ const SHELL_RESOURCES = [
   "/api/client.js",
   "/views/resources.js",
   "/navigation/routes.js",
+  "/reports/signature-canvas.js",
+  "/clients/forms.js",
+  "/documents/totals.js",
+  "/styles/reports.css",
   "/offline.html",
   "/offline.css",
   "/offline.js",

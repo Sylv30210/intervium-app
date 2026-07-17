@@ -8,6 +8,8 @@
 - CSP sans `unsafe-inline`, CSS statique et début de modularisation du frontend.
 - CI GitHub Actions, tests de sécurité et pagination serveur.
 - Rate limiting PostgreSQL partagé entre les instances.
+- Signatures de modèle configurables et distinctes dans les rapports et les PDF.
+- Modules frontend séparés pour les rapports, clients, documents et styles.
 
 ## 2.1.0
 

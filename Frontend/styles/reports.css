@@ -1,0 +1,15 @@
+.report-signature-field .saved-signature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.report-signature-field .saved-signature img {
+    width: 150px;
+    height: 70px;
+    object-fit: contain;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+}
