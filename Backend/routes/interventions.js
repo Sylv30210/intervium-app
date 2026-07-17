@@ -5,6 +5,7 @@ import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
 import { googleEnabled, sendGmailReport } from "../services/google.js";
+import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -79,7 +80,7 @@ function reportSnapshot(template) {
     return template ? { nom: template.nom, description: template.description, sections: template.sections, pdf_config: template.pdf_config || {} } : null;
 }
 
-function validateTemplateData(template, data) {
+export function validateTemplateData(template, data) {
     if (!template) return null;
     const dataTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table"]);
     for (const section of Array.isArray(template.sections) ? template.sections : []) {
@@ -138,7 +139,7 @@ function validateTemplateData(template, data) {
     return null;
 }
 
-function safeReportValue(value, depth = 0) {
+export function safeReportValue(value, depth = 0) {
     if (depth > 3 || value === undefined) return false;
     if (value === null || ["string", "number", "boolean"].includes(typeof value)) return true;
     if (Array.isArray(value)) {
@@ -163,6 +164,7 @@ function reportData(value) {
 }
 
 router.get("/", async (req, res) => {
+    const pagination = paginationFromRequest(req);
     const values = [req.user.entreprise_id];
     let roleFilter = "";
 
@@ -175,6 +177,17 @@ router.get("/", async (req, res) => {
     }
 
     try {
+        if (pagination?.q) {
+            values.push(`%${pagination.q}%`);
+            roleFilter += ` AND (i.titre ILIKE $${values.length} OR c.nom ILIKE $${values.length} OR i.numero_rapport ILIKE $${values.length})`;
+        }
+        const countValues = [...values];
+        const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM interventions i JOIN clients c ON c.id=i.client_id AND c.entreprise_id=i.entreprise_id WHERE i.entreprise_id=$1 ${roleFilter}`, countValues) : null;
+        let paginationSql = "";
+        if (pagination) {
+            values.push(pagination.limit, pagination.offset);
+            paginationSql = ` LIMIT $${values.length - 1} OFFSET $${values.length}`;
+        }
         const result = await pool.query(
             `SELECT i.id, i.entreprise_id, i.client_id, i.equipement_id, i.technicien_id,
                     i.titre, i.description, i.compte_rendu, i.statut,
@@ -211,10 +224,10 @@ router.get("/", async (req, res) => {
              ) p ON p.intervention_id = i.id AND p.entreprise_id = i.entreprise_id
              WHERE i.entreprise_id = $1 ${roleFilter}
              ORDER BY i.date_intervention ASC NULLS LAST,
-                      i.heure ASC NULLS LAST, i.id ASC`,
+                      i.heure ASC NULLS LAST, i.id ASC ${paginationSql}`,
             values
         );
-        return res.json(result.rows);
+        return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);
     } catch (error) {
         console.error("Échec de la liste des interventions", error);
         return res.status(500).json({ error: "Impossible de charger les interventions." });
@@ -242,6 +255,23 @@ router.get("/options", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) =>
         console.error("Échec des options d'intervention", error);
         return res.status(500).json({ error: "Impossible de charger les options." });
     }
+});
+
+router.get("/stats", async (req, res) => {
+    const values = [req.user.entreprise_id];
+    let roleFilter = "";
+    if (req.user.role === "TECHNICIEN") { values.push(req.user.id); roleFilter = `AND i.technicien_id=$${values.length}`; }
+    if (req.user.role === "CLIENT") { values.push(req.user.id); roleFilter = `AND c.utilisateur_id=$${values.length}`; }
+    const result = await pool.query(
+        `SELECT COUNT(*)::INTEGER AS reports,
+                COUNT(*) FILTER (WHERE i.statut='TERMINEE')::INTEGER AS finished,
+                COUNT(DISTINCT i.client_id)::INTEGER AS visible_clients,
+                COUNT(DISTINCT i.equipement_id) FILTER (WHERE i.equipement_id IS NOT NULL)::INTEGER AS visible_equipments
+         FROM interventions i JOIN clients c ON c.id=i.client_id AND c.entreprise_id=i.entreprise_id
+         WHERE i.entreprise_id=$1 ${roleFilter}`,
+        values
+    );
+    return res.json(result.rows[0]);
 });
 
 router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {

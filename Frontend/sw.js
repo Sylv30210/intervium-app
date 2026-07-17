@@ -1,9 +1,16 @@
-const CACHE_VERSION = "intervium-shell-v12-super-developer";
+const CACHE_VERSION = "intervium-shell-v13-security-consolidation";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
   "/app.js",
+  "/app.css",
+  "/theme-init.js",
+  "/utils/theme.js",
+  "/utils/format.js",
+  "/components/icons.js",
   "/offline.html",
+  "/offline.css",
+  "/offline.js",
   "/manifest.webmanifest",
   "/icons/intervium-192.png",
   "/icons/intervium-512.png",

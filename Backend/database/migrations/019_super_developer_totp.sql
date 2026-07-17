@@ -1,0 +1,3 @@
+ALTER TABLE utilisateurs
+    ADD COLUMN IF NOT EXISTS totp_secret_chiffre TEXT,
+    ADD COLUMN IF NOT EXISTS totp_active BOOLEAN NOT NULL DEFAULT FALSE;

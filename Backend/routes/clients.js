@@ -3,6 +3,7 @@ import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
 import { removeStoredUpload } from "../services/storage.js";
+import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -71,6 +72,7 @@ async function accessibleClient(clientId, user) {
 }
 
 router.get("/", async (req, res) => {
+    const pagination = paginationFromRequest(req);
     const values = [req.user.entreprise_id];
     let accessFilter = "";
     if (req.user.role === "TECHNICIEN") {
@@ -86,6 +88,17 @@ router.get("/", async (req, res) => {
     }
 
     try {
+        if (pagination?.q) {
+            values.push(`%${pagination.q}%`);
+            accessFilter += ` AND (c.nom ILIKE $${values.length} OR c.email ILIKE $${values.length} OR c.telephone ILIKE $${values.length})`;
+        }
+        const countValues = [...values];
+        const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM clients c WHERE c.entreprise_id = $1 ${accessFilter}`, countValues) : null;
+        let paginationSql = "";
+        if (pagination) {
+            values.push(pagination.limit, pagination.offset);
+            paginationSql = ` LIMIT $${values.length - 1} OFFSET $${values.length}`;
+        }
         const result = await pool.query(
             `SELECT c.id, c.entreprise_id, c.utilisateur_id, c.nom, c.email, c.report_emails,
                     COALESCE((SELECT JSON_AGG(cc.email ORDER BY cc.nom) FROM contacts_clients cc
@@ -97,10 +110,10 @@ router.get("/", async (req, res) => {
              LEFT JOIN utilisateurs u
                ON u.id = c.utilisateur_id AND u.entreprise_id = c.entreprise_id
              WHERE c.entreprise_id = $1 ${accessFilter}
-             ORDER BY c.nom ASC, c.id ASC`,
+             ORDER BY c.nom ASC, c.id ASC ${paginationSql}`,
             values
         );
-        return res.json(result.rows);
+        return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);
     } catch (error) {
         console.error("Échec de la liste des clients", error);
         return res.status(500).json({ error: "Impossible de charger les clients." });

@@ -12,20 +12,12 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icons/intervium-192.png" sizes="192x192">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="/app.css">
     <title>Intervium</title>
-    <script>
-        try {
-            const theme = localStorage.getItem("noverys_visual_theme") || localStorage.getItem("intervium_visual_theme");
-            if (["glass", "dark"].includes(theme)) {
-                document.documentElement.dataset.theme = theme;
-                document.documentElement.classList.add(`theme-${theme}`);
-                document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#0b1120" : "#e9f1fb";
-            }
-        } catch {}
-    </script>
+    <script src="/theme-init.js"></script>
 </head>
 <body>
     <div id="app" aria-live="polite"></div>
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
 </body>
 </html>

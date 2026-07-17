@@ -4,7 +4,9 @@ import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 import { COOKIE_NAME, optionalAuth, requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
-import { createRateLimiter } from "../middleware/security.js";
+import { createPersistentRateLimiter } from "../middleware/security.js";
+import { verify as verifyTotp } from "otplib";
+import { decryptSecret } from "../services/secret-box.js";
 
 const router = express.Router();
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -13,11 +15,14 @@ const SUPPORT_WRITE_SECONDS = 10 * 60;
 const TERMS_VERSION = "2026-07-17";
 const ROLES = new Set(["ADMIN", "TECHNICIEN", "CLIENT"]);
 const REPORT_HEADER_STYLES = new Set(["minimal", "band", "none"]);
-const authRateLimit = createRateLimiter({
+const authRateLimit = createPersistentRateLimiter({
+    name: "auth",
     windowMs: 15 * 60 * 1000,
     max: 12,
     message: "Trop de tentatives. Réessayez dans quelques minutes.",
 });
+const publicRegistrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED === "true"
+    && Boolean(process.env.REGISTRATION_ACCESS_CODE);
 
 function companyPayload(row) {
     return {
@@ -71,10 +76,13 @@ function signSession(user, support = {}) {
     }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "24h" });
 }
 
+router.get("/config", (_req, res) => res.json({ public_registration_enabled: publicRegistrationEnabled }));
+
 router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
+    const totpCode = typeof req.body.totp_code === "string" ? req.body.totp_code.replace(/\s/g, "") : "";
     const nomEntreprise =
         typeof req.body.nom_entreprise === "string" ? req.body.nom_entreprise.trim() : "";
 
@@ -87,6 +95,11 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     }
 
     const createsEntreprise = Boolean(nomEntreprise);
+
+    if (createsEntreprise && (!publicRegistrationEnabled
+        || req.body.access_code !== process.env.REGISTRATION_ACCESS_CODE)) {
+        return res.status(403).json({ error: "La création publique d'entreprise est désactivée ou le code d'accès est invalide." });
+    }
 
     if (!createsEntreprise && (!req.user || req.user.role !== "ADMIN")) {
         return res.status(403).json({
@@ -164,7 +177,7 @@ router.post("/login", authRateLimit, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe,
-                    conditions_version, cookies_choice
+                    conditions_version, cookies_choice, totp_secret_chiffre, totp_active
              FROM utilisateurs
              WHERE email = $1 AND actif = TRUE
              LIMIT 1`,
@@ -174,6 +187,11 @@ router.post("/login", authRateLimit, async (req, res) => {
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: "Identifiants incorrects." });
+        }
+        if (user.role === "SUPER_DEVELOPPEUR") {
+            if (!user.totp_active || !user.totp_secret_chiffre) return res.status(403).json({ error: "La double authentification du super-développeur doit être configurée." });
+            const verification = await verifyTotp({ secret: decryptSecret(user.totp_secret_chiffre), token: totpCode, epochTolerance: 30 });
+            if (!verification.valid) return res.status(401).json({ error: "Code d'authentification incorrect." });
         }
 
         const token = signSession(user);
@@ -285,8 +303,13 @@ router.post("/support-session", verifyToken, requireRole(["ADMIN"]), async (req,
 router.post("/support-session/elevate", verifyToken, authRateLimit, async (req, res) => {
     if (req.user.role !== "SUPER_DEVELOPPEUR" || !req.user.impersonated_company_id) return res.status(403).json({ error: "Aucune session d'assistance active." });
     const password = typeof req.body.password === "string" ? req.body.password : "";
-    const result = await pool.query("SELECT password FROM utilisateurs WHERE id=$1 AND entreprise_id=$2 AND actif=TRUE", [req.user.id, req.user.home_entreprise_id]);
+    const result = await pool.query("SELECT password, totp_secret_chiffre, totp_active FROM utilisateurs WHERE id=$1 AND entreprise_id=$2 AND actif=TRUE", [req.user.id, req.user.home_entreprise_id]);
     if (!result.rowCount || !(await bcrypt.compare(password, result.rows[0].password))) return res.status(401).json({ error: "Mot de passe incorrect." });
+    const totpCode = typeof req.body.totp_code === "string" ? req.body.totp_code.replace(/\s/g, "") : "";
+    const verification = result.rows[0].totp_active && result.rows[0].totp_secret_chiffre
+        ? await verifyTotp({ secret: decryptSecret(result.rows[0].totp_secret_chiffre), token: totpCode, epochTolerance: 30 })
+        : { valid: false };
+    if (!verification.valid) return res.status(401).json({ error: "Code d'authentification incorrect." });
     const now = Math.floor(Date.now() / 1000);
     const token = signSession(req.user, {
         impersonated_company_id: req.user.impersonated_company_id,

@@ -2,6 +2,7 @@ import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
+import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
 
 const router = express.Router();
 router.use(verifyToken);
@@ -31,6 +32,7 @@ async function clientBelongsToTenant(clientId, entrepriseId) {
 }
 
 router.get("/", async (req, res) => {
+    const pagination = paginationFromRequest(req);
     const values = [req.user.entreprise_id];
     let accessFilter = "";
     if (req.user.role === "TECHNICIEN") {
@@ -46,6 +48,17 @@ router.get("/", async (req, res) => {
     }
 
     try {
+        if (pagination?.q) {
+            values.push(`%${pagination.q}%`);
+            accessFilter += ` AND (c.nom ILIKE $${values.length} OR e.type ILIKE $${values.length} OR e.marque ILIKE $${values.length} OR e.modele ILIKE $${values.length} OR e.numero_serie ILIKE $${values.length})`;
+        }
+        const countValues = [...values];
+        const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM equipements e JOIN clients c ON c.id=e.client_id AND c.entreprise_id=e.entreprise_id WHERE e.entreprise_id=$1 ${accessFilter}`, countValues) : null;
+        let paginationSql = "";
+        if (pagination) {
+            values.push(pagination.limit, pagination.offset);
+            paginationSql = ` LIMIT $${values.length - 1} OFFSET $${values.length}`;
+        }
         const result = await pool.query(
             `SELECT e.id, e.entreprise_id, e.client_id, e.type, e.marque, e.modele,
                     e.numero_serie, e.date_installation, e.annee_installation, e.created_at, e.updated_at,
@@ -54,10 +67,10 @@ router.get("/", async (req, res) => {
              JOIN clients c
                ON c.id = e.client_id AND c.entreprise_id = e.entreprise_id
              WHERE e.entreprise_id = $1 ${accessFilter}
-             ORDER BY c.nom ASC, e.type ASC NULLS LAST, e.id ASC`,
+             ORDER BY c.nom ASC, e.type ASC NULLS LAST, e.id ASC ${paginationSql}`,
             values
         );
-        return res.json(result.rows);
+        return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);
     } catch (error) {
         console.error("Échec de la liste des matériels", error);
         return res.status(500).json({ error: "Impossible de charger les matériels." });

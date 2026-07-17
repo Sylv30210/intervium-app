@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import * as Sentry from "@sentry/node";
 
 import auth from "./routes/auth.js";
 import interventions from "./routes/interventions.js";
@@ -16,12 +17,14 @@ import activity from "./routes/activity.js";
 import notifications from "./routes/notifications.js";
 import search from "./routes/search.js";
 import google from "./routes/google.js";
+import admin from "./routes/admin.js";
 import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
 import pool from "./config/database.js";
 import { runMigrations } from "./database/migrate.js";
 import { verifyToken } from "./middleware/auth.js";
-import { verifyRequestOrigin } from "./middleware/security.js";
+import { createPersistentRateLimiter, verifyRequestOrigin } from "./middleware/security.js";
+import { requestContext } from "./middleware/observability.js";
 
 const app = express();
 const port = Number.parseInt(process.env.PORT ?? "5000", 10);
@@ -33,19 +36,24 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? "")
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+if (process.env.SENTRY_DSN) {
+    Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.APP_ENV || process.env.NODE_ENV, sendDefaultPii: false });
+}
+
 if (!production) {
     allowedOrigins.push(`http://localhost:${port}`, `http://127.0.0.1:${port}`);
 }
 
 app.disable("x-powered-by");
 app.set("trust proxy", production ? 1 : false);
+app.use(requestContext);
 app.use(
     helmet({
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'"],
-                styleSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
                 imgSrc: ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
                 connectSrc: ["'self'", ...allowedOrigins],
                 fontSrc: ["'self'", "data:"],
@@ -77,6 +85,10 @@ app.use("/api", (_req, res, next) => {
 });
 app.use("/api", verifyRequestOrigin);
 app.use(express.json({ limit: "12mb" }));
+
+const uploadRateLimit = createPersistentRateLimiter({ name: "uploads", windowMs: 15 * 60 * 1000, max: 40, message: "Trop d'envois de fichiers. Réessayez plus tard." });
+const documentRateLimit = createPersistentRateLimiter({ name: "documents", windowMs: 15 * 60 * 1000, max: 60, message: "Trop de générations ou d'envois de documents." });
+const searchRateLimit = createPersistentRateLimiter({ name: "search", windowMs: 60 * 1000, max: 90, message: "Trop de recherches. Réessayez dans une minute." });
 
 async function authorizeLocalMedia(req, res, next) {
     const match = req.path.match(/^\/(photos|signatures|logos)\/([a-zA-Z0-9._-]+)$/);
@@ -123,18 +135,20 @@ app.use(
 app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
 });
+app.get("/api/version", (_req, res) => res.json({ version: process.env.npm_package_version || "2.2.0" }));
 
 app.use("/api/auth", auth);
-app.use("/api/interventions", interventions);
+app.use("/api/interventions", (req, res, next) => /\/(pdf|email)$/.test(req.path) ? documentRateLimit(req, res, next) : next(), interventions);
 app.use("/api/clients", clients);
 app.use("/api/equipements", equipements);
-app.use("/api/uploads", uploads);
+app.use("/api/uploads", uploadRateLimit, uploads);
 app.use("/api/modeles", modeles);
 app.use("/api/documents", documents);
 app.use("/api/activity", activity);
 app.use("/api/notifications", notifications);
-app.use("/api/search", search);
+app.use("/api/search", searchRateLimit, search);
 app.use("/api/google", google);
+app.use("/api/admin", admin);
 
 app.get("/sw.js", (_req, res) => {
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -152,7 +166,7 @@ app.use(
 );
 app.get("/", (_req, res) => res.sendFile(path.join(frontendDirectory, "index.html")));
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
     if (error?.type === "entity.parse.failed") {
         return res.status(400).json({ error: "Corps JSON invalide." });
     }
@@ -162,8 +176,9 @@ app.use((error, _req, res, _next) => {
     if (error?.message === "Origine non autorisée par CORS.") {
         return res.status(403).json({ error: "Origine non autorisée." });
     }
-    console.error("Erreur serveur non gérée", error);
-    return res.status(500).json({ error: "Erreur interne du serveur." });
+    if (process.env.SENTRY_DSN) Sentry.captureException(error, { tags: { request_id: req.requestId } });
+    console.error("Erreur serveur non gérée", { request_id: req.requestId, name: error?.name, code: error?.code });
+    return res.status(500).json({ error: "Erreur interne du serveur.", request_id: req.requestId });
 });
 
 try {

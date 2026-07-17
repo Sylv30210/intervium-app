@@ -7,7 +7,7 @@ services:
     buildCommand: cd Backend && npm ci --omit=dev
     startCommand: cd Backend && npm start
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    autoDeployTrigger: off
     envVars:
       - key: NODE_ENV
         value: production
@@ -35,3 +35,43 @@ services:
         sync: false
       - key: GMAIL_SENDING_ENABLED
         value: "true"
+      - key: PUBLIC_REGISTRATION_ENABLED
+        value: "false"
+      - key: REGISTRATION_ACCESS_CODE
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: TOTP_ENCRYPTION_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+  - type: web
+    name: intervium-staging
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: cd Backend && npm ci --omit=dev
+    startCommand: cd Backend && npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: STORAGE_DRIVER
+        value: cloudinary
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: PUBLIC_REGISTRATION_ENABLED
+        value: "false"
+      - key: SENTRY_DSN
+        sync: false
+      - key: TOTP_ENCRYPTION_KEY
+        sync: false
+      - key: APP_ENV
+        value: staging
