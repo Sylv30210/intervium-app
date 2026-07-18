@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v17-authenticated-media-preview";
+const CACHE_VERSION = "intervium-shell-v18-mobile-reports";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
@@ -8,6 +8,7 @@ const SHELL_RESOURCES = [
   "/utils/theme.js",
   "/utils/format.js",
   "/utils/media.js",
+  "/utils/collections.js",
   "/components/icons.js",
   "/api/client.js",
   "/views/resources.js",

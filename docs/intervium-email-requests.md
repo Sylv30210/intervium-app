@@ -2,6 +2,16 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-18 — Fil `19f7541ba3c71adf`
+
+- **Catégorie :** bugs mobiles et PDF.
+- **Résumé :** recherche des rapports inopérante en portrait, liste d’interventions variant selon l’orientation, sélection de photos limitée à l’appareil photo et blocs photo non rendus en demi-largeur dans le PDF.
+- **Analyse et décision :** demande claire, sûre et réalisable. La recherche locale ne couvrait que la page chargée et les lignes masquées restaient affichées dans la présentation mobile ; la taille de page dépendait en outre de la hauteur d’écran. La recherche est désormais transmise à l’API sur toutes les pages, les lignes filtrées sont réellement masquées et la pagination conserve 20 éléments quelle que soit l’orientation. L’attribut imposant la caméra est retiré afin de laisser Android proposer caméra ou photothèque. Les blocs photo configurés en demi-largeur rendent deux images par ligne dans le PDF.
+- **Réponse :** à envoyer directement à l’expéditeur original dans le fil direct, avec invitation à répondre à cet e-mail.
+- **Fichiers modifiés :** `Frontend/app.js`, `Frontend/app.css`, `Frontend/sw.js`, `Frontend/utils/collections.js`, `Frontend/views/resources.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** à compléter après validation.
+- **Vérifications :** à compléter après validation.
+
 ## 2026-07-18 — Fil `19f74aa0689611cb`
 
 - **Catégories :** bugs, fonctionnalités et améliorations.
