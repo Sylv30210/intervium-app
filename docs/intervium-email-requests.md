@@ -9,7 +9,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Analyse :** le service répond de nouveau correctement sur les routes publiques de santé et de version. Une seule alerte mémoire correspondante est présente dans la boîte. Le dépôt déclare un plan Render gratuit et comporte des traitements d’images et de PDF en mémoire, mais aucun log ni relevé métrique autour de l’incident n’est accessible dans cette session pour distinguer une fuite, un pic de charge ou une capacité insuffisante.
 - **Décision :** aucune modification de code ni changement de plan sans preuve. Incident conservé sous `Intervium/En attente` jusqu’à consultation des logs et de la courbe mémoire Render. Aucun message envoyé à l’adresse automatisée `no-reply`.
 - **Fichiers modifiés :** ce journal uniquement.
-- **Commit / PR :** commit de journal associé à cette entrée sur la branche de la PR [#4](https://github.com/Sylv30210/intervium-app/pull/4).
+- **Commit / PR :** incident journalisé à partir du commit `15ce270` ; PR brouillon [#5](https://github.com/Sylv30210/intervium-app/pull/5) ouverte vers `main`. La PR #4 précédente avait déjà été fusionnée avant cette alerte.
 - **Vérifications :** recherches Gmail générale et par sujet ; lecture du fil complet ; `GET /api/health` réussi ; `GET /api/version` réussi (`2.2.0`) ; dépôt propre avant journalisation. Aucun test applicatif exécuté faute de changement de code.
 
 ## 2026-07-18 — Fil `19f74aa0689611cb`
