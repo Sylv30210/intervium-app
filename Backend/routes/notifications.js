@@ -56,4 +56,27 @@ router.post("/read-all", async (req, res) => {
     res.json({ updated: result.rowCount });
 });
 
+router.delete("/", async (req, res) => {
+    try {
+        const result = await pool.query(`DELETE FROM notifications WHERE ${visibility}`, [req.user.entreprise_id, req.user.id, req.user.role]);
+        res.json({ deleted: result.rowCount });
+    } catch (error) {
+        console.error("Échec suppression notifications", error);
+        res.status(500).json({ error: "Impossible de supprimer les notifications." });
+    }
+});
+
+router.delete("/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: "Notification invalide." });
+    try {
+        const result = await pool.query(`DELETE FROM notifications WHERE id = $4 AND ${visibility} RETURNING id`, [req.user.entreprise_id, req.user.id, req.user.role, id]);
+        if (!result.rowCount) return res.status(404).json({ error: "Notification introuvable." });
+        res.json({ deleted: true });
+    } catch (error) {
+        console.error("Échec suppression notification", error);
+        res.status(500).json({ error: "Impossible de supprimer la notification." });
+    }
+});
+
 export default router;

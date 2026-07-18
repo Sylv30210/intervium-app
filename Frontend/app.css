@@ -48,3 +48,4 @@ html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.the
 @media(max-width:768px){.shell{height:auto;overflow:visible}.main{height:auto}}
 .pagination[hidden]{display:none!important}
 .table-wrap tr[hidden]{display:none!important}
+.notification-item{padding:0;overflow:hidden}.notification-open{flex:1;padding:13px;border:0;background:transparent;color:inherit;text-align:left}.notification-delete{align-self:center;margin-right:10px;padding:9px}

@@ -806,20 +806,31 @@ async function refreshNotificationCount() {
 }
 
 async function openNotifications() {
-    modal("Notifications", `<div class="panel-head"><label><input id="notifications-unread" type="checkbox"> Non lues uniquement</label><button class="secondary" id="read-all-notifications">Tout marquer comme lu</button></div><div id="notifications-list" class="notification-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div>`);
+    modal("Notifications", `<div class="panel-head"><label><input id="notifications-unread" type="checkbox"> Non lues uniquement</label><div class="actions"><button class="secondary" id="read-all-notifications">Tout marquer comme lu</button><button class="danger" id="delete-all-notifications">Tout supprimer</button></div></div><div id="notifications-list" class="notification-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div>`);
     const load = async () => {
         try {
             const unread = document.getElementById("notifications-unread")?.checked;
             const result = await api(`/notifications?limit=30${unread ? "&unread=true" : ""}`);
             const list = document.getElementById("notifications-list");
             if (!list) return;
-            list.innerHTML = result.items.length ? result.items.map((item) => `<button class="notification-item ${item.lu_at ? "" : "unread"}" data-notification-id="${item.id}" data-resource-type="${escapeHtml(item.ressource_type || "")}" data-resource-id="${item.ressource_id || ""}"><span><strong>${escapeHtml(item.titre)}</strong><small>${escapeHtml(item.message)}</small><small>${new Date(item.created_at).toLocaleString("fr-FR")}</small></span></button>`).join("") : `<div class="empty">Aucune notification.</div>`;
+            list.innerHTML = result.items.length ? result.items.map((item) => `<article class="notification-item ${item.lu_at ? "" : "unread"}"><button class="notification-open" data-notification-id="${item.id}" data-resource-type="${escapeHtml(item.ressource_type || "")}" data-resource-id="${item.ressource_id || ""}"><span><strong>${escapeHtml(item.titre)}</strong><small>${escapeHtml(item.message)}</small><small>${new Date(item.created_at).toLocaleString("fr-FR")}</small></span></button><button class="danger notification-delete" data-delete-notification="${item.id}" type="button" aria-label="Supprimer cette notification" title="Supprimer">${icon("trash")}</button></article>`).join("") : `<div class="empty">Aucune notification.</div>`;
             list.querySelectorAll("[data-notification-id]").forEach((button) => button.addEventListener("click", async () => { await api(`/notifications/${button.dataset.notificationId}/read`, { method: "PATCH" }); openSearchResult(button.dataset.resourceType, button.dataset.resourceId); }));
+            list.querySelectorAll("[data-delete-notification]").forEach((button) => button.addEventListener("click", async () => {
+                await withBusy(button, async () => {
+                    try { await api(`/notifications/${button.dataset.deleteNotification}`, { method: "DELETE" }); await load(); }
+                    catch (error) { toast(error.message, true); }
+                });
+            }));
             refreshNotificationCount();
         } catch (error) { document.getElementById("notifications-list").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
     };
     document.getElementById("notifications-unread").addEventListener("change", load);
     document.getElementById("read-all-notifications").addEventListener("click", async () => { await api("/notifications/read-all", { method: "POST" }); await load(); });
+    document.getElementById("delete-all-notifications").addEventListener("click", async () => {
+        if (!confirm("Supprimer définitivement toutes vos notifications ?")) return;
+        await api("/notifications", { method: "DELETE" });
+        await load();
+    });
     await load();
 }
 
