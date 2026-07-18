@@ -182,7 +182,7 @@ function showAuth(mode = "login") {
           <button class="primary wide" type="submit">Se connecter</button>
         </form>
         ${registrationAvailable ? `<form id="register-form" class="${mode === "register" ? "" : "hidden"}">
-          ${field("Code d’accès", "access_code", "password", true)}${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true)}${field("Mot de passe (8 caractères minimum)", "password", "password", true)}
+          ${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true)}${field("Mot de passe (8 caractères minimum)", "password", "password", true)}
           <button class="primary wide" type="submit">Créer mon espace</button>
         </form>` : ""}
         <footer class="auth-footer">Conçu par Sylvain Lecoeuvre</footer>

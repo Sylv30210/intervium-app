@@ -37,8 +37,6 @@ services:
         value: "true"
       - key: PUBLIC_REGISTRATION_ENABLED
         value: "false"
-      - key: REGISTRATION_ACCESS_CODE
-        sync: false
       - key: SENTRY_DSN
         sync: false
       - key: TOTP_ENCRYPTION_KEY

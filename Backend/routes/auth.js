@@ -21,8 +21,7 @@ const authRateLimit = createPersistentRateLimiter({
     max: 12,
     message: "Trop de tentatives. Réessayez dans quelques minutes.",
 });
-const publicRegistrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED === "true"
-    && Boolean(process.env.REGISTRATION_ACCESS_CODE);
+const publicRegistrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED === "true";
 
 function companyPayload(row) {
     return {
@@ -95,9 +94,8 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
 
     const createsEntreprise = Boolean(nomEntreprise);
 
-    if (createsEntreprise && (!publicRegistrationEnabled
-        || req.body.access_code !== process.env.REGISTRATION_ACCESS_CODE)) {
-        return res.status(403).json({ error: "La création publique d'entreprise est désactivée ou le code d'accès est invalide." });
+    if (createsEntreprise && !publicRegistrationEnabled) {
+        return res.status(403).json({ error: "La création publique d'entreprise est désactivée." });
     }
 
     if (!createsEntreprise && (!req.user || req.user.role !== "ADMIN")) {
