@@ -6,6 +6,7 @@ import { icon } from "../../Frontend/components/icons.js";
 import { parseEmailList } from "../../Frontend/clients/forms.js";
 import { calculateDocumentTotals } from "../../Frontend/documents/totals.js";
 import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "../../Frontend/utils/media.js";
+import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "../../Frontend/utils/collections.js";
 
 test("les valeurs injectées dans l'interface sont échappées", () => {
     assert.equal(escapeHtml('<img src=x onerror="alert(1)">'), "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
@@ -30,6 +31,20 @@ test("les aperçus de médias utilisent les sources authentifiées", () => {
         reportSignatureSourceUrl(17, "validation client"),
         "/api/uploads/signature-field/17/validation%20client/source"
     );
+});
+
+test("les listes gardent une pagination stable et transmettent la recherche au serveur", () => {
+    assert.equal(COLLECTION_PAGE_LIMIT, 20);
+    assert.equal(
+        collectionPageUrl("interventions", { page: 2, limit: COLLECTION_PAGE_LIMIT, query: " Provence " }),
+        "/interventions?page=2&limit=20&q=Provence"
+    );
+});
+
+test("le sélecteur de photos de rapport laisse le choix entre caméra et photothèque", async () => {
+    const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    assert.match(app, /id: "photo-file"[\s\S]*multiple: true/);
+    assert.doesNotMatch(app, /id: "photo-file"[\s\S]{0,300}capture: "environment"/);
 });
 
 test("la création d'un rapport direct n'est plus proposée dans l'interface", async () => {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, signatureFrameLayout } from "../services/pdf.js";
+import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, signatureFrameLayout } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -45,6 +45,16 @@ test("les photos sont réparties dans l'ordre des blocs du modèle", () => {
 
 test("un rapport sans bloc photo conserve sa galerie historique", () => {
     assert.deepEqual(allocatePhotosToSections([{ key: "texte", type: "text" }], ["photo-1"]), []);
+});
+
+test("un bloc photo en demi-largeur place deux photos par ligne dans le PDF", () => {
+    const half = pdfPhotoGridLayout({ type: "multi_photo", width: "half" }, 595, 48);
+    const full = pdfPhotoGridLayout({ type: "multi_photo", width: "full" }, 595, 48);
+
+    assert.equal(half.columns, 2);
+    assert.equal(half.imageWidth, 242.5);
+    assert.equal(full.columns, 1);
+    assert.equal(full.imageWidth, 499);
 });
 
 test("le cadre de signature suit la largeur réellement affichée", () => {
