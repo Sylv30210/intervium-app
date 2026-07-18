@@ -47,3 +47,4 @@ html[data-theme="dark"] :is(.file-upload-dropzone,.file-upload-preview),html.the
 .align-left{text-align:left}.align-center{text-align:center}.align-right{text-align:right}.column-width-1{width:10%}.column-width-2{width:20%}.column-width-3{width:30%}.column-width-4{width:40%}.rotation-0{transform:rotate(0)}.rotation-90{transform:rotate(90deg)}.rotation-180{transform:rotate(180deg)}.rotation-270{transform:rotate(270deg)}.photo-annotation-canvas{height:auto;max-height:65vh}
 @media(max-width:768px){.shell{height:auto;overflow:visible}.main{height:auto}}
 .pagination[hidden]{display:none!important}
+.table-wrap tr[hidden]{display:none!important}

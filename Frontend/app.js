@@ -8,6 +8,7 @@ import { bindSignatureCanvas } from "./reports/signature-canvas.js";
 import { clientContactFields, equipmentFields, parseEmailList } from "./clients/forms.js";
 import { calculateDocumentTotals } from "./documents/totals.js";
 import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "./utils/media.js";
+import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "./utils/collections.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -33,21 +34,10 @@ let platformCompanies = [];
 let publicRegistrationEnabled = null;
 let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equipments: 0 };
 let appVersion = "2.2.0";
-let collectionResizeTimer = null;
-
-function responsiveCollectionLimit() {
-    const height = window.visualViewport?.height || window.innerHeight || 800;
-    if (window.matchMedia("(max-width: 768px)").matches) {
-        return Math.max(3, Math.min(8, Math.floor((height - 250) / 170)));
-    }
-    return Math.max(5, Math.min(20, Math.floor((height - 300) / 62)));
-}
-
-const initialCollectionLimit = responsiveCollectionLimit();
 const collectionPages = {
-    interventions: { page: 1, limit: initialCollectionLimit, total: 0 },
-    clients: { page: 1, limit: initialCollectionLimit, total: 0 },
-    equipements: { page: 1, limit: initialCollectionLimit, total: 0 },
+    interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
+    clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
+    equipements: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
 };
 
 const app = document.getElementById("app");
@@ -58,17 +48,6 @@ const api = createApiClient({ onUnauthorized: () => { currentUser = null; showAu
 document.addEventListener("DOMContentLoaded", async () => {
     initPwa();
     await initApp();
-});
-
-window.addEventListener("resize", () => {
-    clearTimeout(collectionResizeTimer);
-    collectionResizeTimer = setTimeout(() => {
-        const state = collectionPages[currentView];
-        const limit = responsiveCollectionLimit();
-        if (!currentUser || !state || state.limit === limit) return;
-        state.limit = limit;
-        loadCollectionPage(currentView, 1).catch((error) => toast(error.message, true));
-    }, 180);
 });
 
 function isStandaloneMode() {
@@ -338,7 +317,7 @@ async function logout() {
 }
 
 async function loadAllData() {
-    const collectionLimit = responsiveCollectionLimit();
+    const collectionLimit = COLLECTION_PAGE_LIMIT;
     Object.values(collectionPages).forEach((state) => { state.limit = collectionLimit; });
     appVersion = (await api("/version").catch(() => ({ version: appVersion }))).version;
     googleMailStatus = await api("/google/status").catch(() => ({ enabled: false, connection: null }));
@@ -410,6 +389,7 @@ function renderMain(view = "dashboard") {
     });
     bindMainActions(view);
     bindServerPagination();
+    bindServerSearch();
     bindMobileNavigationReorder();
     updateInstallUi();
     refreshNotificationCount();
@@ -602,10 +582,18 @@ function serverPager(view) {
     return `<div class="pagination server-pagination"><button class="secondary" data-server-page="${state.page - 1}" data-server-view="${view}" ${state.page <= 1 ? "disabled" : ""}>Précédent</button><span>${state.total} résultat(s) · page ${state.page}/${pages}</span><button class="secondary" data-server-page="${state.page + 1}" data-server-view="${view}" ${state.page >= pages ? "disabled" : ""}>Suivant</button></div>`;
 }
 
+function serverSearch(view) {
+    const state = collectionPages[view];
+    if (!state) return "";
+    return `<div class="table-tools"><label class="sr-only" for="server-search-${view}">Filtrer cette liste</label><input id="server-search-${view}" data-server-search="${view}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(state.query)}"><button class="secondary" data-server-search-reset="${view}" type="button">Réinitialiser</button></div>`;
+}
+
 async function loadCollectionPage(view, page) {
     const state = collectionPages[view];
     if (!state) return;
-    const result = await api(`/${view}?page=${page}&limit=${state.limit}`);
+    const requestId = ++state.requestId;
+    const result = await api(collectionPageUrl(view, { page, limit: state.limit, query: state.query }));
+    if (requestId !== state.requestId) return;
     if (view === "interventions") interventions = result.items;
     if (view === "clients") clients = result.items;
     if (view === "equipements") equipements = result.items;
@@ -619,7 +607,29 @@ function bindServerPagination() {
     }));
 }
 
-function renderInterventions() { return `<section class="panel">${interventionTable(interventions, true)}${serverPager("interventions")}</section>`; }
+function bindServerSearch() {
+    document.querySelectorAll("[data-server-search]").forEach((input) => {
+        let timer;
+        input.addEventListener("input", () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const state = collectionPages[input.dataset.serverSearch];
+                if (!state) return;
+                state.query = input.value.trim();
+                loadCollectionPage(input.dataset.serverSearch, 1).catch((error) => toast(error.message, true));
+            }, 250);
+        });
+    });
+    document.querySelectorAll("[data-server-search-reset]").forEach((button) => button.addEventListener("click", () => {
+        const view = button.dataset.serverSearchReset;
+        const state = collectionPages[view];
+        if (!state) return;
+        state.query = "";
+        loadCollectionPage(view, 1).catch((error) => toast(error.message, true));
+    }));
+}
+
+function renderInterventions() { return `<section class="panel">${serverSearch("interventions")}${interventionTable(interventions, true)}${serverPager("interventions")}</section>`; }
 
 function renderPlanning() {
     const year = planningCursor.getFullYear();
@@ -652,9 +662,9 @@ function interventionTable(items, actions) {
     return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport"><strong>${escapeHtml(item.numero_rapport || "Historique")}</strong><br>${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
-function renderClients() { return renderClientsView({ clients, currentUser, pager: serverPager("clients") }); }
+function renderClients() { return renderClientsView({ clients, currentUser, toolbar: serverSearch("clients"), pager: serverPager("clients") }); }
 
-function renderEquipements() { return renderEquipmentsView({ equipments: equipements, currentUser, pager: serverPager("equipements") }); }
+function renderEquipements() { return renderEquipmentsView({ equipments: equipements, currentUser, toolbar: serverSearch("equipements"), pager: serverPager("equipements") }); }
 
 function renderTeam() { return renderTeamView({ technicians }); }
 
@@ -692,12 +702,29 @@ function enhanceBusinessTables(view) {
     document.querySelectorAll("#view .table-wrap").forEach((wrap, tableIndex) => {
         const table = wrap.querySelector("table");
         const rows = [...table?.tBodies?.[0]?.rows || []];
-        if (!table || rows.length < 2 || wrap.dataset.enhanced) return;
+        const serverState = collectionPages[view];
+        const serverBacked = Boolean(serverState);
+        if (!table || (!serverBacked && rows.length < 2) || wrap.dataset.enhanced) return;
         wrap.dataset.enhanced = "true";
         const storageKey = `intervium_table:${view}:${tableIndex}`;
-        const serverBacked = Boolean(collectionPages[view]);
         let saved = {}; try { saved = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch {}
         let page = 1; const pageSize = serverBacked ? Number.MAX_SAFE_INTEGER : 10; let sortIndex = Number.isInteger(saved.sortIndex) ? saved.sortIndex : -1; let direction = saved.direction || "asc";
+        if (serverBacked) {
+            const renderServerRows = () => {
+                const ordered = [...rows];
+                if (sortIndex >= 0) ordered.sort((a, b) => a.cells[sortIndex].textContent.trim().localeCompare(b.cells[sortIndex].textContent.trim(), "fr", { numeric: true }) * (direction === "asc" ? 1 : -1));
+                ordered.forEach((row) => { row.hidden = false; row.parentElement.append(row); });
+                try { sessionStorage.setItem(storageKey, JSON.stringify({ sortIndex, direction })); } catch {}
+            };
+            [...table.tHead?.rows?.[0]?.cells || []].forEach((header, index) => {
+                if (/actions?/i.test(header.textContent)) return;
+                header.tabIndex = 0; header.title = "Trier cette colonne";
+                header.addEventListener("click", () => { direction = sortIndex === index && direction === "asc" ? "desc" : "asc"; sortIndex = index; renderServerRows(); });
+                header.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); header.click(); } });
+            });
+            renderServerRows();
+            return;
+        }
         const tools = document.createElement("div"); tools.className = "table-tools";
         tools.innerHTML = `<label class="sr-only" for="table-search-${tableIndex}">Filtrer ce tableau</label><input id="table-search-${tableIndex}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(saved.query || "")}"><button class="secondary" type="button">Réinitialiser</button>`;
         wrap.before(tools);
@@ -1926,7 +1953,7 @@ function openIntervention(id) {
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
-    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter des photos", help: "PNG, JPEG, WebP ou photos de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment", multiple: true })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer les photos</button>
+    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter des photos", help: "PNG, JPEG, WebP depuis l’appareil photo ou la photothèque", accept: "image/png,image/jpeg,image/webp", maxMb: 5, multiple: true })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer les photos</button>
     ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));

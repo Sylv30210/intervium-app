@@ -38,6 +38,9 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         donnees_rapport: {},
     }).expect(201);
     assert.match(intervention.body.numero_rapport, /^\d{4}-\d{4}$/);
+    const notifications = await agent.get("/api/notifications").expect(200);
+    assert.equal(notifications.body.items[0].type, "INTERVENTION_SOON");
+    assert.equal(notifications.body.pagination.total, 1);
     const photoBuffer = await sharp({
         create: { width: 8, height: 12, channels: 3, background: "#2563eb" },
     }).png().toBuffer();

@@ -2,6 +2,17 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-18 — Fil `19f7541ba3c71adf`
+
+- **Catégorie :** bugs mobiles et PDF.
+- **Résumé :** recherche des rapports inopérante en portrait, liste d’interventions variant selon l’orientation, sélection de photos limitée à l’appareil photo et blocs photo non rendus en demi-largeur dans le PDF.
+- **Analyse et décision :** demande claire, sûre et réalisable. La recherche locale ne couvrait que la page chargée et les lignes masquées restaient affichées dans la présentation mobile ; la taille de page dépendait en outre de la hauteur d’écran. La recherche est désormais transmise à l’API sur toutes les pages, les lignes filtrées sont réellement masquées et la pagination conserve 20 éléments quelle que soit l’orientation. L’attribut imposant la caméra est retiré afin de laisser Android proposer caméra ou photothèque. Les blocs photo configurés en demi-largeur rendent deux images par ligne dans le PDF.
+- **Réponse :** confirmation envoyée directement à l’expéditeur original dans le fil direct `19f74cb0a232006d`, avec résumé des quatre corrections, lien vers la PR et invitation à répondre à cet e-mail après publication en cas de problème persistant. Le fil transféré et la réponse directe sont libellés `Intervium/Traité`.
+- **Fichiers modifiés :** `Frontend/app.js`, `Frontend/app.css`, `Frontend/sw.js`, `Frontend/utils/collections.js`, `Frontend/views/resources.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR / publication :** commits applicatif `895123d` et de suivi jusqu’à `771c7a5` poussés sur `agent/intervium-mobile-2026-07-18` ; PR brouillon [#6](https://github.com/Sylv30210/intervium-app/pull/6). Le commit `771c7a5` a été publié directement sur le service Render de production le 2026-07-18, sans fusion de la PR ; déploiement `dep-d9dni0mrnols73cr04m0` passé à `live`.
+- **Vérifications :** `git diff --check`, `npm run check`, `npm test` (37 réussis, 1 intégration PostgreSQL ignorée localement faute d’environnement activé) et `npm run release:check` réussis ; les deux contrôles GitHub Actions du commit `6379eb4` sont également réussis, y compris l’intégration PostgreSQL complète. Après publication, `/`, `/api/health` et `/api/version` répondent en HTTP 200 et aucun journal Render de niveau erreur n’est présent depuis le début du déploiement.
+- **Incident après publication :** les logs ont ensuite révélé un échec PostgreSQL `bigint = text` sur `/api/notifications` et l’avertissement persistant concernant le checksum de la migration 015 assainie. Le correctif `67b8e96` ajoute des casts explicites aux paramètres de notifications, couvre l’endpoint dans le test PostgreSQL et régularise uniquement la transition de checksum historique connue, sans réexécuter 015 ni restaurer les données sensibles retirées. Les deux CI, dont l’intégration PostgreSQL complète, ont réussi ; le déploiement Render `dep-d9dobn3tqb8s7394mppg` est passé à `live`. La migration 021 a été appliquée, la base confirme le checksum assaini de 015 et aucun nouveau HTTP 500 n’est apparu depuis le démarrage de la nouvelle instance.
+
 ## 2026-07-18 — Fil `19f74aa0689611cb`
 
 - **Catégories :** bugs, fonctionnalités et améliorations.

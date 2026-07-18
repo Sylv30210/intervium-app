@@ -22,6 +22,15 @@ export function pdfFieldLabelVisible(field) {
     return field?.showLabel !== false;
 }
 
+export function pdfPhotoGridLayout(field, pageWidth, margin = 48) {
+    const gap = 14;
+    const availableWidth = Math.max(1, Number(pageWidth) - (margin * 2));
+    const columns = field?.width === "half" ? 2 : 1;
+    const imageWidth = columns === 2 ? (availableWidth - gap) / 2 : availableWidth;
+    const imageHeight = columns === 2 ? 155 : 205;
+    return { columns, gap, imageWidth, imageHeight, rowAdvance: imageHeight + 10 };
+}
+
 export function signatureFrameLayout(width, height) {
     const sourceWidth = Math.max(1, Number(width) || 1);
     const sourceHeight = Math.max(1, Number(height) || 1);
@@ -304,17 +313,21 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         const hasTemplateSignature = templateSections.some((section) => signatureTypes.has(section.type));
         const renderPhotoBlock = (field, sectionPhotos) => {
             if (pdfConfig.showPhotos === false) return;
-            ensureSpace(doc, 253);
+            const layout = pdfPhotoGridLayout(field, doc.page.width);
+            ensureSpace(doc, layout.rowAdvance + 38);
             if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Photos du terrain");
             if (!sectionPhotos.length) {
                 doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune photo enregistrée.");
                 return;
             }
-            for (const image of sectionPhotos) {
-                ensureSpace(doc, 215);
+            for (let index = 0; index < sectionPhotos.length; index += layout.columns) {
+                ensureSpace(doc, layout.rowAdvance);
                 const y = doc.y;
-                doc.image(image, 48, y, { fit: [499, 205], align: "center", valign: "center" });
-                doc.y = y + 215;
+                sectionPhotos.slice(index, index + layout.columns).forEach((image, column) => {
+                    const x = 48 + (column * (layout.imageWidth + layout.gap));
+                    doc.image(image, x, y, { fit: [layout.imageWidth, layout.imageHeight], align: "center", valign: "center" });
+                });
+                doc.y = y + layout.rowAdvance;
             }
         };
         if (templateSections.length > 0) {
