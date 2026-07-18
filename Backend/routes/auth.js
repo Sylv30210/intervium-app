@@ -61,7 +61,8 @@ function publicUser(user) {
             write_enabled: user.support_write === true,
         } : null,
         consent_required: user.conditions_version !== TERMS_VERSION,
-        cookies_choice: user.cookies_choice || "necessary",
+        cookies_choice: user.cookies_choice ?? null,
+        onboarding_completed: user.onboarding_completed === true,
     };
 }
 
@@ -133,7 +134,7 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
         const userResult = await client.query(
             `INSERT INTO utilisateurs (entreprise_id, nom, email, password, role)
              VALUES ($1, $2, $3, $4, $5)
-             RETURNING id, entreprise_id, nom, email, role`,
+             RETURNING id, entreprise_id, nom, email, role, onboarding_completed`,
             [entrepriseId, nom, email, hashedPassword, role]
         );
 
@@ -175,7 +176,7 @@ router.post("/login", authRateLimit, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe,
-                    conditions_version, cookies_choice, totp_secret_chiffre, totp_active
+                    conditions_version, cookies_choice, onboarding_completed, totp_secret_chiffre, totp_active
              FROM utilisateurs
              WHERE email = $1 AND actif = TRUE
              LIMIT 1`,
@@ -206,7 +207,7 @@ router.get("/me", verifyToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT u.id, $2::bigint AS entreprise_id, u.nom, u.email, u.role, u.doit_changer_mot_de_passe,
-                    u.conditions_version, u.cookies_choice,
+                    u.conditions_version, u.cookies_choice, u.onboarding_completed,
                     e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
                     e.report_settings AS entreprise_report_settings
              FROM utilisateurs u
@@ -274,6 +275,23 @@ router.put("/consent", verifyToken, async (req, res) => {
         [TERMS_VERSION, cookiesChoice, req.user.id, req.user.home_entreprise_id]
     );
     return res.status(204).send();
+});
+
+router.put("/onboarding", verifyToken, async (req, res) => {
+    const completed = req.body.completed === true;
+    try {
+        const result = await pool.query(
+            `UPDATE utilisateurs SET onboarding_completed=$1, updated_at=NOW()
+             WHERE id=$2 AND entreprise_id=$3
+             RETURNING onboarding_completed`,
+            [completed, req.user.id, req.user.home_entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Compte introuvable." });
+        return res.json({ onboarding_completed: result.rows[0].onboarding_completed });
+    } catch (error) {
+        console.error("Échec de l'enregistrement du tutoriel", error);
+        return res.status(500).json({ error: "Impossible d'enregistrer l'état du tutoriel." });
+    }
 });
 
 router.get("/companies", verifyToken, requireRole(["ADMIN"]), async (req, res) => {

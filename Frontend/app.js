@@ -32,6 +32,9 @@ let mobileNavLongPressTimer = null;
 let googleMailStatus = { enabled: false, connection: null };
 let platformCompanies = [];
 let publicRegistrationEnabled = null;
+let onboardingStepIndex = -1;
+let onboardingKeyHandler = null;
+let onboardingPositionHandler = null;
 let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equipments: 0 };
 let appVersion = "2.2.0";
 const collectionPages = {
@@ -140,6 +143,7 @@ async function initApp() {
         }
         await loadAllData();
         navigateTo(viewFromLocation(), true);
+        if (!currentUser.onboarding_completed) setTimeout(() => startOnboarding(), 250);
     } catch (error) {
         if (!navigator.onLine || /connexion|serveur inaccessible/i.test(error.message)) {
             showOfflineScreen(error.message);
@@ -373,7 +377,7 @@ function renderMain(view = "dashboard") {
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
       <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleForView(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
-    </div><div id="modal-root"></div>`;
+    </div><div id="modal-root"></div><div id="onboarding-root"></div>`;
 
     document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.view)));
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
@@ -847,6 +851,144 @@ function bindDeletes(name, path, view) {
     }));
 }
 
+function onboardingSteps() {
+    const role = currentUser?.role;
+    return [
+        { title: "Bienvenue dans Intervium", text: "Ce menu donne accès aux principales fonctions de l’application.", selector: ".sidebar .nav, .bottom-nav" },
+        ...(role !== "CLIENT" ? [{ title: "Créer une intervention", text: "Commence ici pour planifier ta première intervention.", view: "interventions", selector: "#add-interventions" }] : []),
+        ...(role !== "CLIENT" ? [{ title: "Gérer les clients", text: "Retrouve ici tous tes clients et leurs coordonnées.", view: "clients", selector: '[data-view="clients"]' }] : []),
+        ...(role === "ADMIN" ? [{ title: "Préparer les rapports", text: "Crée ici des modèles avec les questions et champs à remplir.", view: "modeles", selector: "#add-modeles" }] : []),
+        ...(role !== "CLIENT" ? [{ title: "Suivre le planning", text: "Consulte ici les interventions à venir.", view: "planning", selector: '[data-view="planning"]' }] : []),
+        { title: "Consulter les rapports", text: "Retrouve ici les interventions en cours et terminées.", view: "interventions", selector: '[data-view="interventions"]' },
+        { title: "Personnaliser le compte", text: "Tu peux modifier les paramètres de ton compte ici.", selector: "#desktop-settings, #mobile-settings" },
+        { title: "Tout est prêt !", text: "Tu peux maintenant utiliser Intervium. Le tutoriel reste disponible dans les paramètres.", selector: null },
+    ];
+}
+
+function visibleOnboardingTarget(selector) {
+    if (!selector) return null;
+    return [...document.querySelectorAll(selector)].find((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    }) || null;
+}
+
+function removeOnboardingListeners() {
+    if (onboardingKeyHandler) document.removeEventListener("keydown", onboardingKeyHandler);
+    if (onboardingPositionHandler) {
+        window.removeEventListener("resize", onboardingPositionHandler);
+        document.removeEventListener("scroll", onboardingPositionHandler, true);
+    }
+    onboardingKeyHandler = null;
+    onboardingPositionHandler = null;
+}
+
+function closeOnboarding() {
+    removeOnboardingListeners();
+    document.getElementById("onboarding-root")?.replaceChildren();
+    onboardingStepIndex = -1;
+}
+
+function positionOnboarding(target) {
+    const root = document.getElementById("onboarding-root");
+    const bubble = root?.querySelector(".onboarding-bubble");
+    if (!root || !bubble) return;
+    const shades = [...root.querySelectorAll(".onboarding-shade")];
+    const spotlight = root.querySelector(".onboarding-spotlight");
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const margin = 12;
+    const gap = 14;
+
+    if (!target) {
+        shades[0].style.cssText = "inset:0";
+        shades.slice(1).forEach((shade) => { shade.style.cssText = "display:none"; });
+        spotlight.hidden = true;
+        const bubbleRect = bubble.getBoundingClientRect();
+        bubble.style.left = `${Math.max(margin, (viewportWidth - bubbleRect.width) / 2)}px`;
+        bubble.style.top = `${Math.max(margin, (viewportHeight - bubbleRect.height) / 2)}px`;
+        bubble.dataset.arrow = "none";
+        return;
+    }
+
+    const raw = target.getBoundingClientRect();
+    const pad = 7;
+    const rect = {
+        top: Math.max(0, raw.top - pad), left: Math.max(0, raw.left - pad),
+        right: Math.min(viewportWidth, raw.right + pad), bottom: Math.min(viewportHeight, raw.bottom + pad),
+    };
+    shades.forEach((shade) => { shade.style.display = "block"; });
+    shades[0].style.cssText = `left:0;top:0;width:100%;height:${rect.top}px`;
+    shades[1].style.cssText = `left:0;top:${rect.top}px;width:${rect.left}px;height:${Math.max(0, rect.bottom - rect.top)}px`;
+    shades[2].style.cssText = `left:${rect.right}px;top:${rect.top}px;width:${Math.max(0, viewportWidth - rect.right)}px;height:${Math.max(0, rect.bottom - rect.top)}px`;
+    shades[3].style.cssText = `left:0;top:${rect.bottom}px;width:100%;height:${Math.max(0, viewportHeight - rect.bottom)}px`;
+    spotlight.hidden = false;
+    spotlight.style.cssText = `left:${rect.left}px;top:${rect.top}px;width:${rect.right - rect.left}px;height:${rect.bottom - rect.top}px`;
+
+    const bubbleRect = bubble.getBoundingClientRect();
+    let left = rect.left + (rect.right - rect.left - bubbleRect.width) / 2;
+    left = Math.min(viewportWidth - bubbleRect.width - margin, Math.max(margin, left));
+    const fitsBelow = rect.bottom + gap + bubbleRect.height <= viewportHeight - margin;
+    let top = fitsBelow ? rect.bottom + gap : rect.top - bubbleRect.height - gap;
+    if (top < margin) top = Math.min(viewportHeight - bubbleRect.height - margin, rect.bottom + gap);
+    bubble.style.left = `${left}px`;
+    bubble.style.top = `${Math.max(margin, top)}px`;
+    bubble.dataset.arrow = fitsBelow || top >= rect.bottom ? "top" : "bottom";
+}
+
+async function saveOnboardingCompleted() {
+    try {
+        await api("/auth/onboarding", { method: "PUT", body: JSON.stringify({ completed: true }) });
+        currentUser.onboarding_completed = true;
+        closeOnboarding();
+    } catch (error) { toast(error.message, true); }
+}
+
+async function showOnboardingStep(index, direction = 1) {
+    const steps = onboardingSteps();
+    if (index < 0 || index >= steps.length) return saveOnboardingCompleted();
+    removeOnboardingListeners();
+    onboardingStepIndex = index;
+    const step = steps[index];
+    if (step.view && currentView !== step.view) {
+        navigateTo(step.view);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    const target = visibleOnboardingTarget(step.selector);
+    if (step.selector && !target) {
+        const next = index + direction;
+        if (next >= 0 && next < steps.length) return showOnboardingStep(next, direction);
+    }
+
+    const root = document.getElementById("onboarding-root");
+    if (!root) return;
+    root.innerHTML = `<div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-spotlight" aria-hidden="true"></div><section class="onboarding-bubble" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-text" tabindex="-1"><div class="onboarding-progress">Étape ${index + 1} sur ${steps.length}</div><h2 id="onboarding-title">${escapeHtml(step.title)}</h2><p id="onboarding-text">${escapeHtml(step.text)}</p><div class="onboarding-actions"><button class="secondary" id="skip-onboarding" type="button">Passer le tutoriel</button><div>${index > 0 ? '<button class="secondary" id="previous-onboarding" type="button">Précédent</button>' : ""}<button class="primary" id="next-onboarding" type="button">${index === steps.length - 1 ? "Terminer" : "Suivant"}</button></div></div></section>`;
+    const bubble = root.querySelector(".onboarding-bubble");
+    document.getElementById("skip-onboarding").addEventListener("click", saveOnboardingCompleted);
+    document.getElementById("previous-onboarding")?.addEventListener("click", () => showOnboardingStep(index - 1, -1));
+    document.getElementById("next-onboarding").addEventListener("click", () => index === steps.length - 1 ? saveOnboardingCompleted() : showOnboardingStep(index + 1, 1));
+    onboardingKeyHandler = (event) => {
+        if (event.key === "Escape") { event.preventDefault(); saveOnboardingCompleted(); return; }
+        if (event.key !== "Tab") return;
+        const focusable = [...bubble.querySelectorAll("button:not(:disabled)")];
+        if (event.shiftKey && document.activeElement === focusable[0]) { event.preventDefault(); focusable.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === focusable.at(-1)) { event.preventDefault(); focusable[0].focus(); }
+    };
+    onboardingPositionHandler = () => requestAnimationFrame(() => positionOnboarding(target));
+    document.addEventListener("keydown", onboardingKeyHandler);
+    window.addEventListener("resize", onboardingPositionHandler);
+    document.addEventListener("scroll", onboardingPositionHandler, true);
+    positionOnboarding(target);
+    requestAnimationFrame(() => (document.getElementById("next-onboarding") || bubble).focus());
+}
+
+function startOnboarding() {
+    closeModal(true);
+    onboardingStepIndex = 0;
+    showOnboardingStep(0);
+}
+
 function modal(title, content) {
     const root = document.getElementById("modal-root");
     root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${escapeHtml(title)}</h2><button class="close icon-only" id="close-modal" type="button" aria-label="Fermer" title="Fermer">${icon("close")}</button></header>${content}</section></div>`;
@@ -921,6 +1063,7 @@ function openSettings() {
           ${googleMailStatus.enabled ? "" : `<p class="muted">Configuration serveur incomplète${googleMailStatus.configuration?.missing?.length ? ` : ${escapeHtml(googleMailStatus.configuration.missing.join(", "))}` : ". Vérifiez GMAIL_SENDING_ENABLED=true."}</p>`}
         </section>
         <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
+        <section class="settings-intro"><strong>Aide et prise en main</strong><p>Revoir la présentation des principales fonctions d’Intervium.</p><button class="primary wide" id="restart-onboarding" type="button">Relancer le tutoriel</button></section>
         ${pwaSettings}
         ${companySettings}
         ${currentUser.role === "ADMIN" ? '<section class="settings-intro"><strong>État du service</strong><p>Consultez l’usage de la base, du stockage et la version serveur.</p><button class="secondary wide" id="open-admin-status" type="button">Afficher l’état interne</button></section>' : ""}
@@ -946,6 +1089,16 @@ function openSettings() {
     });
     document.querySelectorAll("[data-install-app]").forEach((button) => button.addEventListener("click", installIntervium));
     document.getElementById("customize-mobile-nav")?.addEventListener("click", openMobileNavigationCustomizer);
+    document.getElementById("restart-onboarding")?.addEventListener("click", async (event) => {
+        await withBusy(event.currentTarget, async () => {
+            try {
+                await api("/auth/onboarding", { method: "PUT", body: JSON.stringify({ completed: false }) });
+                currentUser.onboarding_completed = false;
+                closeModal(true);
+                startOnboarding();
+            } catch (error) { toast(error.message, true); }
+        });
+    });
     document.getElementById("open-admin-status")?.addEventListener("click", async () => {
         try {
             const status = await api("/admin/status");
