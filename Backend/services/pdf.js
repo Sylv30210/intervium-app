@@ -225,6 +225,20 @@ function reportTable(doc, section, rows) {
     doc.moveDown(0.45);
 }
 
+export function allocatePhotosToSections(templateSections, photos) {
+    const photoTypes = new Set(["photo", "multi_photo", "event_photos"]);
+    const sections = templateSections.filter((section) => photoTypes.has(section.type));
+    if (!sections.length) return [];
+    let cursor = 0;
+    return sections.map((section) => {
+        const fallback = section.type === "photo" ? 1 : 5;
+        const capacity = Math.max(1, Number(section.maxPhotos) || fallback);
+        const allocation = { section, photos: photos.slice(cursor, cursor + capacity) };
+        cursor += capacity;
+        return allocation;
+    });
+}
+
 export async function generateInterventionPdf({ intervention, equipments, photos }) {
     const photoBuffers = (
         await Promise.all(photos.map(async (photo) => {
@@ -258,7 +272,24 @@ export async function generateInterventionPdf({ intervention, equipments, photos
 
         const photoTypes = new Set(["photo", "multi_photo", "event_photos"]);
         const signatureTypes = new Set(["signature", "electronic_signature"]);
-        const photoSection = templateSections.find((section) => photoTypes.has(section.type));
+        const photoAllocations = allocatePhotosToSections(templateSections, photoBuffers);
+        const photosBySection = new Map(photoAllocations.map(({ section, photos: sectionPhotos }) => [section, sectionPhotos]));
+        const hasTemplateSignature = templateSections.some((section) => signatureTypes.has(section.type));
+        const renderPhotoBlock = (field, sectionPhotos) => {
+            if (pdfConfig.showPhotos === false) return;
+            ensureSpace(doc, 253);
+            if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Photos du terrain");
+            if (!sectionPhotos.length) {
+                doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune photo enregistrée.");
+                return;
+            }
+            for (const image of sectionPhotos) {
+                ensureSpace(doc, 215);
+                const y = doc.y;
+                doc.image(image, 48, y, { fit: [499, 205], align: "center", valign: "center" });
+                doc.y = y + 215;
+            }
+        };
         if (templateSections.length > 0) {
             sectionTitle(doc, intervention.modele_rapport_nom || "Informations du rapport");
             for (let fieldIndex = 0; fieldIndex < templateSections.length; fieldIndex += 1) {
@@ -290,7 +321,10 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     }
                     continue;
                 }
-                if (photoTypes.has(field.type)) continue;
+                if (photoTypes.has(field.type)) {
+                    renderPhotoBlock(field, photosBySection.get(field) || []);
+                    continue;
+                }
                 const rawValue = templateData[field.key];
                 if (["table", "price_table"].includes(field.type)) {
                     reportTable(doc, field, rawValue);
@@ -321,11 +355,11 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             }
         }
 
-        if (pdfConfig.showPhotos !== false && photoBuffers.length > 0) {
+        if (pdfConfig.showPhotos !== false && photoBuffers.length > 0 && photoAllocations.length === 0) {
             const photoHeight = signatureBuffer ? 135 : 205;
             const photoAdvance = photoHeight + 10;
             ensureSpace(doc, photoAdvance + 48);
-            sectionTitle(doc, photoSection?.label || "Photos du terrain");
+            sectionTitle(doc, "Photos du terrain");
             for (const image of photoBuffers) {
                 ensureSpace(doc, photoAdvance);
                 const y = doc.y;
@@ -334,7 +368,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             }
         }
 
-        if (pdfConfig.showSignature !== false && signatureBuffer) {
+        if (pdfConfig.showSignature !== false && signatureBuffer && !hasTemplateSignature) {
             const signatureBlockHeight = signatureBuffer ? 95 : 38;
             ensureSpace(doc, signatureBlockHeight + 38);
             sectionTitle(doc, "Signature client");

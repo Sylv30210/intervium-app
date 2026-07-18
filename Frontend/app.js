@@ -1932,7 +1932,6 @@ function openIntervention(id) {
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
     </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
-    <div class="field"><label>Signature client</label><canvas id="signature-canvas" class="canvas"></canvas><div class="actions"><button class="secondary" id="clear-signature">Effacer</button><button class="primary" id="upload-signature">Enregistrer la signature</button></div></div>
     ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
@@ -1975,7 +1974,6 @@ function openIntervention(id) {
     });
     bindFileUpload(document.querySelector("#photo-file")?.closest("[data-file-upload]"));
     document.getElementById("upload-photo").addEventListener("click", () => uploadPhoto(id));
-    setupSignatureCanvas(id);
     bindMediaActions(item);
     bindPdfDownload();
     bindReportEmail(item);
@@ -2068,27 +2066,6 @@ async function uploadPhoto(id) {
             toast("Photo envoyée.");
         } catch (error) { toast(error.message, true); }
     });
-}
-
-function setupSignatureCanvas(id) {
-    const canvas = document.getElementById("signature-canvas");
-    bindSignatureCanvas({
-        canvas,
-        clearButton: document.getElementById("clear-signature"),
-        saveButton: document.getElementById("upload-signature"),
-        onEmpty: () => toast("La signature est vide.", true),
-        onSave: async ({ event, signatureData }) => {
-        const button = event.currentTarget;
-        await withBusy(button, async () => {
-            try {
-                const result = await api(`/uploads/signature/${id}`, { method: "POST", body: JSON.stringify({ signatureData }) });
-                const item = interventions.find((entry) => String(entry.id) === String(id));
-                item.signature_url = result.signature_url;
-                openIntervention(id);
-                toast("Signature enregistrée.");
-            } catch (error) { toast(error.message, true); }
-        });
-    }});
 }
 
 function setupReportSignatureCanvases(interventionId, root) {
