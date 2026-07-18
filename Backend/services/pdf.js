@@ -22,6 +22,32 @@ export function pdfFieldLabelVisible(field) {
     return field?.showLabel !== false;
 }
 
+export function signatureFrameLayout(width, height) {
+    const sourceWidth = Math.max(1, Number(width) || 1);
+    const sourceHeight = Math.max(1, Number(height) || 1);
+    const scale = Math.min(1, 225 / sourceWidth, 50 / sourceHeight);
+    const imageWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const imageHeight = Math.max(1, Math.round(sourceHeight * scale));
+    return { imageWidth, imageHeight, frameWidth: imageWidth + 20 };
+}
+
+async function signatureAsset(publicUrl) {
+    const buffer = await localImage(publicUrl);
+    if (!buffer) return null;
+    const trimmedBuffer = await sharp(buffer).trim({ threshold: 10 }).png().toBuffer();
+    const metadata = await sharp(trimmedBuffer).metadata();
+    return { buffer: trimmedBuffer, layout: signatureFrameLayout(metadata.width, metadata.height) };
+}
+
+export function interventionPdfFilename(intervention) {
+    const rawIdentifier = intervention?.numero_rapport || intervention?.id || "intervention";
+    const identifier = String(rawIdentifier)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "intervention";
+    return `rapport-${identifier}.pdf`;
+}
+
 function reportBranding(intervention) {
     const source = intervention.entreprise_report_settings && typeof intervention.entreprise_report_settings === "object"
         ? intervention.entreprise_report_settings
@@ -246,17 +272,18 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             return image && Number(photo.rotation) ? sharp(image).rotate(Number(photo.rotation)).png().toBuffer() : image;
         }))
     ).filter(Boolean);
-    const signatureBuffer = await localImage(intervention.signature_url);
+    const signature = await signatureAsset(intervention.signature_url);
+    const signatureBuffer = signature?.buffer || null;
     const logoBuffer = await localImage(intervention.entreprise_logo_url);
     const branding = reportBranding(intervention);
     const pdfConfig = intervention.modele_pdf_config && typeof intervention.modele_pdf_config === "object" ? intervention.modele_pdf_config : {};
     const margin = Math.min(90, Math.max(24, Number(pdfConfig.margin) || 48));
     const templateSections = Array.isArray(intervention.modele_rapport_sections) ? intervention.modele_rapport_sections : [];
     const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object" ? intervention.donnees_rapport : {};
-    const templateSignatureBuffers = new Map((await Promise.all(templateSections
+    const templateSignatures = new Map((await Promise.all(templateSections
         .filter((section) => ["signature", "electronic_signature"].includes(section.type))
-        .map(async (section) => [section.key, await localImage(templateData[section.key])])))
-        .filter(([, buffer]) => buffer));
+        .map(async (section) => [section.key, await signatureAsset(templateData[section.key])])))
+        .filter(([, asset]) => asset));
 
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({ size: "A4", margin, bufferPages: true, info: {
@@ -304,14 +331,17 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 }
                 if (signatureTypes.has(field.type)) {
                     if (pdfConfig.showSignature === false) continue;
-                    const fieldSignature = templateSignatureBuffers.get(field.key);
+                    const fieldSignature = templateSignatures.get(field.key);
                     const signatureBlockHeight = fieldSignature ? 95 : 38;
                     ensureSpace(doc, signatureBlockHeight + 38);
                     if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Signature");
                     if (fieldSignature) {
                         const y = doc.y;
-                        doc.rect(48, y, 245, 75).strokeColor(LIGHT).stroke();
-                        doc.image(fieldSignature, 58, y + 8, { fit: [225, 50], align: "center", valign: "center" });
+                        doc.rect(48, y, fieldSignature.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
+                        doc.image(fieldSignature.buffer, 58, y + 8, {
+                            width: fieldSignature.layout.imageWidth,
+                            height: fieldSignature.layout.imageHeight,
+                        });
                         if (pdfFieldLabelVisible(field)) {
                             doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(field.label || "Signature", 58, y + 61);
                         }
@@ -374,8 +404,11 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             sectionTitle(doc, "Signature client");
             if (signatureBuffer) {
                 const y = doc.y;
-                doc.rect(48, y, 245, 75).strokeColor(LIGHT).stroke();
-                doc.image(signatureBuffer, 58, y + 8, { fit: [225, 50], align: "center", valign: "center" });
+                doc.rect(48, y, signature.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
+                doc.image(signatureBuffer, 58, y + 8, {
+                    width: signature.layout.imageWidth,
+                    height: signature.layout.imageHeight,
+                });
                 doc.font("Helvetica").fontSize(8).fillColor(GRAY).text("Signature client", 58, y + 61);
                 doc.y = y + signatureBlockHeight;
             } else {

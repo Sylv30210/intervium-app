@@ -7,6 +7,7 @@ import { titleForView, viewFromHash } from "./navigation/routes.js";
 import { bindSignatureCanvas } from "./reports/signature-canvas.js";
 import { clientContactFields, equipmentFields, parseEmailList } from "./clients/forms.js";
 import { calculateDocumentTotals } from "./documents/totals.js";
+import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "./utils/media.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -219,10 +220,10 @@ function field(label, name, type = "text", required = false, value = "") {
 }
 
 
-function fileUpload({ id, name, label, help, accept, maxMb = 5, capture = "", previewUrl = "" }) {
+function fileUpload({ id, name, label, help, accept, maxMb = 5, capture = "", previewUrl = "", multiple = false }) {
     return `<div class="file-upload" data-file-upload data-max-mb="${maxMb}">
       <label class="file-upload-label" for="${id}">${escapeHtml(label)}</label>
-      <input class="file-upload-input sr-only" id="${id}" name="${name}" type="file" accept="${accept}" ${capture ? `capture="${capture}"` : ""}>
+      <input class="file-upload-input sr-only" id="${id}" name="${name}" type="file" accept="${accept}" ${capture ? `capture="${capture}"` : ""} ${multiple ? "multiple" : ""}>
       <div class="file-upload-dropzone" tabindex="0" role="button" aria-controls="${id}" aria-describedby="${id}-help">
         <span class="file-upload-icon">${icon("upload")}</span>
         <span class="file-upload-copy"><strong>Choisir un fichier</strong><small id="${id}-help">${escapeHtml(help)} · ${maxMb} Mo maximum</small><span class="file-upload-name">Aucun fichier sélectionné</span></span>
@@ -243,7 +244,8 @@ function bindFileUpload(root, { onChange } = {}) {
     let objectUrl = null;
     const choose = () => input.click();
     const update = () => {
-        const file = input.files?.[0];
+        const files = [...(input.files || [])];
+        const file = files[0];
         component.classList.remove("is-error", "is-success");
         input.setCustomValidity("");
         status.textContent = "";
@@ -251,29 +253,30 @@ function bindFileUpload(root, { onChange } = {}) {
         if (!file) { name.textContent = "Aucun fichier sélectionné"; preview.classList.remove("is-visible"); preview.querySelector("img")?.remove(); onChange?.(null, component); return; }
         const maxBytes = Number(component.dataset.maxMb || 5) * 1024 * 1024;
         const acceptedTypes = input.accept.split(",").map((value) => value.trim()).filter(Boolean);
-        const typeAllowed = !acceptedTypes.length || acceptedTypes.some((accepted) => accepted.endsWith("/*") ? file.type.startsWith(accepted.slice(0, -1)) : file.type === accepted);
+        const typeAllowed = files.every((candidate) => !acceptedTypes.length || acceptedTypes.some((accepted) => accepted.endsWith("/*") ? candidate.type.startsWith(accepted.slice(0, -1)) : candidate.type === accepted));
         if (!typeAllowed) {
             input.setCustomValidity("Ce format de fichier n’est pas accepté.");
             component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
         }
-        if (file.size > maxBytes) {
-            input.setCustomValidity(`Le fichier dépasse la limite de ${component.dataset.maxMb} Mo.`);
+        if (files.some((candidate) => candidate.size > maxBytes)) {
+            input.setCustomValidity(`Un fichier dépasse la limite de ${component.dataset.maxMb} Mo.`);
             component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
         }
-        name.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} Mo`;
+        const totalMb = files.reduce((sum, candidate) => sum + candidate.size, 0) / 1024 / 1024;
+        name.textContent = files.length > 1 ? `${files.length} fichiers · ${totalMb.toFixed(2)} Mo` : `${file.name} · ${totalMb.toFixed(2)} Mo`;
         if (file.type.startsWith("image/")) {
             objectUrl = URL.createObjectURL(file);
             let image = preview.querySelector("img");
             if (!image) { image = document.createElement("img"); image.alt = "Aperçu du fichier sélectionné"; preview.prepend(image); }
             image.src = objectUrl; preview.classList.add("is-visible");
         }
-        component.classList.add("is-success"); status.textContent = "Fichier prêt à être envoyé."; onChange?.(file, component);
+        component.classList.add("is-success"); status.textContent = files.length > 1 ? "Fichiers prêts à être envoyés." : "Fichier prêt à être envoyé."; onChange?.(file, component);
     };
     zone.addEventListener("click", choose);
     zone.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } });
     ["dragenter", "dragover"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.add("is-dragover"); }));
     ["dragleave", "drop"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.remove("is-dragover"); }));
-    zone.addEventListener("drop", (event) => { if (event.dataTransfer?.files?.length) { const transfer = new DataTransfer(); transfer.items.add(event.dataTransfer.files[0]); input.files = transfer.files; update(); } });
+    zone.addEventListener("drop", (event) => { if (event.dataTransfer?.files?.length) { const transfer = new DataTransfer(); [...event.dataTransfer.files].slice(0, input.multiple ? undefined : 1).forEach((file) => transfer.items.add(file)); input.files = transfer.files; update(); } });
     input.addEventListener("change", update);
     component.querySelector(".file-upload-clear").addEventListener("click", () => { input.value = ""; update(); });
 }
@@ -588,7 +591,7 @@ function renderView(view) {
 
 function renderDashboard() {
     const finished = dashboardStats.finished;
-    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Planifier une intervention</button><button class="secondary" data-quick-action="direct-report">${icon("interventions")} Créer un rapport direct</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button></section>`;
+    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Planifier une intervention</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button></section>`;
     return `<section class="stats"><div class="stat"><span class="muted">Rapports</span><strong>${dashboardStats.reports}</strong></div><div class="stat"><span class="muted">Terminés</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients visibles</span><strong>${dashboardStats.visible_clients}</strong></div><div class="stat"><span class="muted">Matériels visibles</span><strong>${dashboardStats.visible_equipments}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT").slice(0, 5), false)}</section>`;
 }
 
@@ -658,7 +661,7 @@ function renderTeam() { return renderTeamView({ technicians }); }
 function bindMainActions(view) {
     document.getElementById(`add-${view}`)?.addEventListener("click", () => {
         if (view === "interventions") openNewIntervention();
-        if (view === "planning") openNewIntervention("PLANIFIEE");
+        if (view === "planning") openNewIntervention();
         if (view === "clients") openNewClient();
         if (view === "equipements") openNewEquipment();
         if (view === "equipe") openNewTechnician();
@@ -666,8 +669,7 @@ function bindMainActions(view) {
         if (view === "documents") openDocumentEditor();
     });
     document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.quickView)));
-    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention("PLANIFIEE"));
-    document.querySelector("[data-quick-action='direct-report']")?.addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
+    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention());
     document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); });
     document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
     document.querySelectorAll("[data-edit-intervention]").forEach((b) => b.addEventListener("click", () => openIntervention(b.dataset.editIntervention)));
@@ -841,7 +843,7 @@ function openSettings() {
     const companySettings = currentUser.role === "ADMIN" ? `
         <form id="company-report-settings" class="company-branding">
           <div class="panel-head"><div><h2>Identité des rapports PDF</h2><p class="muted">Ces informations remplacent entièrement la marque Intervium dans vos documents.</p></div></div>
-          <div class="company-logo-preview">${currentEntreprise?.logo_url ? `<img src="${escapeHtml(currentEntreprise.logo_url)}" alt="Logo actuel de l’entreprise">` : `<span class="muted">Aucun logo d’entreprise</span>`}</div>
+          <div class="company-logo-preview">${currentEntreprise?.logo_url ? `<img src="${companyLogoSourceUrl()}" alt="Logo actuel de l’entreprise">` : `<span class="muted">Aucun logo d’entreprise</span>`}</div>
           ${fileUpload({ id: "company-logo-file", name: "logo", label: "Logo de l’entreprise", help: "PNG, JPEG ou WebP", accept: "image/png,image/jpeg,image/webp", maxMb: 5 })}
           ${currentEntreprise?.logo_url ? `<button class="danger" id="remove-company-logo" type="button">${icon("trash")} Supprimer le logo actuel</button>` : ""}
           <div class="grid2"><div class="field"><label>Nom affiché</label><input name="display_name" maxlength="150" required value="${escapeHtml(reportSettings.display_name || currentEntreprise?.nom || "")}"></div><div class="field"><label>Identifiant légal / SIRET</label><input name="registration" maxlength="120" value="${escapeHtml(reportSettings.registration || "")}"></div></div>
@@ -1669,26 +1671,19 @@ function replaceTechnician(updatedUser) {
         .sort((a, b) => Number(b.actif) - Number(a.actif) || a.nom.localeCompare(b.nom, "fr"));
 }
 
-async function openNewIntervention(creationType = null) {
+async function openNewIntervention() {
     if (!creationClients.length) {
         const options = await api("/interventions/options");
         creationClients = options.clients || [];
         creationEquipements = options.equipements || [];
     }
     if (!creationClients.length) return toast("Aucun client disponible. Contactez un administrateur.", true);
-    if (!creationType) {
-        modal("Que souhaitez-vous créer ?", `<div class="choice-cards"><button class="choice-card" id="choose-planned" type="button"><strong>Planifier une intervention</strong><span>Assigner un technicien et afficher la mission dans le planning.</span></button><button class="choice-card" id="choose-direct" type="button"><strong>Créer un rapport direct</strong><span>Rédiger immédiatement un rapport, sans intervention dans le planning.</span></button></div>`);
-        document.getElementById("choose-planned").addEventListener("click", () => openNewIntervention("PLANIFIEE"));
-        document.getElementById("choose-direct").addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
-        return;
-    }
-    const isDirect = creationType === "RAPPORT_DIRECT";
-    const technicianField = !isDirect && currentUser.role === "ADMIN"
+    const technicianField = currentUser.role === "ADMIN"
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
-        : !isDirect ? `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>` : "";
-    const scheduleFields = isDirect ? "" : `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
-    const siteAddressField = isDirect ? "" : `<div class="field"><label>Adresse du chantier</label><input id="new-site-address" name="adresse_chantier" autocomplete="street-address"><label class="setting-check"><input id="copy-client-address" type="checkbox"> Reprendre l’adresse du client</label></div>`;
-    modal(isDirect ? "Nouveau rapport direct" : "Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="${creationType}"><input type="hidden" name="statut" value="${isDirect ? "TERMINEE" : "PLANIFIEE"}"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field(isDirect ? "Titre du rapport" : "Objet de l’intervention", "titre", "text", true)}${siteAddressField}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">${isDirect ? "Créer le rapport" : "Planifier l’intervention"}</button></form>`);
+        : `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>`;
+    const scheduleFields = `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
+    const siteAddressField = `<div class="field"><label>Adresse du chantier</label><input id="new-site-address" name="adresse_chantier" autocomplete="street-address"><label class="setting-check"><input id="copy-client-address" type="checkbox"> Reprendre l’adresse du client</label></div>`;
+    modal("Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="PLANIFIEE"><input type="hidden" name="statut" value="PLANIFIEE"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field("Objet de l’intervention", "titre", "text", true)}${siteAddressField}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">Planifier l’intervention</button></form>`);
     document.getElementById("new-client").addEventListener("change", (event) => {
         const equipmentSelect = document.getElementById("new-equipment");
         equipmentSelect.innerHTML = `<option value="">Aucun matériel / sélectionner</option>${creationEquipmentOptions(event.target.value)}`;
@@ -1719,7 +1714,7 @@ async function openNewIntervention(creationType = null) {
             try {
                 await api("/interventions", { method: "POST", body: JSON.stringify(values) });
                 closeModal();
-                await finishMutation(isDirect ? "interventions" : "planning", isDirect ? "Rapport créé." : "Intervention planifiée.");
+                await finishMutation("planning", "Intervention planifiée.");
             } catch (error) { toast(error.message, true); }
         });
     });
@@ -1745,7 +1740,7 @@ function renderReportFields(template, data = {}, interventionId = null) {
         if (["signature", "electronic_signature"].includes(section.type)) {
             const signatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
             if (!interventionId) return wrapper(`<div class="field">${label}<p class="muted">Enregistrez d’abord l’intervention, puis ouvrez sa fiche pour recueillir cette signature.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""></div>`, "signature-field");
-            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${escapeHtml(signatureUrl)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
+            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${reportSignatureSourceUrl(interventionId, section.key)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
         }
         if (section.type === "client") {
             const clientName = document.getElementById("new-client")?.selectedOptions?.[0]?.textContent || template.client_nom || data[section.key] || "Client sélectionné dans le rapport";
@@ -1931,7 +1926,7 @@ function openIntervention(id) {
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
-    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
+    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter des photos", help: "PNG, JPEG, WebP ou photos de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment", multiple: true })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer les photos</button>
     ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
@@ -2051,20 +2046,36 @@ async function uploadPhoto(id) {
         return toast(`La limite de ${photoLimit} photo(s) définie par le modèle est atteinte.`, true);
     }
     const input = document.getElementById("photo-file");
-    const file = input?.files?.[0];
-    if (!file) return toast("Sélectionnez une photo.", true);
+    const files = [...(input?.files || [])];
+    if (!files.length) return toast("Sélectionnez au moins une photo.", true);
     if (!input.checkValidity()) return toast(input.validationMessage, true);
-    const formData = new FormData();
-    formData.append("photo", file);
+    if (photoSections.length && (item.photos || []).length + files.length > photoLimit) {
+        const remaining = Math.max(0, photoLimit - (item.photos || []).length);
+        return toast(`Le modèle autorise encore ${remaining} photo(s).`, true);
+    }
     const button = document.getElementById("upload-photo");
     await withBusy(button, async () => {
+        const uploaded = [];
         try {
-            const result = await api(`/uploads/photo/${id}`, { method: "POST", body: formData });
-            item.photos = [...(Array.isArray(item.photos) ? item.photos : []), result.photo];
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append("photo", file);
+                const result = await api(`/uploads/photo/${id}`, { method: "POST", body: formData });
+                uploaded.push(result.photo);
+            }
+            item.photos = [...(Array.isArray(item.photos) ? item.photos : []), ...uploaded];
             item.nombre_photos = item.photos.length;
             openIntervention(id);
-            toast("Photo envoyée.");
-        } catch (error) { toast(error.message, true); }
+            toast(`${uploaded.length} photo(s) envoyée(s).`);
+        } catch (error) {
+            if (uploaded.length) {
+                item.photos = [...(Array.isArray(item.photos) ? item.photos : []), ...uploaded];
+                item.nombre_photos = item.photos.length;
+                openIntervention(id);
+                return toast(`${uploaded.length} photo(s) envoyée(s), puis l’import a échoué : ${error.message}`, true);
+            }
+            toast(error.message, true);
+        }
     });
 }
 
@@ -2156,7 +2167,7 @@ function mediaGallery(item, allowPdfSelection = false) {
     const selectionHelp = allowPdfSelection && photos.length
         ? '<p class="field-help">Cochez les photos à inclure dans le prochain PDF.</p>'
         : "";
-    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo du rapport" class="rotation-${[90, 180, 270].includes(Number(photo.rotation)) ? Number(photo.rotation) : 0}"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="secondary" type="button" data-annotate-photo="${photo.id}">✎ Annoter</button><button class="secondary" type="button" data-rotate-photo="${photo.id}" title="Faire pivoter la photo">↻ Pivoter</button><button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
+    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => { const sourceUrl = photoSourceUrl(photo.id); return `<div class="media-item"><a href="${sourceUrl}" target="_blank" rel="noopener"><img src="${sourceUrl}" alt="Photo du rapport" class="rotation-${[90, 180, 270].includes(Number(photo.rotation)) ? Number(photo.rotation) : 0}"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="secondary" type="button" data-annotate-photo="${photo.id}">✎ Annoter</button><button class="secondary" type="button" data-rotate-photo="${photo.id}" title="Faire pivoter la photo">↻ Pivoter</button><button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`; }).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${signatureSourceUrl(item.id)}" target="_blank" rel="noopener"><img src="${signatureSourceUrl(item.id)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
 }
 function bindMediaActions(item) {
     document.querySelectorAll("[data-annotate-photo]").forEach((button) => button.addEventListener("click", () => {
@@ -2199,7 +2210,7 @@ async function openPhotoAnnotator(item, photo) {
     const canvas = document.getElementById("photo-annotation-canvas");
     const context = canvas.getContext("2d");
     try {
-        const response = await fetch(photo.url, { credentials: "include" });
+        const response = await fetch(photoSourceUrl(photo.id), { credentials: "include" });
         if (!response.ok) throw new Error("Impossible de charger la photo.");
         const bitmap = await createImageBitmap(await response.blob());
         const rotation = Number(photo.rotation) || 0;
@@ -2279,7 +2290,9 @@ function bindPdfDownload() {
             const objectUrl = URL.createObjectURL(await response.blob());
             const link = document.createElement("a");
             link.href = objectUrl;
-            link.download = `rapport-intervention-${button.dataset.downloadPdf}.pdf`;
+            const disposition = response.headers.get("content-disposition") || "";
+            const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+            link.download = filename || `rapport-${button.dataset.downloadPdf}.pdf`;
             document.body.append(link);
             link.click();
             link.remove();

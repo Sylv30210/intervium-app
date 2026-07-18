@@ -109,7 +109,7 @@ async function authorizeLocalMedia(req, res, next) {
             query = `SELECT 1 FROM interventions i ${mediaJoin}
                      JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
                      WHERE i.entreprise_id = $1 AND ${mediaColumn} LIKE $2
-                       AND ($3 = 'ADMIN' OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4)
+                       AND ($3 IN ('ADMIN', 'SUPER_DEVELOPPEUR') OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4)
                             OR ($3 = 'CLIENT' AND c.utilisateur_id = $4))`;
             values = [req.user.entreprise_id, suffix, req.user.role, req.user.id];
         }
@@ -141,7 +141,7 @@ app.use("/api/auth", auth);
 app.use("/api/interventions", (req, res, next) => /\/(pdf|email)$/.test(req.path) ? documentRateLimit(req, res, next) : next(), interventions);
 app.use("/api/clients", clients);
 app.use("/api/equipements", equipements);
-app.use("/api/uploads", uploadRateLimit, uploads);
+app.use("/api/uploads", (req, res, next) => req.method === "GET" ? next() : uploadRateLimit(req, res, next), uploads);
 app.use("/api/modeles", modeles);
 app.use("/api/documents", documents);
 app.use("/api/activity", activity);

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { v2 as cloudinary } from "cloudinary";
 import sharp from "sharp";
@@ -13,6 +13,8 @@ import {
 } from "../config/cloud.js";
 
 const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
+const MAX_STORED_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_STORED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 if (STORAGE_DRIVER === "cloudinary") {
     if (!process.env.CLOUDINARY_URL) {
@@ -125,6 +127,34 @@ export async function removeStoredUpload(publicUrl) {
     }
 }
 
+export async function readStoredImage(publicUrl) {
+    if (!publicUrl) throw new TypeError("Image stockée introuvable.");
+
+    if (STORAGE_DRIVER === "cloudinary") {
+        if (!cloudinaryPublicId(publicUrl)) throw new TypeError("Adresse d’image stockée invalide.");
+        const response = await fetch(publicUrl, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`Le stockage distant a répondu ${response.status}.`);
+        const contentType = String(response.headers.get("content-type") || "").split(";", 1)[0].toLowerCase();
+        if (!ALLOWED_STORED_IMAGE_TYPES.has(contentType)) throw new TypeError("Le média stocké n’est pas une image prise en charge.");
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (!buffer.length || buffer.length > MAX_STORED_IMAGE_BYTES) throw new RangeError("L’image stockée dépasse la limite autorisée.");
+        return { buffer, contentType };
+    }
+
+    const pathname = new URL(publicUrl, "http://localhost").pathname;
+    if (!pathname.startsWith(`${UPLOADS_PUBLIC_PATH}/`)) throw new TypeError("Adresse d’image stockée invalide.");
+    const relativePath = decodeURIComponent(pathname.slice(`${UPLOADS_PUBLIC_PATH}/`.length));
+    const absolutePath = path.resolve(UPLOADS_DIRECTORY, relativePath);
+    const uploadsRoot = `${path.resolve(UPLOADS_DIRECTORY)}${path.sep}`;
+    if (!absolutePath.startsWith(uploadsRoot)) throw new TypeError("Adresse d’image stockée invalide.");
+    const extension = path.extname(absolutePath).toLowerCase();
+    const contentType = ({ ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" })[extension];
+    if (!contentType) throw new TypeError("Le média stocké n’est pas une image prise en charge.");
+    const buffer = await readFile(absolutePath);
+    if (!buffer.length || buffer.length > MAX_STORED_IMAGE_BYTES) throw new RangeError("L’image stockée dépasse la limite autorisée.");
+    return { buffer, contentType };
+}
+
 export async function uploadCompressedPhoto(fileBuffer) {
     if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
         throw new TypeError("Le fichier photo est vide ou invalide.");
@@ -132,8 +162,12 @@ export async function uploadCompressedPhoto(fileBuffer) {
 
     let optimizedBuffer;
     try {
-        optimizedBuffer = await sharp(fileBuffer, { failOn: "error" })
+        const normalizedBuffer = await sharp(fileBuffer, { failOn: "error" })
             .rotate()
+            .toBuffer();
+        const metadata = await sharp(normalizedBuffer).metadata();
+        optimizedBuffer = await sharp(normalizedBuffer)
+            .rotate(landscapeRotation(metadata.width, metadata.height))
             .resize({ width: 1200, withoutEnlargement: true, fit: "inside" })
             .webp({ quality: 80 })
             .toBuffer();
@@ -142,6 +176,10 @@ export async function uploadCompressedPhoto(fileBuffer) {
     }
 
     return persistImage(optimizedBuffer, "photos", "webp");
+}
+
+export function landscapeRotation(width, height) {
+    return Number(height) > Number(width) ? 90 : 0;
 }
 
 export async function uploadEditedPhotoBase64(base64Data) {

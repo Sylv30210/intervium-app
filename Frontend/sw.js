@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v15-report-edit-layout";
+const CACHE_VERSION = "intervium-shell-v17-authenticated-media-preview";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
@@ -7,6 +7,7 @@ const SHELL_RESOURCES = [
   "/theme-init.js",
   "/utils/theme.js",
   "/utils/format.js",
+  "/utils/media.js",
   "/components/icons.js",
   "/api/client.js",
   "/views/resources.js",

@@ -4,6 +4,7 @@ import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
 import {
+    readStoredImage,
     removeStoredUpload,
     uploadCompressedPhoto,
     uploadEditedPhotoBase64,
@@ -85,6 +86,34 @@ function safeStorageError(error) {
         code: error?.code,
     };
 }
+
+async function sendStoredImage(res, publicUrl) {
+    const image = await readStoredImage(publicUrl);
+    res.set({
+        "Content-Type": image.contentType,
+        "Content-Length": image.buffer.length,
+        "Cache-Control": "private, no-store",
+    });
+    return res.send(image.buffer);
+}
+
+const readableInterventionMediaCondition = `(
+    $3 IN ('ADMIN', 'SUPER_DEVELOPPEUR')
+    OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4)
+    OR ($3 = 'CLIENT' AND c.utilisateur_id = $4)
+)`;
+
+router.get("/company-logo/source", verifyToken, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT logo_url FROM entreprises WHERE id = $1", [req.user.entreprise_id]);
+        const logoUrl = result.rows[0]?.logo_url;
+        if (!logoUrl) return res.status(404).json({ error: "Logo introuvable." });
+        return await sendStoredImage(res, logoUrl);
+    } catch (error) {
+        console.error("Échec du chargement du logo", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger le logo." });
+    }
+});
 
 router.post("/company-logo", verifyToken, requireRole(["ADMIN"]), receiveLogo, async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "Aucun logo fourni dans le champ 'logo'." });
@@ -214,6 +243,26 @@ router.post("/photo/:intervention_id", verifyToken, receivePhoto, async (req, re
     }
 });
 
+router.get("/photo/:id/source", verifyToken, async (req, res) => {
+    const photoId = parseInterventionId(req.params.id);
+    if (!photoId) return res.status(400).json({ error: "Photo invalide." });
+    try {
+        const result = await pool.query(
+            `SELECT p.url FROM photos p
+             JOIN interventions i ON i.id = p.intervention_id AND i.entreprise_id = p.entreprise_id
+             JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+             WHERE p.id = $1 AND p.entreprise_id = $2
+               AND ${readableInterventionMediaCondition}`,
+            [photoId, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Photo introuvable." });
+        return await sendStoredImage(res, result.rows[0].url);
+    } catch (error) {
+        console.error("Échec du chargement de la photo", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger la photo." });
+    }
+});
+
 router.patch("/photo/:id/rotation", verifyToken, async (req, res) => {
     const photoId = parseInterventionId(req.params.id);
     const rotation = Number(req.body.rotation);
@@ -309,10 +358,53 @@ router.post("/signature/:intervention_id", verifyToken, async (req, res) => {
     }
 });
 
+router.get("/signature/:intervention_id/source", verifyToken, async (req, res) => {
+    const interventionId = parseInterventionId(req.params.intervention_id);
+    if (!interventionId) return res.status(400).json({ error: "Signature invalide." });
+    try {
+        const result = await pool.query(
+            `SELECT i.signature_url AS url
+             FROM interventions i
+             JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+             WHERE i.id = $1 AND i.entreprise_id = $2
+               AND ${readableInterventionMediaCondition}`,
+            [interventionId, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        const signatureUrl = result.rows[0]?.url;
+        if (!signatureUrl) return res.status(404).json({ error: "Signature introuvable." });
+        return await sendStoredImage(res, signatureUrl);
+    } catch (error) {
+        console.error("Échec du chargement de la signature", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger la signature." });
+    }
+});
+
 function signatureFieldKey(value) {
     const key = typeof value === "string" ? value.trim() : "";
     return /^[a-zA-Z0-9_-]{1,60}$/.test(key) ? key : null;
 }
+
+router.get("/signature-field/:intervention_id/:section_key/source", verifyToken, async (req, res) => {
+    const interventionId = parseInterventionId(req.params.intervention_id);
+    const sectionKey = signatureFieldKey(req.params.section_key);
+    if (!interventionId || !sectionKey) return res.status(400).json({ error: "Signature de rapport invalide." });
+    try {
+        const result = await pool.query(
+            `SELECT i.donnees_rapport->>$5 AS url
+             FROM interventions i
+             JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+             WHERE i.id = $1 AND i.entreprise_id = $2
+               AND ${readableInterventionMediaCondition}`,
+            [interventionId, req.user.entreprise_id, req.user.role, req.user.id, sectionKey]
+        );
+        const signatureUrl = result.rows[0]?.url;
+        if (!signatureUrl) return res.status(404).json({ error: "Signature de rapport introuvable." });
+        return await sendStoredImage(res, signatureUrl);
+    } catch (error) {
+        console.error("Échec du chargement d’une signature de rapport", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger cette signature." });
+    }
+});
 
 router.post("/signature-field/:intervention_id/:section_key", verifyToken, async (req, res) => {
     const interventionId = parseInterventionId(req.params.intervention_id);
