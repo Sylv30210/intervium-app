@@ -7,6 +7,7 @@ import { titleForView, viewFromHash } from "./navigation/routes.js";
 import { bindSignatureCanvas } from "./reports/signature-canvas.js";
 import { clientContactFields, equipmentFields, parseEmailList } from "./clients/forms.js";
 import { calculateDocumentTotals } from "./documents/totals.js";
+import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "./utils/media.js";
 
 let currentUser = null;
 let currentEntreprise = null;
@@ -842,7 +843,7 @@ function openSettings() {
     const companySettings = currentUser.role === "ADMIN" ? `
         <form id="company-report-settings" class="company-branding">
           <div class="panel-head"><div><h2>Identité des rapports PDF</h2><p class="muted">Ces informations remplacent entièrement la marque Intervium dans vos documents.</p></div></div>
-          <div class="company-logo-preview">${currentEntreprise?.logo_url ? `<img src="${escapeHtml(currentEntreprise.logo_url)}" alt="Logo actuel de l’entreprise">` : `<span class="muted">Aucun logo d’entreprise</span>`}</div>
+          <div class="company-logo-preview">${currentEntreprise?.logo_url ? `<img src="${companyLogoSourceUrl()}" alt="Logo actuel de l’entreprise">` : `<span class="muted">Aucun logo d’entreprise</span>`}</div>
           ${fileUpload({ id: "company-logo-file", name: "logo", label: "Logo de l’entreprise", help: "PNG, JPEG ou WebP", accept: "image/png,image/jpeg,image/webp", maxMb: 5 })}
           ${currentEntreprise?.logo_url ? `<button class="danger" id="remove-company-logo" type="button">${icon("trash")} Supprimer le logo actuel</button>` : ""}
           <div class="grid2"><div class="field"><label>Nom affiché</label><input name="display_name" maxlength="150" required value="${escapeHtml(reportSettings.display_name || currentEntreprise?.nom || "")}"></div><div class="field"><label>Identifiant légal / SIRET</label><input name="registration" maxlength="120" value="${escapeHtml(reportSettings.registration || "")}"></div></div>
@@ -1739,7 +1740,7 @@ function renderReportFields(template, data = {}, interventionId = null) {
         if (["signature", "electronic_signature"].includes(section.type)) {
             const signatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
             if (!interventionId) return wrapper(`<div class="field">${label}<p class="muted">Enregistrez d’abord l’intervention, puis ouvrez sa fiche pour recueillir cette signature.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""></div>`, "signature-field");
-            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${escapeHtml(signatureUrl)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
+            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${reportSignatureSourceUrl(interventionId, section.key)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
         }
         if (section.type === "client") {
             const clientName = document.getElementById("new-client")?.selectedOptions?.[0]?.textContent || template.client_nom || data[section.key] || "Client sélectionné dans le rapport";
@@ -2166,7 +2167,7 @@ function mediaGallery(item, allowPdfSelection = false) {
     const selectionHelp = allowPdfSelection && photos.length
         ? '<p class="field-help">Cochez les photos à inclure dans le prochain PDF.</p>'
         : "";
-    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => `<div class="media-item"><a href="${escapeHtml(photo.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(photo.url)}" alt="Photo du rapport" class="rotation-${[90, 180, 270].includes(Number(photo.rotation)) ? Number(photo.rotation) : 0}"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="secondary" type="button" data-annotate-photo="${photo.id}">✎ Annoter</button><button class="secondary" type="button" data-rotate-photo="${photo.id}" title="Faire pivoter la photo">↻ Pivoter</button><button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${escapeHtml(item.signature_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.signature_url)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
+    return `<div class="field"><label>Photos et signature enregistrées</label>${selectionHelp}<div class="media-grid">${photos.map((photo) => { const sourceUrl = photoSourceUrl(photo.id); return `<div class="media-item"><a href="${sourceUrl}" target="_blank" rel="noopener"><img src="${sourceUrl}" alt="Photo du rapport" class="rotation-${[90, 180, 270].includes(Number(photo.rotation)) ? Number(photo.rotation) : 0}"></a>${allowPdfSelection ? `<label class="media-pdf-choice"><input type="checkbox" data-pdf-photo-id="${photo.id}" checked> Inclure au PDF</label>` : ""}${canDelete ? `<button class="secondary" type="button" data-annotate-photo="${photo.id}">✎ Annoter</button><button class="secondary" type="button" data-rotate-photo="${photo.id}" title="Faire pivoter la photo">↻ Pivoter</button><button class="media-delete" data-delete-photo="${photo.id}" aria-label="Supprimer cette photo" title="Supprimer la photo">${icon("trash")}</button>` : ""}</div>`; }).join("")}${item.signature_url ? `<div class="media-item signature"><a href="${signatureSourceUrl(item.id)}" target="_blank" rel="noopener"><img src="${signatureSourceUrl(item.id)}" alt="Signature du client"></a>${canDelete ? `<button class="media-delete" data-delete-signature="${item.id}" aria-label="Supprimer la signature" title="Supprimer la signature">${icon("trash")}</button>` : ""}</div>` : ""}</div></div>`;
 }
 function bindMediaActions(item) {
     document.querySelectorAll("[data-annotate-photo]").forEach((button) => button.addEventListener("click", () => {
@@ -2209,7 +2210,7 @@ async function openPhotoAnnotator(item, photo) {
     const canvas = document.getElementById("photo-annotation-canvas");
     const context = canvas.getContext("2d");
     try {
-        const response = await fetch(`/api/uploads/photo/${photo.id}/source`, { credentials: "include" });
+        const response = await fetch(photoSourceUrl(photo.id), { credentials: "include" });
         if (!response.ok) throw new Error("Impossible de charger la photo.");
         const bitmap = await createImageBitmap(await response.blob());
         const rotation = Number(photo.rotation) || 0;
