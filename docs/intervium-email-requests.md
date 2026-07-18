@@ -11,7 +11,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
   - choix « Autre » : comportement déjà présent et couvert par les tests ;
   - précision reçue le 2026-07-18 : toute photo verticale doit être automatiquement tournée, le cadre PDF doit suivre la largeur affichée de la signature et l’option de création d’un rapport direct doit être supprimée ; ces trois points ont été réalisés en conservant la consultation des rapports directs historiques ;
   - visuels manquants « sur tous les écrans comportant des images » : portée encore insuffisamment précise ; un écran concret, une capture et le visuel attendu restent demandés avant modification.
-- **Réponses :** première réponse envoyée le 2026-07-18 avec les corrections initiales et quatre demandes ciblées ; réponse complémentaire envoyée après la clarification pour confirmer les trois nouveaux correctifs et demander un exemple concret concernant les visuels. Fil conservé sous `Intervium/En attente`.
+- **Réponses :** première réponse envoyée le 2026-07-18 avec les corrections initiales et quatre demandes ciblées ; réponse complémentaire envoyée après la clarification pour confirmer les trois nouveaux correctifs et demander un exemple concret concernant les visuels. Le suivi a ensuite été renvoyé directement à l’expéditeur original dans le fil `19f74cb0a232006d`, avec demande de répondre à ce nouvel e-mail. Les deux fils de clarification sont conservés sous `Intervium/En attente`.
 - **Fichiers modifiés :** `Backend/routes/interventions.js`, `Backend/routes/uploads.js`, `Backend/services/pdf.js`, `Backend/services/storage.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/image-layout.test.js`, `Backend/test/integration-api.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
 - **Commit / PR :** commits `e30d12d`, `e07bb1e` et `2b7a36d` poussés sur `agent/intervium-email-2026-07-18` ; PR [#4](https://github.com/Sylv30210/intervium-app/pull/4) ouverte sur cette branche.
 - **CI :** les exécutions des commits `e30d12d` et `e07bb1e` ont échoué parce que la miniature PNG codée en dur du test d’intégration était refusée par `sharp` sur le runner ; le test génère désormais une image PNG valide et contrôle aussi sa conversion automatique en paysage. Les exécutions GitHub Actions du commit `2b7a36d` sont réussies pour le push et la PR.
@@ -22,7 +22,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Catégorie :** bugs.
 - **Résumé :** titre de signature encore visible dans le PDF, blocs d’informations redondants dans le PDF et échec de création d’intervention.
 - **Décision :** corrections déjà réalisées dans les commits `709bbcc`, `a73db06` et fusionnées dans la branche principale (PR #2 pour le correctif final de création).
-- **Réponse :** confirmation de prise en compte, résumé des corrections et tests envoyés le 2026-07-18 dans le même fil. Fil libellé `Intervium/Traité`.
+- **Réponse :** confirmation de prise en compte, résumé des corrections et tests envoyés le 2026-07-18 dans le fil transféré, puis renvoyés directement à l’expéditeur original dans le fil `19f74cb0a232006d` avec demande de répondre à ce nouvel e-mail. Fil transféré libellé `Intervium/Traité` ; fil direct libellé `Intervium/En attente` pour le point visuel encore ouvert.
 - **Fichiers concernés :** `Backend/routes/interventions.js`, `Backend/services/pdf.js`, `Backend/test/integration-api.test.js`, `Backend/test/pdf-layout.test.js`.
 - **Vérifications de cette exécution :** `npm run check` et `npm test` réussis.
 
@@ -32,7 +32,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Résumé :** duplication de modèles, modification administrative de l’adresse de connexion et remplacement volontaire du compte Google par l’utilisateur.
 - **Clarification reçue :** validation explicite de l’approche sécurisée, sans transfert de jetons Google.
 - **Décision :** déjà réalisé dans le commit `65cb1a3` : duplication limitée aux administrateurs, unicité et journalisation de l’adresse, déconnexion puis reconnexion OAuth par l’utilisateur.
-- **Réponse :** confirmation finale envoyée le 2026-07-18 dans le même fil. Fil libellé `Intervium/Traité`.
+- **Réponse :** confirmation finale envoyée le 2026-07-18 dans le fil initial. La demande de validation a été renvoyée directement à l’expéditeur original dans le nouveau fil `19f74cadecce5c7c`, en précisant de répondre à cet e-mail ; ce fil direct est libellé `Intervium/En attente`.
 - **Vérifications de cette exécution :** `npm run check` et `npm test` réussis.
 
 ## 2026-07-16 — Fil `19f6c54aa5d6e965`
@@ -41,5 +41,5 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Résumé :** confirmation avant fermeture de formulaires modifiés, correction de « Suite à donner » et numérotation annuelle des rapports.
 - **Clarification reçue :** format `AAAA-NNNN` validé sans renumérotation de l’historique.
 - **Décision :** déjà réalisé dans le commit `65cb1a3`, avec correctifs complémentaires `709bbcc` et `a73db06` pour l’attribution transactionnelle du numéro lors de la création.
-- **Réponse :** confirmation finale envoyée le 2026-07-18 dans le même fil. Fil libellé `Intervium/Traité`.
+- **Réponse :** confirmation finale envoyée le 2026-07-18 dans le fil initial. La demande de validation du format a été renvoyée directement à l’expéditeur original dans le nouveau fil `19f74cab9c6057da`, en précisant de répondre à cet e-mail ; ce fil direct est libellé `Intervium/En attente`.
 - **Vérifications de cette exécution :** `npm run check` et `npm test` réussis.
