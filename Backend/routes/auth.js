@@ -82,7 +82,6 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     const nom = typeof req.body.nom === "string" ? req.body.nom.trim() : "";
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
-    const totpCode = typeof req.body.totp_code === "string" ? req.body.totp_code.replace(/\s/g, "") : "";
     const nomEntreprise =
         typeof req.body.nom_entreprise === "string" ? req.body.nom_entreprise.trim() : "";
 
@@ -164,6 +163,7 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
 router.post("/login", authRateLimit, async (req, res) => {
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
+    const totpCode = typeof req.body.totp_code === "string" ? req.body.totp_code.replace(/\s/g, "") : "";
 
     if (!email || !password) {
         return res.status(400).json({ error: "Email et mot de passe sont requis." });

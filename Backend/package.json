@@ -6,6 +6,7 @@
   "scripts": {
     "migrate": "node database/migrate.js",
     "provision:super-developer": "node scripts/provision-super-developer.js",
+    "diagnose:super-developer": "node scripts/diagnose-super-developer.js",
     "test": "node --test",
     "start": "node server.js",
     "start:server": "node server.js",
