@@ -1698,12 +1698,16 @@ function replaceTechnician(updatedUser) {
         .sort((a, b) => Number(b.actif) - Number(a.actif) || a.nom.localeCompare(b.nom, "fr"));
 }
 
-async function openNewIntervention() {
+async function loadCreationOptions() {
     if (!creationClients.length) {
         const options = await api("/interventions/options");
         creationClients = options.clients || [];
         creationEquipements = options.equipements || [];
     }
+}
+
+async function openNewIntervention() {
+    await loadCreationOptions();
     if (!creationClients.length) return toast("Aucun client disponible. Contactez un administrateur.", true);
     const technicianField = currentUser.role === "ADMIN"
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
@@ -1928,13 +1932,21 @@ async function submitForm(event, path, view) {
     });
 }
 
-function openIntervention(id) {
+async function openIntervention(id) {
     const item = interventions.find((entry) => String(entry.id) === String(id));
     if (!item) return;
     if (currentUser.role === "CLIENT") {
         modal("Rapport", `<p><strong>${escapeHtml(item.titre)}</strong><br><span class="muted">${escapeHtml(item.client_nom)} · ${formatDate(item.date_intervention)}</span></p><div class="field"><label>Description</label><p>${escapeHtml(item.description || "Aucune description.")}</p></div><div class="field"><label>Compte-rendu</label><p>${escapeHtml(item.compte_rendu || "Compte-rendu non disponible.")}</p></div>${reportDataSummary(item)}${mediaGallery(item)}${pdfButton(item)}`);
         bindPdfDownload();
         return;
+    }
+
+    if (currentUser.role === "ADMIN") {
+        try {
+            await loadCreationOptions();
+        } catch (error) {
+            return toast(`Impossible de charger les clients du rapport : ${error.message}`, true);
+        }
     }
 
     const selectedTemplateId = item.modele_rapport_id || (item.modele_rapport_sections?.length ? "__snapshot__" : "");
