@@ -175,16 +175,17 @@ function showAuth(mode = "login") {
     app.innerHTML = `
       <main class="auth"><section class="auth-card">
         ${logoLockup("auth-logo")}<p class="muted">Gestion sécurisée des interventions</p>
-        <div class="tabs"><button data-auth-tab="login" class="${mode === "login" ? "active" : ""}">Connexion</button>${registrationAvailable ? `<button data-auth-tab="register" class="${mode === "register" ? "active" : ""}">Créer une entreprise</button>` : ""}</div>
+        ${registrationAvailable ? `<div class="tabs"><button data-auth-tab="login" class="${mode === "login" ? "active" : ""}">Connexion</button><button data-auth-tab="register" class="${mode === "register" ? "active" : ""}">Créer un compte</button></div>` : ""}
         <div id="auth-error" class="error hidden"></div>
         <form id="login-form" class="${mode === "login" ? "" : "hidden"}">
           ${field("Email", "email", "email", true)}${field("Mot de passe", "password", "password", true)}${field("Code d’authentification (super-développeur uniquement)", "totp_code", "text", false)}
           <button class="primary wide" type="submit">Se connecter</button>
-        </form><footer class="auth-footer">Conçu par Sylvain Lecoeuvre</footer>
+        </form>
         ${registrationAvailable ? `<form id="register-form" class="${mode === "register" ? "" : "hidden"}">
           ${field("Code d’accès", "access_code", "password", true)}${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true)}${field("Mot de passe (8 caractères minimum)", "password", "password", true)}
           <button class="primary wide" type="submit">Créer mon espace</button>
         </form>` : ""}
+        <footer class="auth-footer">Conçu par Sylvain Lecoeuvre</footer>
       </section></main>`;
 
     document.querySelectorAll("[data-auth-tab]").forEach((button) => {
