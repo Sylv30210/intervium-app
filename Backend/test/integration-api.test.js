@@ -27,6 +27,18 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
     await agent.put(`/api/clients/${created.body.id}`).send({ nom: "Client modifié", email: "client@example.test", report_emails: [] }).expect(200);
     const equipment = await agent.post("/api/equipements").send({ client_id: created.body.id, type: "Pompe", numero_serie: "TEST-001" }).expect(201);
     await agent.put(`/api/equipements/${equipment.body.id}`).send({ client_id: created.body.id, type: "Pompe révisée", numero_serie: "TEST-001" }).expect(200);
+    const intervention = await agent.post("/api/interventions").send({
+        client_id: created.body.id,
+        equipement_id: equipment.body.id,
+        creation_type: "PLANIFIEE",
+        statut: "PLANIFIEE",
+        titre: "Maintenance préventive",
+        date_intervention: "2026-07-20",
+        heure: "08:00",
+        donnees_rapport: {},
+    }).expect(201);
+    assert.match(intervention.body.numero_rapport, /^\d{4}-\d{4}$/);
+    await agent.delete(`/api/interventions/${intervention.body.id}`).expect(204);
     const tenantBClient = await pool.query("INSERT INTO clients(entreprise_id,nom) VALUES($1,'Secret B') RETURNING id", [secondCompany.rows[0].id]);
     await agent.get(`/api/clients/${tenantBClient.rows[0].id}`).expect(404);
     await agent.delete(`/api/equipements/${equipment.body.id}`).expect(204);

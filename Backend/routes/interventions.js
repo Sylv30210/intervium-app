@@ -321,12 +321,12 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
 
         const result = await pool.query(
             `WITH lock_report_number AS MATERIALIZED (
-                 SELECT pg_advisory_xact_lock(hashtextextended($1::text || ':' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 0))
+                 SELECT pg_advisory_xact_lock(hashtextextended($1::bigint::text || ':' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 0))
              ), next_report_number AS (
                  SELECT EXTRACT(YEAR FROM CURRENT_DATE)::integer AS year,
                         COALESCE(MAX(substring(i.numero_rapport FROM '^[0-9]{4}-([0-9]+)$')::integer), 0) + 1 AS sequence
                  FROM interventions i, lock_report_number
-                 WHERE i.entreprise_id = $1
+                 WHERE i.entreprise_id = $1::bigint
                    AND i.numero_rapport LIKE EXTRACT(YEAR FROM CURRENT_DATE)::text || '-%'
              )
              INSERT INTO interventions
@@ -334,7 +334,7 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                  adresse_chantier, travaux_demandes,
                  creation_type, compte_rendu, statut, date_intervention, heure, modele_rapport_id,
                  donnees_rapport, modele_rapport_snapshot, numero_rapport)
-             SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb,
+             SELECT $1::bigint, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb,
                     year::text || '-' || LPAD(sequence::text, 4, '0')
              FROM next_report_number
              RETURNING *`,
