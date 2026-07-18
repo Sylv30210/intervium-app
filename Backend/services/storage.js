@@ -162,8 +162,12 @@ export async function uploadCompressedPhoto(fileBuffer) {
 
     let optimizedBuffer;
     try {
-        optimizedBuffer = await sharp(fileBuffer, { failOn: "error" })
+        const normalizedBuffer = await sharp(fileBuffer, { failOn: "error" })
             .rotate()
+            .toBuffer();
+        const metadata = await sharp(normalizedBuffer).metadata();
+        optimizedBuffer = await sharp(normalizedBuffer)
+            .rotate(landscapeRotation(metadata.width, metadata.height))
             .resize({ width: 1200, withoutEnlargement: true, fit: "inside" })
             .webp({ quality: 80 })
             .toBuffer();
@@ -172,6 +176,10 @@ export async function uploadCompressedPhoto(fileBuffer) {
     }
 
     return persistImage(optimizedBuffer, "photos", "webp");
+}
+
+export function landscapeRotation(width, height) {
+    return Number(height) > Number(width) ? 90 : 0;
 }
 
 export async function uploadEditedPhotoBase64(base64Data) {

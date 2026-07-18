@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RUN_INTEGRATION_TESTS !== "true" }, async (t) => {
-    const [{ default: request }, { default: bcrypt }, { runMigrations }, { app }, { default: pool }] = await Promise.all([
-        import("supertest"), import("bcryptjs"), import("../database/migrate.js"), import("../server.js"), import("../config/database.js"),
+    const [{ default: request }, { default: bcrypt }, { runMigrations }, { app }, { default: pool }, { default: sharp }] = await Promise.all([
+        import("supertest"), import("bcryptjs"), import("../database/migrate.js"), import("../server.js"), import("../config/database.js"), import("sharp"),
     ]);
     await runMigrations();
     const password = "Integration-Test-Password-42!";
@@ -38,13 +38,17 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         donnees_rapport: {},
     }).expect(201);
     assert.match(intervention.body.numero_rapport, /^\d{4}-\d{4}$/);
-    const photoBuffer = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlGQAAAAASUVORK5CYII=", "base64");
+    const photoBuffer = await sharp({
+        create: { width: 8, height: 12, channels: 3, background: "#2563eb" },
+    }).png().toBuffer();
     const photo = await agent.post(`/api/uploads/photo/${intervention.body.id}`)
         .attach("photo", photoBuffer, { filename: "test.png", contentType: "image/png" })
         .expect(201);
     const photoSource = await agent.get(`/api/uploads/photo/${photo.body.photo.id}/source`).expect(200);
     assert.equal(photoSource.headers["content-type"], "image/webp");
     assert.ok(photoSource.body.length > 0);
+    const storedPhoto = await sharp(photoSource.body).metadata();
+    assert.ok(storedPhoto.width > storedPhoto.height);
     const pdf = await agent.get(`/api/interventions/${intervention.body.id}/pdf`).expect(200);
     assert.equal(pdf.headers["content-disposition"], `attachment; filename="rapport-${intervention.body.numero_rapport}.pdf"`);
     await agent.delete(`/api/interventions/${intervention.body.id}`).expect(204);

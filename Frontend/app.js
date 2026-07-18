@@ -590,7 +590,7 @@ function renderView(view) {
 
 function renderDashboard() {
     const finished = dashboardStats.finished;
-    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Planifier une intervention</button><button class="secondary" data-quick-action="direct-report">${icon("interventions")} Créer un rapport direct</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button></section>`;
+    const quickActions = currentUser.role === "CLIENT" ? "" : `<section class="quick-actions"><button class="primary" data-quick-action="intervention">${icon("plus")} Planifier une intervention</button><button class="secondary" data-quick-view="planning">${icon("calendar")} Ouvrir le planning</button><button class="secondary" data-quick-view="modeles">${icon("template")} Modèles de rapport</button></section>`;
     return `<section class="stats"><div class="stat"><span class="muted">Rapports</span><strong>${dashboardStats.reports}</strong></div><div class="stat"><span class="muted">Terminés</span><strong>${finished}</strong></div><div class="stat"><span class="muted">Clients visibles</span><strong>${dashboardStats.visible_clients}</strong></div><div class="stat"><span class="muted">Matériels visibles</span><strong>${dashboardStats.visible_equipments}</strong></div></section>${quickActions}<section class="panel"><div class="panel-head"><h2>Prochaines interventions</h2></div>${interventionTable(interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT").slice(0, 5), false)}</section>`;
 }
 
@@ -660,7 +660,7 @@ function renderTeam() { return renderTeamView({ technicians }); }
 function bindMainActions(view) {
     document.getElementById(`add-${view}`)?.addEventListener("click", () => {
         if (view === "interventions") openNewIntervention();
-        if (view === "planning") openNewIntervention("PLANIFIEE");
+        if (view === "planning") openNewIntervention();
         if (view === "clients") openNewClient();
         if (view === "equipements") openNewEquipment();
         if (view === "equipe") openNewTechnician();
@@ -668,8 +668,7 @@ function bindMainActions(view) {
         if (view === "documents") openDocumentEditor();
     });
     document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.quickView)));
-    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention("PLANIFIEE"));
-    document.querySelector("[data-quick-action='direct-report']")?.addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
+    document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention());
     document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); });
     document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
     document.querySelectorAll("[data-edit-intervention]").forEach((b) => b.addEventListener("click", () => openIntervention(b.dataset.editIntervention)));
@@ -1671,26 +1670,19 @@ function replaceTechnician(updatedUser) {
         .sort((a, b) => Number(b.actif) - Number(a.actif) || a.nom.localeCompare(b.nom, "fr"));
 }
 
-async function openNewIntervention(creationType = null) {
+async function openNewIntervention() {
     if (!creationClients.length) {
         const options = await api("/interventions/options");
         creationClients = options.clients || [];
         creationEquipements = options.equipements || [];
     }
     if (!creationClients.length) return toast("Aucun client disponible. Contactez un administrateur.", true);
-    if (!creationType) {
-        modal("Que souhaitez-vous créer ?", `<div class="choice-cards"><button class="choice-card" id="choose-planned" type="button"><strong>Planifier une intervention</strong><span>Assigner un technicien et afficher la mission dans le planning.</span></button><button class="choice-card" id="choose-direct" type="button"><strong>Créer un rapport direct</strong><span>Rédiger immédiatement un rapport, sans intervention dans le planning.</span></button></div>`);
-        document.getElementById("choose-planned").addEventListener("click", () => openNewIntervention("PLANIFIEE"));
-        document.getElementById("choose-direct").addEventListener("click", () => openNewIntervention("RAPPORT_DIRECT"));
-        return;
-    }
-    const isDirect = creationType === "RAPPORT_DIRECT";
-    const technicianField = !isDirect && currentUser.role === "ADMIN"
+    const technicianField = currentUser.role === "ADMIN"
         ? `<div class="field"><label>Technicien assigné</label><select name="technicien_id">${technicianOptions()}</select></div>`
-        : !isDirect ? `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>` : "";
-    const scheduleFields = isDirect ? "" : `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
-    const siteAddressField = isDirect ? "" : `<div class="field"><label>Adresse du chantier</label><input id="new-site-address" name="adresse_chantier" autocomplete="street-address"><label class="setting-check"><input id="copy-client-address" type="checkbox"> Reprendre l’adresse du client</label></div>`;
-    modal(isDirect ? "Nouveau rapport direct" : "Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="${creationType}"><input type="hidden" name="statut" value="${isDirect ? "TERMINEE" : "PLANIFIEE"}"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field(isDirect ? "Titre du rapport" : "Objet de l’intervention", "titre", "text", true)}${siteAddressField}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">${isDirect ? "Créer le rapport" : "Planifier l’intervention"}</button></form>`);
+        : `<div class="field"><label>Technicien</label><input value="${escapeHtml(currentUser.nom)}" disabled></div>`;
+    const scheduleFields = `<div class="grid2">${field("Date prévue", "date_intervention", "date", true)}${field("Heure", "heure", "time")}</div>`;
+    const siteAddressField = `<div class="field"><label>Adresse du chantier</label><input id="new-site-address" name="adresse_chantier" autocomplete="street-address"><label class="setting-check"><input id="copy-client-address" type="checkbox"> Reprendre l’adresse du client</label></div>`;
+    modal("Planifier une intervention", `<form id="intervention-form"><input type="hidden" name="creation_type" value="PLANIFIEE"><input type="hidden" name="statut" value="PLANIFIEE"><div class="grid2"><div class="field"><label>Client</label><select id="new-client" name="client_id" required><option value="">Sélectionner un client</option>${creationClientOptions()}</select></div>${technicianField}</div><div class="field"><label>Matériel concerné</label><select id="new-equipment" name="equipement_id" disabled><option value="">Sélectionner d’abord un client</option></select></div>${field("Objet de l’intervention", "titre", "text", true)}${siteAddressField}<div class="field"><label>Description</label><textarea name="description"></textarea></div>${scheduleFields}<div class="field"><label>Modèle de rapport</label><select id="new-report-template" name="modele_rapport_id"><option value="">Rapport libre</option>${reportTemplates.filter((template) => template.actif).map((template) => `<option value="${template.id}">${escapeHtml(template.nom)}</option>`).join("")}</select></div><div id="new-report-fields"></div><button class="primary wide">Planifier l’intervention</button></form>`);
     document.getElementById("new-client").addEventListener("change", (event) => {
         const equipmentSelect = document.getElementById("new-equipment");
         equipmentSelect.innerHTML = `<option value="">Aucun matériel / sélectionner</option>${creationEquipmentOptions(event.target.value)}`;
@@ -1721,7 +1713,7 @@ async function openNewIntervention(creationType = null) {
             try {
                 await api("/interventions", { method: "POST", body: JSON.stringify(values) });
                 closeModal();
-                await finishMutation(isDirect ? "interventions" : "planning", isDirect ? "Rapport créé." : "Intervention planifiée.");
+                await finishMutation("planning", "Intervention planifiée.");
             } catch (error) { toast(error.message, true); }
         });
     });

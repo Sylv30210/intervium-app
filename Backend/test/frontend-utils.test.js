@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { escapeHtml, formatMoney, statusLabel } from "../../Frontend/utils/format.js";
 import { icon } from "../../Frontend/components/icons.js";
 import { parseEmailList } from "../../Frontend/clients/forms.js";
@@ -18,4 +19,10 @@ test("les utilitaires de présentation restent stables", () => {
     assert.equal(statusLabel("TERMINEE"), "Terminée");
     assert.match(formatMoney(12.5), /12,50/);
     assert.match(icon("search"), /^<svg/);
+});
+
+test("la création d'un rapport direct n'est plus proposée dans l'interface", async () => {
+    const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    assert.doesNotMatch(app, /Créer un rapport direct|data-quick-action=["']direct-report|choose-direct/);
+    assert.match(app, /Rapport direct/);
 });

@@ -9,11 +9,13 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Analyse et décision :**
   - nom du PDF, import multiple et erreur réseau de l’annotateur : demandes claires, sûres et réalisables, corrigées ;
   - choix « Autre » : comportement déjà présent et couvert par les tests ;
-  - orientation paysage, emplacement exact des visuels, dimensions des signatures et date d’affichage des rapports directs : précisions fonctionnelles nécessaires avant modification.
-- **Réponse :** envoyée le 2026-07-18 dans le même fil ; confirmation des points corrigés et demande ciblée de précisions sur les quatre points ambigus. Fil libellé `Intervium/En attente`.
-- **Fichiers modifiés :** `Backend/routes/interventions.js`, `Backend/routes/uploads.js`, `Backend/services/pdf.js`, `Backend/services/storage.js`, `Backend/test/integration-api.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
-- **Commit / PR :** commit `e30d12d` poussé sur `agent/intervium-email-2026-07-18`. Création de PR bloquée par les permissions du connecteur GitHub (HTTP 403) ; branche communiquée dans la réponse.
-- **Vérifications :** `npm run check` réussi ; `npm test` réussi (30 tests, 1 test d’intégration PostgreSQL ignoré faute d’environnement activé) ; `npm run release:check` réussi.
+  - précision reçue le 2026-07-18 : toute photo verticale doit être automatiquement tournée, le cadre PDF doit suivre la largeur affichée de la signature et l’option de création d’un rapport direct doit être supprimée ; ces trois points ont été réalisés en conservant la consultation des rapports directs historiques ;
+  - visuels manquants « sur tous les écrans comportant des images » : portée encore insuffisamment précise ; un écran concret, une capture et le visuel attendu restent demandés avant modification.
+- **Réponses :** première réponse envoyée le 2026-07-18 avec les corrections initiales et quatre demandes ciblées ; réponse complémentaire envoyée après la clarification pour confirmer les trois nouveaux correctifs et demander un exemple concret concernant les visuels. Fil conservé sous `Intervium/En attente`.
+- **Fichiers modifiés :** `Backend/routes/interventions.js`, `Backend/routes/uploads.js`, `Backend/services/pdf.js`, `Backend/services/storage.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/image-layout.test.js`, `Backend/test/integration-api.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
+- **Commit / PR :** commits `e30d12d` et `e07bb1e`, puis commit complémentaire de la présente exécution, poussés sur `agent/intervium-email-2026-07-18`. Création de PR bloquée par les permissions du connecteur GitHub (HTTP 403) ; branche communiquée dans la réponse.
+- **CI :** les exécutions des commits `e30d12d` et `e07bb1e` ont échoué parce que la miniature PNG codée en dur du test d’intégration était refusée par `sharp` sur le runner ; le test génère désormais une image PNG valide et contrôle aussi sa conversion automatique en paysage.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (33 tests unitaires, 1 test d’intégration PostgreSQL ignoré localement faute d’environnement activé) ; `npm run release:check` réussi. Le test d’intégration complet est exécuté par la CI avec PostgreSQL.
 
 ## 2026-07-17 — Fil `19f70a4dd528b85d`
 
