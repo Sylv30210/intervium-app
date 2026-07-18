@@ -10,7 +10,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Réponse :** confirmation envoyée directement à l’expéditeur original dans le fil direct `19f74cb0a232006d`, avec résumé des quatre corrections, lien vers la PR et invitation à répondre à cet e-mail après publication en cas de problème persistant. Le fil transféré et la réponse directe sont libellés `Intervium/Traité`.
 - **Fichiers modifiés :** `Frontend/app.js`, `Frontend/app.css`, `Frontend/sw.js`, `Frontend/utils/collections.js`, `Frontend/views/resources.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, ce journal.
 - **Commit / PR :** commit `895123d` poussé sur `agent/intervium-mobile-2026-07-18` ; PR brouillon [#6](https://github.com/Sylv30210/intervium-app/pull/6).
-- **Vérifications :** `git diff --check`, `npm run check`, `npm test` (37 réussis, 1 intégration PostgreSQL ignorée localement faute d’environnement activé) et `npm run release:check` réussis.
+- **Vérifications :** `git diff --check`, `npm run check`, `npm test` (37 réussis, 1 intégration PostgreSQL ignorée localement faute d’environnement activé) et `npm run release:check` réussis ; les deux contrôles GitHub Actions du commit `6379eb4` sont également réussis, y compris l’intégration PostgreSQL complète.
 
 ## 2026-07-18 — Fil `19f74aa0689611cb`
 
