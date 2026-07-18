@@ -2,7 +2,7 @@ import express from "express";
 import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { createNotification, logActivity } from "../services/activity.js";
-import { generateInterventionPdf } from "../services/pdf.js";
+import { generateInterventionPdf, interventionPdfFilename } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
 import { googleEnabled, sendGmailReport } from "../services/google.js";
 import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
@@ -449,7 +449,7 @@ router.get("/:id/pdf", async (req, res) => {
             equipments: equipmentResult.rows,
             photos: selectedPhotos,
         });
-        const filename = `rapport-intervention-${id}.pdf`;
+        const filename = interventionPdfFilename(intervention);
         res.set({
             "Content-Type": "application/pdf",
             "Content-Disposition": `attachment; filename="${filename}"`,
@@ -507,7 +507,7 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
             subject: req.body.subject?.trim() || `Rapport ${intervention.titre}`,
             text: req.body.message?.trim() || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${intervention.titre} ».\n\nCordialement,\n${settings.display_name || intervention.entreprise_nom}`,
             pdf,
-            filename: `rapport-${id}.pdf`,
+            filename: interventionPdfFilename(intervention),
         });
         await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s).` });
         return res.json({ sent: true, recipients });

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v15-report-edit-layout";
+const CACHE_VERSION = "intervium-shell-v16-email-media-fixes";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

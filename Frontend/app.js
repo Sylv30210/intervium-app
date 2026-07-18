@@ -219,10 +219,10 @@ function field(label, name, type = "text", required = false, value = "") {
 }
 
 
-function fileUpload({ id, name, label, help, accept, maxMb = 5, capture = "", previewUrl = "" }) {
+function fileUpload({ id, name, label, help, accept, maxMb = 5, capture = "", previewUrl = "", multiple = false }) {
     return `<div class="file-upload" data-file-upload data-max-mb="${maxMb}">
       <label class="file-upload-label" for="${id}">${escapeHtml(label)}</label>
-      <input class="file-upload-input sr-only" id="${id}" name="${name}" type="file" accept="${accept}" ${capture ? `capture="${capture}"` : ""}>
+      <input class="file-upload-input sr-only" id="${id}" name="${name}" type="file" accept="${accept}" ${capture ? `capture="${capture}"` : ""} ${multiple ? "multiple" : ""}>
       <div class="file-upload-dropzone" tabindex="0" role="button" aria-controls="${id}" aria-describedby="${id}-help">
         <span class="file-upload-icon">${icon("upload")}</span>
         <span class="file-upload-copy"><strong>Choisir un fichier</strong><small id="${id}-help">${escapeHtml(help)} · ${maxMb} Mo maximum</small><span class="file-upload-name">Aucun fichier sélectionné</span></span>
@@ -243,7 +243,8 @@ function bindFileUpload(root, { onChange } = {}) {
     let objectUrl = null;
     const choose = () => input.click();
     const update = () => {
-        const file = input.files?.[0];
+        const files = [...(input.files || [])];
+        const file = files[0];
         component.classList.remove("is-error", "is-success");
         input.setCustomValidity("");
         status.textContent = "";
@@ -251,29 +252,30 @@ function bindFileUpload(root, { onChange } = {}) {
         if (!file) { name.textContent = "Aucun fichier sélectionné"; preview.classList.remove("is-visible"); preview.querySelector("img")?.remove(); onChange?.(null, component); return; }
         const maxBytes = Number(component.dataset.maxMb || 5) * 1024 * 1024;
         const acceptedTypes = input.accept.split(",").map((value) => value.trim()).filter(Boolean);
-        const typeAllowed = !acceptedTypes.length || acceptedTypes.some((accepted) => accepted.endsWith("/*") ? file.type.startsWith(accepted.slice(0, -1)) : file.type === accepted);
+        const typeAllowed = files.every((candidate) => !acceptedTypes.length || acceptedTypes.some((accepted) => accepted.endsWith("/*") ? candidate.type.startsWith(accepted.slice(0, -1)) : candidate.type === accepted));
         if (!typeAllowed) {
             input.setCustomValidity("Ce format de fichier n’est pas accepté.");
             component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
         }
-        if (file.size > maxBytes) {
-            input.setCustomValidity(`Le fichier dépasse la limite de ${component.dataset.maxMb} Mo.`);
+        if (files.some((candidate) => candidate.size > maxBytes)) {
+            input.setCustomValidity(`Un fichier dépasse la limite de ${component.dataset.maxMb} Mo.`);
             component.classList.add("is-error"); status.textContent = input.validationMessage; name.textContent = file.name; onChange?.(file, component); return;
         }
-        name.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} Mo`;
+        const totalMb = files.reduce((sum, candidate) => sum + candidate.size, 0) / 1024 / 1024;
+        name.textContent = files.length > 1 ? `${files.length} fichiers · ${totalMb.toFixed(2)} Mo` : `${file.name} · ${totalMb.toFixed(2)} Mo`;
         if (file.type.startsWith("image/")) {
             objectUrl = URL.createObjectURL(file);
             let image = preview.querySelector("img");
             if (!image) { image = document.createElement("img"); image.alt = "Aperçu du fichier sélectionné"; preview.prepend(image); }
             image.src = objectUrl; preview.classList.add("is-visible");
         }
-        component.classList.add("is-success"); status.textContent = "Fichier prêt à être envoyé."; onChange?.(file, component);
+        component.classList.add("is-success"); status.textContent = files.length > 1 ? "Fichiers prêts à être envoyés." : "Fichier prêt à être envoyé."; onChange?.(file, component);
     };
     zone.addEventListener("click", choose);
     zone.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); choose(); } });
     ["dragenter", "dragover"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.add("is-dragover"); }));
     ["dragleave", "drop"].forEach((type) => zone.addEventListener(type, (event) => { event.preventDefault(); zone.classList.remove("is-dragover"); }));
-    zone.addEventListener("drop", (event) => { if (event.dataTransfer?.files?.length) { const transfer = new DataTransfer(); transfer.items.add(event.dataTransfer.files[0]); input.files = transfer.files; update(); } });
+    zone.addEventListener("drop", (event) => { if (event.dataTransfer?.files?.length) { const transfer = new DataTransfer(); [...event.dataTransfer.files].slice(0, input.multiple ? undefined : 1).forEach((file) => transfer.items.add(file)); input.files = transfer.files; update(); } });
     input.addEventListener("change", update);
     component.querySelector(".file-upload-clear").addEventListener("click", () => { input.value = ""; update(); });
 }
@@ -1931,7 +1933,7 @@ function openIntervention(id) {
       <div id="edit-report-fields">${customReportFields}</div>
       <div id="report-autosave-status" class="autosave-status saved" role="status" aria-live="polite">${icon("check")} Enregistré</div>
       <button class="primary wide">Enregistrer le rapport</button>
-    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter une photo", help: "PNG, JPEG, WebP ou photo de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment" })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer la photo</button>
+    </form><hr>${fileUpload({ id: "photo-file", name: "photo", label: "Ajouter des photos", help: "PNG, JPEG, WebP ou photos de l’appareil", accept: "image/png,image/jpeg,image/webp", maxMb: 5, capture: "environment", multiple: true })}<button class="secondary wide" id="upload-photo" type="button">${icon("upload")} Envoyer les photos</button>
     ${mediaGallery(item, true)}${pdfButton(item, true)}${emailButton(item)}`);
 
     bindReportFieldActions(document.getElementById("edit-intervention-form"));
@@ -2051,20 +2053,36 @@ async function uploadPhoto(id) {
         return toast(`La limite de ${photoLimit} photo(s) définie par le modèle est atteinte.`, true);
     }
     const input = document.getElementById("photo-file");
-    const file = input?.files?.[0];
-    if (!file) return toast("Sélectionnez une photo.", true);
+    const files = [...(input?.files || [])];
+    if (!files.length) return toast("Sélectionnez au moins une photo.", true);
     if (!input.checkValidity()) return toast(input.validationMessage, true);
-    const formData = new FormData();
-    formData.append("photo", file);
+    if (photoSections.length && (item.photos || []).length + files.length > photoLimit) {
+        const remaining = Math.max(0, photoLimit - (item.photos || []).length);
+        return toast(`Le modèle autorise encore ${remaining} photo(s).`, true);
+    }
     const button = document.getElementById("upload-photo");
     await withBusy(button, async () => {
+        const uploaded = [];
         try {
-            const result = await api(`/uploads/photo/${id}`, { method: "POST", body: formData });
-            item.photos = [...(Array.isArray(item.photos) ? item.photos : []), result.photo];
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append("photo", file);
+                const result = await api(`/uploads/photo/${id}`, { method: "POST", body: formData });
+                uploaded.push(result.photo);
+            }
+            item.photos = [...(Array.isArray(item.photos) ? item.photos : []), ...uploaded];
             item.nombre_photos = item.photos.length;
             openIntervention(id);
-            toast("Photo envoyée.");
-        } catch (error) { toast(error.message, true); }
+            toast(`${uploaded.length} photo(s) envoyée(s).`);
+        } catch (error) {
+            if (uploaded.length) {
+                item.photos = [...(Array.isArray(item.photos) ? item.photos : []), ...uploaded];
+                item.nombre_photos = item.photos.length;
+                openIntervention(id);
+                return toast(`${uploaded.length} photo(s) envoyée(s), puis l’import a échoué : ${error.message}`, true);
+            }
+            toast(error.message, true);
+        }
     });
 }
 
@@ -2199,7 +2217,7 @@ async function openPhotoAnnotator(item, photo) {
     const canvas = document.getElementById("photo-annotation-canvas");
     const context = canvas.getContext("2d");
     try {
-        const response = await fetch(photo.url, { credentials: "include" });
+        const response = await fetch(`/api/uploads/photo/${photo.id}/source`, { credentials: "include" });
         if (!response.ok) throw new Error("Impossible de charger la photo.");
         const bitmap = await createImageBitmap(await response.blob());
         const rotation = Number(photo.rotation) || 0;
@@ -2279,7 +2297,9 @@ function bindPdfDownload() {
             const objectUrl = URL.createObjectURL(await response.blob());
             const link = document.createElement("a");
             link.href = objectUrl;
-            link.download = `rapport-intervention-${button.dataset.downloadPdf}.pdf`;
+            const disposition = response.headers.get("content-disposition") || "";
+            const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+            link.download = filename || `rapport-${button.dataset.downloadPdf}.pdf`;
             document.body.append(link);
             link.click();
             link.remove();

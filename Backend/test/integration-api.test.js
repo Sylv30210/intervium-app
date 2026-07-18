@@ -38,6 +38,15 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         donnees_rapport: {},
     }).expect(201);
     assert.match(intervention.body.numero_rapport, /^\d{4}-\d{4}$/);
+    const photoBuffer = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlGQAAAAASUVORK5CYII=", "base64");
+    const photo = await agent.post(`/api/uploads/photo/${intervention.body.id}`)
+        .attach("photo", photoBuffer, { filename: "test.png", contentType: "image/png" })
+        .expect(201);
+    const photoSource = await agent.get(`/api/uploads/photo/${photo.body.photo.id}/source`).expect(200);
+    assert.equal(photoSource.headers["content-type"], "image/webp");
+    assert.ok(photoSource.body.length > 0);
+    const pdf = await agent.get(`/api/interventions/${intervention.body.id}/pdf`).expect(200);
+    assert.equal(pdf.headers["content-disposition"], `attachment; filename="rapport-${intervention.body.numero_rapport}.pdf"`);
     await agent.delete(`/api/interventions/${intervention.body.id}`).expect(204);
     const tenantBClient = await pool.query("INSERT INTO clients(entreprise_id,nom) VALUES($1,'Secret B') RETURNING id", [secondCompany.rows[0].id]);
     await agent.get(`/api/clients/${tenantBClient.rows[0].id}`).expect(404);

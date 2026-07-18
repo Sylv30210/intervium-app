@@ -4,6 +4,7 @@ import pool from "../config/database.js";
 import { requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
 import {
+    readStoredImage,
     removeStoredUpload,
     uploadCompressedPhoto,
     uploadEditedPhotoBase64,
@@ -211,6 +212,31 @@ router.post("/photo/:intervention_id", verifyToken, receivePhoto, async (req, re
 
         console.error("Échec de l'upload photo", error);
         return res.status(500).json({ error: "Impossible d'enregistrer la photo." });
+    }
+});
+
+router.get("/photo/:id/source", verifyToken, async (req, res) => {
+    const photoId = parseInterventionId(req.params.id);
+    if (!photoId) return res.status(400).json({ error: "Photo invalide." });
+    try {
+        const result = await pool.query(
+            `SELECT p.url FROM photos p
+             JOIN interventions i ON i.id = p.intervention_id AND i.entreprise_id = p.entreprise_id
+             WHERE p.id = $1 AND p.entreprise_id = $2
+               AND ($3 = 'ADMIN' OR ($3 = 'TECHNICIEN' AND i.technicien_id = $4))`,
+            [photoId, req.user.entreprise_id, req.user.role, req.user.id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Photo introuvable." });
+        const image = await readStoredImage(result.rows[0].url);
+        res.set({
+            "Content-Type": image.contentType,
+            "Content-Length": image.buffer.length,
+            "Cache-Control": "private, no-store",
+        });
+        return res.send(image.buffer);
+    } catch (error) {
+        console.error("Échec du chargement de la photo à annoter", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger la photo à annoter." });
     }
 });
 

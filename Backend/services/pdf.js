@@ -22,6 +22,15 @@ export function pdfFieldLabelVisible(field) {
     return field?.showLabel !== false;
 }
 
+export function interventionPdfFilename(intervention) {
+    const rawIdentifier = intervention?.numero_rapport || intervention?.id || "intervention";
+    const identifier = String(rawIdentifier)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "intervention";
+    return `rapport-${identifier}.pdf`;
+}
+
 function reportBranding(intervention) {
     const source = intervention.entreprise_report_settings && typeof intervention.entreprise_report_settings === "object"
         ? intervention.entreprise_report_settings

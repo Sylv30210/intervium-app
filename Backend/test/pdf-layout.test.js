@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocatePhotosToSections, pdfFieldLabelVisible, pdfHalfWidthPlacement } from "../services/pdf.js";
+import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -45,4 +45,9 @@ test("les photos sont réparties dans l'ordre des blocs du modèle", () => {
 
 test("un rapport sans bloc photo conserve sa galerie historique", () => {
     assert.deepEqual(allocatePhotosToSections([{ key: "texte", type: "text" }], ["photo-1"]), []);
+});
+
+test("le fichier PDF reprend le numéro métier du rapport", () => {
+    assert.equal(interventionPdfFilename({ id: 42, numero_rapport: "2026-0007" }), "rapport-2026-0007.pdf");
+    assert.equal(interventionPdfFilename({ id: 42 }), "rapport-42.pdf");
 });
