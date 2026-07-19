@@ -193,7 +193,7 @@ export function reportValue(section, rawValue) {
         const values = rawValue.map((entry) => String(entry)).filter(Boolean);
         if (!values.length) return "-";
         if (section.listMode === "checkboxes" || section.type === "checkbox") {
-            return values.map((entry) => `${section.showCheckmark ? "[x] " : ""}${entry}`).join("\n");
+            return values.map((entry) => `${section.showCheckmark ? "√ " : ""}${entry}`).join("\n");
         }
         return values.join(", ");
     }

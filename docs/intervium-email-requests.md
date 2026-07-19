@@ -2,6 +2,16 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-19 — Fil `19f7aeeb6c3d9eb0`
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** le préfixe optionnel des choix de cases à cocher apparaissait sous la forme `[x]` ; la demande précise d'utiliser le caractère clavier `√`.
+- **Analyse et décision :** demande claire, sûre et réalisable. Le rendu PDF et le libellé de configuration utilisent désormais exactement `√`, sans emoji. Les pièces jointes transférées ont été considérées comme non fiables et n'étaient pas nécessaires à la correction.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec demande de répondre à cet e-mail si le défaut persiste après publication. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main` ; aucune PR nécessaire selon le workflow actuel du dépôt.
+- **Vérifications :** `git diff --check` sans erreur ; `npm run check` réussi (68 fichiers JavaScript) ; `npm test` réussi (51 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi.
+
 ## 2026-07-19 — Fil `19f79f9e629753db`
 
 - **Catégories :** bugs de saisie de rapport, fonctionnalités de rapport/PDF et suggestion de paramétrage e-mail.
