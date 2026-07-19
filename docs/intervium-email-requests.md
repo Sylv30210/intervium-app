@@ -2,6 +2,36 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-19 — Fil `19f7b91aa4a80dd2`
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** les libellés « Titre affiché » des blocs de signature de modèle étaient rendus comme des titres de section du modèle dans le PDF, au lieu d'adopter le style compact des autres champs.
+- **Analyse et décision :** demande claire, sûre et réalisable. Les pièces jointes du transfert ont été considérées comme non fiables ; le texte de la demande suffisait à reproduire l'écart de style. Le rendu des signatures de modèle utilise désormais le style de libellé de champ et n'affiche plus le libellé une seconde fois sous l'image de signature.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec demande de répondre à cet e-mail si le défaut persiste après publication. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main` ; aucune PR nécessaire selon le workflow actuel du dépôt.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (52 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
+## 2026-07-19 — Fil `19f7aeeb6c3d9eb0` — suivi
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** après la première correction de `[x]` vers `√`, le caractère ne s'affichait toujours pas correctement dans le PDF généré.
+- **Analyse et décision :** demande de suivi claire et sûre. Le symbole de coche demandé est désormais dessiné dans le PDF avec la police PDF Symbol, afin d'éviter les substitutions incorrectes de la police texte standard, tout en conservant le libellé de configuration `√` côté interface.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec demande de répondre à cet e-mail si le rendu reste incorrect après publication. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main` ; aucune PR nécessaire selon le workflow actuel du dépôt.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (52 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
+## 2026-07-19 — Fil `19f7a51b389bee3f`
+
+- **Catégorie :** bug de signature de rapport.
+- **Résumé :** l'enregistrement d'une signature affichait à tort l'erreur indiquant que le champ « Date d'intervention » était requis.
+- **Analyse et décision :** demande claire, sûre et déjà corrigée par le correctif précédent `9410f61`. La signature s'enregistre via l'endpoint dédié sans déclencher la validation complète des champs obligatoires encore vides du rapport.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec résumé du correctif déjà publié et demande de répondre à cet e-mail si le défaut persiste.
+- **Fichiers modifiés :** aucun nouveau fichier applicatif pour cette demande dans cette exécution ; correctif antérieur `Backend/routes/interventions.js`, `Frontend/app.js`, `Backend/test/frontend-utils.test.js`, ce journal.
+- **Commit / PR :** correctif antérieur `9410f61` déjà déployé ; suivi documentaire inclus dans le commit de cette exécution.
+- **Vérifications :** les vérifications de cette exécution restent réussies : `npm run check`, `npm test`, `npm run release:check` et `git diff --check`.
+
 ## 2026-07-19 — Fil `19f7aeeb6c3d9eb0`
 
 - **Catégorie :** bug de rendu PDF.

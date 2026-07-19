@@ -184,6 +184,38 @@ function reportField(doc, label, value, showLabel = true, x = 48, width = doc.pa
     doc.x = 48;
 }
 
+function fieldLabel(doc, label, x = 48, width = doc.page.width - 96) {
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
+        .text(String(label || "CHAMP").toUpperCase(), x, doc.y, { width });
+    doc.moveDown(0.2);
+}
+
+export function checkboxValueUsesCheckmark(section, rawValue) {
+    return section?.showCheckmark === true &&
+        Array.isArray(rawValue) &&
+        (section.listMode === "checkboxes" || section.type === "checkbox");
+}
+
+function reportCheckboxField(doc, label, values, showLabel = true, x = 48, width = doc.page.width - 96) {
+    const entries = Array.isArray(values) ? values.map((entry) => String(entry)).filter(Boolean) : [];
+    ensureSpace(doc, (showLabel ? 20 : 0) + Math.max(1, entries.length) * 16 + 12);
+    if (showLabel) fieldLabel(doc, label, x, width);
+    if (!entries.length) {
+        doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text("-", x, doc.y, { width, lineGap: 3 });
+        doc.moveDown(0.45);
+        doc.x = 48;
+        return;
+    }
+    for (const entry of entries) {
+        const y = doc.y;
+        doc.font("Symbol").fontSize(10.5).fillColor(DARK).text("Ö", x, y, { width: 14, lineBreak: false });
+        doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text(entry, x + 14, y, { width: width - 14, lineGap: 3 });
+        doc.y = Math.max(doc.y, y + 14);
+    }
+    doc.moveDown(0.45);
+    doc.x = 48;
+}
+
 export function reportValue(section, rawValue) {
     if (rawValue === undefined || rawValue === null || rawValue === "") {
         return section.defaultValue || "-";
@@ -227,6 +259,12 @@ function drawSignatureBlock(doc, asset, label, signerName = "") {
     });
     if (label) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(label, 58, top + 61);
     doc.y = top + 82;
+}
+
+function reportSignatureLabel(doc, label, showLabel = true) {
+    if (!showLabel) return;
+    ensureSpace(doc, 24);
+    fieldLabel(doc, label || "Signature");
 }
 
 function reportFieldValue(section, rawValue, equipment) {
@@ -375,9 +413,9 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const signerName = signatureName(templateData, field);
                     const signatureBlockHeight = fieldSignature ? 95 + (signerName ? 18 : 0) : 38;
                     ensureSpace(doc, signatureBlockHeight + 38);
-                    if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Signature");
+                    reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field));
                     if (fieldSignature) {
-                        drawSignatureBlock(doc, fieldSignature, pdfFieldLabelVisible(field) ? field.label || "Signature" : "", signerName);
+                        drawSignatureBlock(doc, fieldSignature, "", signerName);
                     } else {
                         doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
                     }
@@ -399,10 +437,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const startY = doc.y;
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
+                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth);
+                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
                     const firstBottom = doc.y;
                     doc.y = startY;
-                    reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
+                    if (checkboxValueUsesCheckmark(nextField, templateData[nextField.key])) reportCheckboxField(doc, nextField.label || nextField.key, templateData[nextField.key], pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
+                    else reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
                     doc.y = Math.max(firstBottom, doc.y);
                     fieldIndex += 1;
                     continue;
@@ -410,10 +450,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 if (placement.usesHalfWidth) {
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
+                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth);
+                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
                     continue;
                 }
-                reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field));
+                if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field));
+                else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field));
             }
         }
 

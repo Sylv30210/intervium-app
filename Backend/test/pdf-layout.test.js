@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
+import { readFileSync } from "node:fs";
+import { allocatePhotosToSections, checkboxValueUsesCheckmark, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -70,4 +71,13 @@ test("le fichier PDF reprend le numéro métier du rapport", () => {
 test("les choix de cases à cocher sont rendus ligne par ligne dans le PDF", () => {
     assert.equal(reportValue({ type: "checkbox" }, ["Conforme", "Validé"]), "Conforme\nValidé");
     assert.equal(reportValue({ type: "checkbox", showCheckmark: true }, ["Conforme", "Validé"]), "√ Conforme\n√ Validé");
+    assert.equal(checkboxValueUsesCheckmark({ type: "checkbox", showCheckmark: true }, ["Conforme"]), true);
+    assert.equal(checkboxValueUsesCheckmark({ type: "checkbox", showCheckmark: false }, ["Conforme"]), false);
+});
+
+test("les titres de signature de modèle gardent le style de champ PDF", () => {
+    const source = readFileSync(new URL("../services/pdf.js", import.meta.url), "utf8");
+
+    assert.match(source, /reportSignatureLabel\(doc, field\.label \|\| "Signature", pdfFieldLabelVisible\(field\)\)/);
+    assert.match(source, /drawSignatureBlock\(doc, fieldSignature, "", signerName\)/);
 });
