@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, signatureFrameLayout } from "../services/pdf.js";
+import { allocatePhotosToSections, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -65,4 +65,9 @@ test("le cadre de signature suit la largeur réellement affichée", () => {
 test("le fichier PDF reprend le numéro métier du rapport", () => {
     assert.equal(interventionPdfFilename({ id: 42, numero_rapport: "2026-0007" }), "rapport-2026-0007.pdf");
     assert.equal(interventionPdfFilename({ id: 42 }), "rapport-42.pdf");
+});
+
+test("les choix de cases à cocher sont rendus ligne par ligne dans le PDF", () => {
+    assert.equal(reportValue({ type: "checkbox" }, ["Conforme", "Validé"]), "Conforme\nValidé");
+    assert.equal(reportValue({ type: "checkbox", showCheckmark: true }, ["Conforme", "Validé"]), "✓ Conforme\n✓ Validé");
 });

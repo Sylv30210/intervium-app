@@ -155,7 +155,7 @@ export function safeReportValue(value, depth = 0) {
     if (typeof value === "object") {
         const entries = Object.entries(value);
         return entries.length <= 20 && entries.every(([key, entry]) =>
-            key.length <= 60 && safeReportValue(entry, depth + 1)
+            key.length <= 80 && safeReportValue(entry, depth + 1)
         );
     }
     return false;
@@ -165,7 +165,7 @@ function reportData(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const entries = Object.entries(value);
     if (entries.length > 80) return null;
-    const valid = entries.every(([key, entry]) => key.length <= 60 && safeReportValue(entry));
+    const valid = entries.every(([key, entry]) => key.length <= 80 && safeReportValue(entry));
     if (!valid || JSON.stringify(value).length > 100000) return null;
     return value;
 }

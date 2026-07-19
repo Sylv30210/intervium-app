@@ -1057,6 +1057,7 @@ function openSettings() {
           <div class="field"><label>Site internet</label><input name="website" maxlength="200" placeholder="https://www.mon-entreprise.fr" value="${escapeHtml(reportSettings.website || "")}"></div>
           <div class="grid2"><div class="field color-field"><label>Couleur d’accent</label><input name="accent_color" type="color" value="${escapeHtml(reportSettings.accent_color || "#1d4ed8")}"></div><div class="field"><label>Style d’en-tête</label><select name="header_style"><option value="minimal" ${(reportSettings.header_style || "minimal") === "minimal" ? "selected" : ""}>Minimal - logo sur fond blanc</option><option value="band" ${reportSettings.header_style === "band" ? "selected" : ""}>Bandeau coloré</option><option value="none" ${reportSettings.header_style === "none" ? "selected" : ""}>Sans en-tête</option></select></div></div>
           <div class="field"><label>Texte du pied de page</label><input name="footer_text" maxlength="240" placeholder="Ex. Merci pour votre confiance" value="${escapeHtml(reportSettings.footer_text || "")}"></div>
+          <div class="field"><label>Texte par défaut des e-mails de rapport</label><textarea name="default_email_message" rows="6" maxlength="1200" placeholder="Bonjour,\n\nVeuillez trouver ci-joint le rapport « {titre} ».\n\nCordialement,\n{entreprise}">${escapeHtml(reportSettings.default_email_message || "")}</textarea><span class="field-help">Variables disponibles : {titre}, {numero}, {client}, {entreprise}.</span></div>
           <div class="field"><label><input name="show_intervium" type="checkbox" ${reportSettings.show_intervium ? "checked" : ""}> Afficher discrètement « Généré avec Intervium »</label></div>
           <button class="primary wide" type="submit">Enregistrer l’identité des PDF</button>
         </form>` : "";
@@ -1285,6 +1286,7 @@ function normalizeTemplateSection(section) {
     normalized.listMode = ["select", "radio", "checkboxes", "segments"].includes(section.listMode) ? section.listMode : "select";
     normalized.multiple = section.multiple === true;
     normalized.allowOther = section.allowOther === true;
+    normalized.showCheckmark = section.showCheckmark === true;
     normalized.allowAddRows = section.allowAddRows !== false;
     normalized.minRows = Math.max(0, Number(section.minRows) || 0);
     normalized.maxRows = Math.min(100, Math.max(normalized.minRows || 1, Number(section.maxRows) || 30));
@@ -1323,7 +1325,7 @@ function newTemplateSection(type, label, key = null) {
         options: ["select", "checkbox"].includes(type) ? ["Oui", "Non", "Non applicable"] : [],
         columns: type === "price_table" ? ["Désignation", "Quantité", "Prix HT", "TVA %"].map((column, index) => normalizeTableColumn(column, index, true)) : type === "table" ? ["Colonne 1", "Colonne 2"].map((column, index) => normalizeTableColumn(column, index)) : [],
         defaultRows: [], allowAddRows: true, minRows: 0, maxRows: 30, tableMode: "table",
-        listMode: "select", multiple: false, allowOther: false,
+        listMode: "select", multiple: false, allowOther: false, showCheckmark: false,
         placeholder: "",
         helpText: "",
         defaultValue: "",
@@ -1349,6 +1351,7 @@ function templateSpecificConfiguration(section, index) {
     }
     if (["select", "checkbox"].includes(section.type)) {
         fields.push(`<div class="field full"><label>Choix proposés (un par ligne)</label><textarea data-template-property="options" data-value-kind="lines" rows="6" placeholder="Conforme\nNon conforme\nNon applicable">${escapeHtml((section.options || []).join("\n"))}</textarea></div><div class="field"><label>Mode d’affichage</label><select data-template-property="listMode"><option value="select" ${section.listMode === "select" ? "selected" : ""}>Menu déroulant</option><option value="radio" ${section.listMode === "radio" ? "selected" : ""}>Boutons radio</option><option value="checkboxes" ${section.listMode === "checkboxes" ? "selected" : ""}>Cases à cocher</option><option value="segments" ${section.listMode === "segments" ? "selected" : ""}>Boutons segmentés</option></select></div><label class="setting-check"><input type="checkbox" data-template-property="multiple" ${section.multiple ? "checked" : ""}> Autoriser plusieurs réponses</label><label class="setting-check"><input type="checkbox" data-template-property="allowOther" ${section.allowOther ? "checked" : ""}> Ajouter le choix « Autre »</label>`);
+        fields.push(`<label class="setting-check"><input type="checkbox" data-template-property="showCheckmark" ${section.showCheckmark ? "checked" : ""}> Afficher « ✓ » devant les choix dans le PDF</label>`);
     }
     if (section.type === "textarea") {
         fields.push(`<div class="field"><label>Nombre de lignes</label><input type="number" min="2" max="12" ${property("rows", section.rows || 4, "number")}></div>`);
@@ -1961,8 +1964,9 @@ function renderReportFields(template, data = {}, interventionId = null) {
         if (["photo", "multi_photo", "event_photos"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">📷 Ajoutez jusqu’à ${Number(section.maxPhotos || (section.type === "photo" ? 1 : 5))} photo(s) depuis la fiche de l’intervention.</p></div>`);
         if (["signature", "electronic_signature"].includes(section.type)) {
             const signatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
+            const signerName = data?.[`${section.key}_name`] || "";
             if (!interventionId) return wrapper(`<div class="field">${label}<p class="muted">Enregistrez d’abord l’intervention, puis ouvrez sa fiche pour recueillir cette signature.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""></div>`, "signature-field");
-            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}${signatureUrl ? `<div class="saved-signature"><img src="${reportSignatureSourceUrl(interventionId, section.key)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
+            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}<input data-report-key="${escapeHtml(section.key)}_name" maxlength="150" value="${escapeHtml(signerName)}" placeholder="Nom du signataire">${signatureUrl ? `<div class="saved-signature"><img src="${reportSignatureSourceUrl(interventionId, section.key)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature enregistrée</span></div>` : ""}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(signatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${signatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
         }
         if (section.type === "client") {
             const clientName = document.getElementById("new-client")?.selectedOptions?.[0]?.textContent || template.client_nom || data[section.key] || "Client sélectionné dans le rapport";
@@ -1988,7 +1992,11 @@ function renderReportFields(template, data = {}, interventionId = null) {
         }
         if (section.type === "checkbox" && (section.options || []).length) {
             const selected = Array.isArray(value) ? value : (value ? [value] : []);
-            return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options">${section.options.map((option) => `<label><input type="checkbox" data-report-checkbox-group="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div></fieldset>`);
+            const knownValues = section.options || [];
+            const customValue = selected.find((entry) => !knownValues.includes(entry)) || "";
+            const choices = [...knownValues, ...(section.allowOther ? ["Autre"] : [])];
+            const otherInput = section.allowOther ? `<div class="field"><label>Précisez « Autre »</label><input data-report-other-for="${escapeHtml(section.key)}" value="${escapeHtml(customValue)}" placeholder="Saisissez votre réponse"></div>` : "";
+            return wrapper(`<fieldset class="field"><legend class="${section.showLabel === false ? "sr-only" : ""}">${escapeHtml(section.label)}${section.required ? " *" : ""}</legend><div class="checkbox-options">${choices.map((option) => `<label><input type="checkbox" data-report-checkbox-group="${escapeHtml(section.key)}" value="${escapeHtml(option)}" ${selected.includes(option) || (option === "Autre" && customValue) ? "checked" : ""}> ${escapeHtml(option)}</label>`).join("")}</div>${otherInput}</fieldset>`);
         }
         if (section.type === "checkbox") return wrapper(`<div class="field"><label><input type="checkbox" ${attributes} ${value ? "checked" : ""}> ${escapeHtml(section.label)}${section.required ? " *" : ""}</label></div>`);
         const inputType = section.type === "date" ? (section.dateMode || "date") : section.type === "number" ? "number" : "text";
@@ -2176,11 +2184,11 @@ async function openIntervention(id) {
         await withBusy(submitButton, async () => {
             try {
                 const updated = await api(`/interventions/${id}`, { method: "PUT", body: JSON.stringify(values) });
-                item.report_version = updated.report_version;
+                Object.assign(item, updated);
                 clearReportDraft(item.id);
                 reportAutosavePending = false;
-                closeModal();
-                await finishMutation("interventions", "Rapport enregistré.");
+                setAutosaveStatus("saved", "Enregistré");
+                toast("Rapport enregistré.");
             } catch (error) { toast(error.message, true); }
         });
     });
@@ -2322,12 +2330,19 @@ function setupReportSignatureCanvases(interventionId, root) {
             const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
             await withBusy(event.currentTarget, async () => {
                 try {
-                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData }) });
                     const item = interventions.find((entry) => String(entry.id) === String(interventionId));
-                    item.donnees_rapport = { ...(item.donnees_rapport || {}), [key]: result.signature_url };
-                    item.report_version = result.report_version;
-                    pendingPayload.donnees_rapport = { ...(pendingPayload.donnees_rapport || {}), [key]: result.signature_url };
-                    persistReportDraft(item, pendingPayload); reportAutosavePending = true;
+                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData }) });
+                    const fullPayload = {
+                        ...pendingPayload,
+                        expected_version: result.report_version,
+                        donnees_rapport: { ...(pendingPayload.donnees_rapport || {}), [key]: result.signature_url },
+                    };
+                    const updated = await api(`/interventions/${interventionId}`, { method: "PUT", body: JSON.stringify(fullPayload) });
+                    item.donnees_rapport = updated.donnees_rapport;
+                    item.report_version = updated.report_version;
+                    item.statut = updated.statut;
+                    item.adresse_chantier = updated.adresse_chantier;
+                    clearReportDraft(item.id); reportAutosavePending = false;
                     openIntervention(interventionId); toast("Signature enregistrée.");
                 } catch (error) { toast(error.message, true); }
             });
@@ -2485,11 +2500,23 @@ function bindReportEmail(item) {
     document.querySelector(`[data-email-report="${item.id}"]`)?.addEventListener("click", () => openReportEmail(item));
 }
 
+function defaultReportEmailMessage(item) {
+    const settings = currentEntreprise?.report_settings || {};
+    const template = settings.default_email_message || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « {titre} ».\n\nCordialement,\n{entreprise}`;
+    const variables = {
+        titre: item.titre || "",
+        numero: item.numero_rapport || item.id || "",
+        client: item.client_nom || "",
+        entreprise: settings.display_name || currentEntreprise?.nom || "",
+    };
+    return template.replace(/\{(titre|numero|client|entreprise)\}/g, (_match, key) => variables[key]);
+}
+
 function openReportEmail(item) {
     const selectedPhotoIds = [...document.querySelectorAll("[data-pdf-photo-id]:checked")].map((input) => Number(input.dataset.pdfPhotoId));
     const client = clients.find((entry) => String(entry.id) === String(item.client_id));
     const savedEmails = [...new Set([...(client?.report_emails || []), ...(client?.contact_report_emails || []), client?.email].filter(Boolean))];
-    modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Compte expéditeur</label><select name="connection_id">${emailMailStatus.connections.filter((entry)=>entry.status==="ACTIVE"&&entry.id).map((entry)=>`<option value="${entry.id}">${escapeHtml(entry.email)} · ${escapeHtml(entry.provider)}</option>`).join("")}</select></div><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${escapeHtml(item.titre)} ».\n\nCordialement,\n${escapeHtml(currentEntreprise?.report_settings?.display_name || currentEntreprise?.nom || "")}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
+    modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Compte expéditeur</label><select name="connection_id">${emailMailStatus.connections.filter((entry)=>entry.status==="ACTIVE"&&entry.id).map((entry)=>`<option value="${entry.id}">${escapeHtml(entry.email)} · ${escapeHtml(entry.provider)}</option>`).join("")}</select></div><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">${escapeHtml(defaultReportEmailMessage(item))}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
     document.getElementById("report-email-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);

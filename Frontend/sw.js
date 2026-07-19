@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v18-mobile-reports";
+const CACHE_VERSION = "intervium-shell-v19-report-email-signatures";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

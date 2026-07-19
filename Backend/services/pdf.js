@@ -184,12 +184,19 @@ function reportField(doc, label, value, showLabel = true, x = 48, width = doc.pa
     doc.x = 48;
 }
 
-function reportValue(section, rawValue) {
+export function reportValue(section, rawValue) {
     if (rawValue === undefined || rawValue === null || rawValue === "") {
         return section.defaultValue || "-";
     }
     if (typeof rawValue === "boolean") return rawValue ? "Oui" : "Non";
-    if (Array.isArray(rawValue)) return rawValue.join(", ") || "-";
+    if (Array.isArray(rawValue)) {
+        const values = rawValue.map((entry) => String(entry)).filter(Boolean);
+        if (!values.length) return "-";
+        if (section.listMode === "checkboxes" || section.type === "checkbox") {
+            return values.map((entry) => `${section.showCheckmark ? "✓ " : ""}${entry}`).join("\n");
+        }
+        return values.join(", ");
+    }
     if (section.type === "number" && section.unit) return `${rawValue} ${section.unit}`;
     if (section.type === "date") {
         const date = new Date(section.dateMode === "datetime-local" ? rawValue : `${rawValue}T12:00:00`);
@@ -200,6 +207,26 @@ function reportValue(section, rawValue) {
         }
     }
     return String(rawValue);
+}
+
+function signatureName(templateData, field) {
+    const name = templateData?.[`${field.key}_name`];
+    return typeof name === "string" ? name.trim().slice(0, 150) : "";
+}
+
+function drawSignatureBlock(doc, asset, label, signerName = "") {
+    let top = doc.y;
+    if (signerName) {
+        doc.font("Helvetica").fontSize(10).fillColor(DARK).text(signerName, 58, top, { width: 260 });
+        top = doc.y + 6;
+    }
+    doc.rect(48, top, asset.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
+    doc.image(asset.buffer, 58, top + 8, {
+        width: asset.layout.imageWidth,
+        height: asset.layout.imageHeight,
+    });
+    if (label) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(label, 58, top + 61);
+    doc.y = top + 82;
 }
 
 function reportFieldValue(section, rawValue, equipment) {
@@ -345,20 +372,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 if (signatureTypes.has(field.type)) {
                     if (pdfConfig.showSignature === false) continue;
                     const fieldSignature = templateSignatures.get(field.key);
-                    const signatureBlockHeight = fieldSignature ? 95 : 38;
+                    const signerName = signatureName(templateData, field);
+                    const signatureBlockHeight = fieldSignature ? 95 + (signerName ? 18 : 0) : 38;
                     ensureSpace(doc, signatureBlockHeight + 38);
                     if (pdfFieldLabelVisible(field)) sectionTitle(doc, field.label || "Signature");
                     if (fieldSignature) {
-                        const y = doc.y;
-                        doc.rect(48, y, fieldSignature.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
-                        doc.image(fieldSignature.buffer, 58, y + 8, {
-                            width: fieldSignature.layout.imageWidth,
-                            height: fieldSignature.layout.imageHeight,
-                        });
-                        if (pdfFieldLabelVisible(field)) {
-                            doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(field.label || "Signature", 58, y + 61);
-                        }
-                        doc.y = y + signatureBlockHeight;
+                        drawSignatureBlock(doc, fieldSignature, pdfFieldLabelVisible(field) ? field.label || "Signature" : "", signerName);
                     } else {
                         doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
                     }
@@ -416,14 +435,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
             ensureSpace(doc, signatureBlockHeight + 38);
             sectionTitle(doc, "Signature client");
             if (signatureBuffer) {
-                const y = doc.y;
-                doc.rect(48, y, signature.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
-                doc.image(signatureBuffer, 58, y + 8, {
-                    width: signature.layout.imageWidth,
-                    height: signature.layout.imageHeight,
-                });
-                doc.font("Helvetica").fontSize(8).fillColor(GRAY).text("Signature client", 58, y + 61);
-                doc.y = y + signatureBlockHeight;
+                drawSignatureBlock(doc, signature, "Signature client");
             } else {
                 doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
             }

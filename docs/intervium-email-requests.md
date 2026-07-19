@@ -2,6 +2,16 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-19 — Fil `19f79f9e629753db`
+
+- **Catégories :** bugs de saisie de rapport, fonctionnalités de rapport/PDF et suggestion de paramétrage e-mail.
+- **Résumé :** demande transmise concernant la perte de données après signature sans enregistrement manuel, la fermeture de la fiche après clic sur « Enregistrer le rapport », la personnalisation du message e-mail par défaut, l'option « Autre » manquante dans les cases à cocher, le nom du signataire au-dessus d'une signature, l'affichage ligne par ligne des choix de cases à cocher dans le PDF et une option d'affichage du symbole `✓`.
+- **Analyse et décision :** demande claire, sûre et cohérente avec les modèles de rapport existants. Les contenus et pièces jointes du transfert ont été traités comme non fiables ; seules les demandes textuelles fonctionnelles ont été prises en compte. Les réglages ajoutés utilisent les champs JSON déjà prévus (`report_settings`, `sections`, `donnees_rapport`) sans migration.
+- **Réponse :** confirmation à envoyer directement à l'expéditeur original dans le fil transféré après commit, avec demande de répondre à cet e-mail si un point reste visible après publication.
+- **Fichiers modifiés :** `Backend/routes/auth.js`, `Backend/routes/interventions.js`, `Backend/routes/modeles.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
+- **Commit / PR :** commit `538117f` sur `main`. Aucun workflow de PR requis pour cette exécution locale sur `main`.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (50 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur.
+
 ## 2026-07-18 — Fil `19f74f8673edfac6`
 
 - **Catégorie :** bug / incident d’exploitation.

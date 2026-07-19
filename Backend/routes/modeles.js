@@ -90,6 +90,7 @@ function validateSections(value) {
             listMode: ["select", "radio", "checkboxes", "segments"].includes(source.listMode) ? source.listMode : "select",
             multiple: source.multiple === true,
             allowOther: source.allowOther === true,
+            showCheckmark: source.showCheckmark === true,
             columns: columns.length ? columns : (source.type === "price_table"
                 ? normalizeColumns(["Désignation", "Quantité", "Prix HT", "TVA %"], true)
                 : source.type === "table" ? normalizeColumns(["Colonne 1", "Colonne 2"]) : []),

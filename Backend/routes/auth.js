@@ -377,6 +377,7 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
             website: source.website === undefined ? previous.website || "" : limitedText(source.website, 200),
             registration: source.registration === undefined ? previous.registration || "" : limitedText(source.registration, 120),
             footer_text: source.footer_text === undefined ? previous.footer_text || "" : limitedText(source.footer_text, 240),
+            default_email_message: source.default_email_message === undefined ? previous.default_email_message || "" : limitedText(source.default_email_message, 1200),
             accent_color: accentColor,
             header_style: headerStyle,
             show_intervium: source.show_intervium === undefined ? Boolean(previous.show_intervium) : source.show_intervium === true,
