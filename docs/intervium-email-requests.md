@@ -9,7 +9,7 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Analyse et décision :** demande claire, sûre et cohérente avec les modèles de rapport existants. Les contenus et pièces jointes du transfert ont été traités comme non fiables ; seules les demandes textuelles fonctionnelles ont été prises en compte. Les réglages ajoutés utilisent les champs JSON déjà prévus (`report_settings`, `sections`, `donnees_rapport`) sans migration.
 - **Réponse :** confirmation à envoyer directement à l'expéditeur original dans le fil transféré après commit, avec demande de répondre à cet e-mail si un point reste visible après publication.
 - **Fichiers modifiés :** `Backend/routes/auth.js`, `Backend/routes/interventions.js`, `Backend/routes/modeles.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
-- **Commit / PR :** commit `538117f` sur `main`. Aucun workflow de PR requis pour cette exécution locale sur `main`.
+- **Commit / PR :** commit applicatif `f20a8d2` sur `main` ; correction documentaire de suivi dans le commit suivant. Aucun workflow de PR requis pour cette exécution locale sur `main`.
 - **Vérifications :** `npm run check` réussi ; `npm test` réussi (50 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur.
 
 ## 2026-07-18 — Fil `19f74f8673edfac6`
