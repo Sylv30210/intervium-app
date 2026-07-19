@@ -17,6 +17,7 @@ import activity from "./routes/activity.js";
 import notifications from "./routes/notifications.js";
 import search from "./routes/search.js";
 import google from "./routes/google.js";
+import emailConnections from "./routes/email-connections.js";
 import admin from "./routes/admin.js";
 import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
@@ -148,6 +149,7 @@ app.use("/api/activity", activity);
 app.use("/api/notifications", notifications);
 app.use("/api/search", searchRateLimit, search);
 app.use("/api/google", google);
+app.use("/api/email-connections", emailConnections);
 app.use("/api/admin", admin);
 
 app.get("/sw.js", (_req, res) => {

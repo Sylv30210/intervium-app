@@ -4,7 +4,7 @@ import { requireRole, verifyToken } from "../middleware/auth.js";
 import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf, interventionPdfFilename } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
-import { googleEnabled, sendGmailReport } from "../services/google.js";
+import { sendEmail } from "../services/email-sender.js";
 import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
 
 const router = express.Router();
@@ -471,7 +471,6 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
     if (!id || !recipients.length || recipients.length > 20 || recipients.some((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
         return res.status(400).json({ error: "Sélection de destinataires invalide." });
     }
-    if (!googleEnabled()) return res.status(503).json({ error: "L’envoi Gmail n’est pas encore configuré sur le serveur." });
     try {
         const result = await pool.query(
             `SELECT i.*, e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
@@ -502,18 +501,18 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
         const photos = selectedIds ? photoResult.rows.filter((photo) => selectedIds.includes(Number(photo.id))) : photoResult.rows;
         const pdf = await generateInterventionPdf({ intervention, equipments: equipmentResult.rows, photos });
         const settings = intervention.entreprise_report_settings || {};
-        await sendGmailReport({
-            user: req.user, to: recipients,
+        await sendEmail({
+            user: req.user, connectionId: Number(req.body.connection_id) || null, to: recipients,
             subject: req.body.subject?.trim() || `Rapport ${intervention.titre}`,
             text: req.body.message?.trim() || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${intervention.titre} ».\n\nCordialement,\n${settings.display_name || intervention.entreprise_nom}`,
-            pdf,
-            filename: interventionPdfFilename(intervention),
+            attachments: [{ content: pdf, filename: interventionPdfFilename(intervention), contentType: "application/pdf" }],
         });
         await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s).` });
         return res.json({ sent: true, recipients });
     } catch (error) {
-        console.error("Échec de l’envoi du rapport", error);
-        return res.status(502).json({ error: "Impossible d’envoyer le rapport par e-mail." });
+        console.error("Échec de l’envoi du rapport", { code: String(error?.message || "EMAIL_ERROR").slice(0, 80) });
+        const status = error.message === "EMAIL_RATE_LIMIT" ? 429 : error.message === "EMAIL_CONNECTION_NOT_FOUND" ? 409 : 502;
+        return res.status(status).json({ error: error.publicMessage || (status === 429 ? "Limite d’envoi atteinte. Réessayez plus tard." : status === 409 ? "Connectez d’abord un compte e-mail." : "Impossible d’envoyer le rapport par e-mail.") });
     }
 });
 

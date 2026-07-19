@@ -29,7 +29,7 @@ let reportAutosaveTimer = null;
 let reportAutosavePending = false;
 let globalSearchTimer = null;
 let mobileNavLongPressTimer = null;
-let googleMailStatus = { enabled: false, connection: null };
+let emailMailStatus = { connections: [], providers: [], configuration: {} };
 let platformCompanies = [];
 let publicRegistrationEnabled = null;
 let onboardingStepIndex = -1;
@@ -325,7 +325,7 @@ async function loadAllData() {
     const collectionLimit = COLLECTION_PAGE_LIMIT;
     Object.values(collectionPages).forEach((state) => { state.limit = collectionLimit; });
     appVersion = (await api("/version").catch(() => ({ version: appVersion }))).version;
-    googleMailStatus = await api("/google/status").catch(() => ({ enabled: false, connection: null }));
+    emailMailStatus = await api("/email-connections").catch(() => ({ connections: [], providers: [], configuration: {} }));
     platformCompanies = currentUser.is_super_developer ? await api("/auth/companies") : [];
     if (currentUser.role === "CLIENT") {
         const page = await api(`/interventions?page=1&limit=${collectionLimit}`);
@@ -1013,6 +1013,30 @@ function modal(title, content) {
 }
 function closeModal(force = false) { closeTemplateSectionDrawer(); const root = document.getElementById("modal-root"); if (!force && root?._dirty && !confirm("Fermer sans enregistrer les modifications ?")) return; if (root?._keyHandler) document.removeEventListener("keydown", root._keyHandler); if (root) { root._dirty = false; root.innerHTML = ""; } }
 
+function emailConnectionCard(connection) {
+    const provider = emailMailStatus.providers.find((item) => item.id === connection.provider)?.label || connection.provider;
+    const tested = connection.last_test_at ? new Date(connection.last_test_at).toLocaleString("fr-FR") : "Jamais";
+    return `<article class="settings-intro"><strong>${escapeHtml(provider)} · ${escapeHtml(connection.email)}</strong><p>Statut : ${connection.status === "ACTIVE" ? "Connecté" : "Attention requise"} · Dernier test : ${escapeHtml(tested)}</p>${connection.last_error ? `<p class="muted">${escapeHtml(connection.last_error)}</p>` : ""}<div class="grid2">${connection.id ? `<button class="secondary" type="button" data-test-email="${connection.id}">Tester la connexion</button>` : ""}${connection.connection_type === "SMTP" ? `<button class="secondary" type="button" data-edit-email="${connection.id}">Modifier</button>` : ""}</div>${connection.id ? `<button class="danger wide" type="button" data-delete-email="${connection.id}">Déconnecter / supprimer</button>` : ""}</article>`;
+}
+
+function openSmtpConnection(existing = null) {
+    const providers = emailMailStatus.providers || [];
+    const currentProvider = existing?.provider || "orange";
+    modal(existing ? "Modifier le compte SMTP" : "Configurer une autre adresse e-mail", `<form id="smtp-connection-form">
+      <div class="field"><label>Fournisseur</label><select name="provider">${providers.map((item)=>`<option value="${item.id}" ${item.id===currentProvider?"selected":""}>${escapeHtml(item.label)}</option>`).join("")}</select><span class="field-help" id="smtp-provider-help"></span></div>
+      <div class="grid2">${field("Adresse e-mail","email","email",true,existing?.email||"")}${field("Nom d’expéditeur","sender_name","text",false,existing?.sender_name||"")}</div>
+      <div class="grid2">${field("Serveur SMTP","smtp_host","text",true,existing?.smtp_host||"")}${field("Port","smtp_port","number",true,existing?.smtp_port||587)}</div>
+      <div class="grid2"><div class="field"><label>Sécurité</label><select name="smtp_security"><option value="TLS">SSL/TLS</option><option value="STARTTLS">STARTTLS</option><option value="NONE">Aucune (développement uniquement)</option></select></div><label class="setting-check"><input name="smtp_auth_required" type="checkbox" ${existing?.smtp_auth_required===false?"":"checked"}> Authentification requise</label></div>
+      ${field("Nom d’utilisateur SMTP","smtp_username","text",false,existing?.smtp_username||"")}
+      <div class="field"><label>${existing ? "Nouveau mot de passe SMTP (laisser vide pour conserver l’actuel)" : "Mot de passe SMTP ou mot de passe d’application"}</label><input name="smtp_password" type="password" autocomplete="new-password" ${existing?"":"required"}></div>
+      <p class="muted">Le secret est chiffré côté serveur et ne sera jamais réaffiché.</p><button class="primary wide" type="submit">Enregistrer</button></form>`);
+    const form=document.getElementById("smtp-connection-form");
+    const applyPreset=()=>{ const preset=providers.find((item)=>item.id===form.elements.provider.value); if(!preset)return; if(!existing||form.elements.provider.value!==existing.provider){ form.elements.smtp_host.value=preset.host; form.elements.smtp_port.value=preset.port; form.elements.smtp_security.value=preset.security; form.elements.smtp_auth_required.checked=preset.authRequired; if(preset.usernameIsEmail)form.elements.smtp_username.value=form.elements.email.value; } document.getElementById("smtp-provider-help").textContent=preset.help||""; };
+    form.elements.smtp_security.value=existing?.smtp_security||"STARTTLS"; applyPreset();
+    form.elements.provider.addEventListener("change",applyPreset); form.elements.email.addEventListener("input",()=>{ const preset=providers.find((item)=>item.id===form.elements.provider.value); if(preset?.usernameIsEmail)form.elements.smtp_username.value=form.elements.email.value; });
+    form.addEventListener("submit",async(event)=>{ event.preventDefault(); const button=form.querySelector('button[type="submit"]'); await withBusy(button,async()=>{ try { const values=Object.fromEntries(new FormData(form)); values.smtp_port=Number(values.smtp_port); values.smtp_auth_required=form.elements.smtp_auth_required.checked; await api(existing?`/email-connections/${existing.id}`:"/email-connections/smtp",{method:existing?"PUT":"POST",body:JSON.stringify(values)}); emailMailStatus=await api("/email-connections"); closeModal(); openSettings(); toast("Compte e-mail enregistré. Testez maintenant la connexion."); } catch(error){ toast(error.message,true); } }); });
+}
+
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
     const reportSettings = currentEntreprise?.report_settings || {};
@@ -1057,10 +1081,11 @@ function openSettings() {
           <button class="secondary wide" type="submit">Modifier mon mot de passe</button>
         </form>
         <section class="settings-intro">
-          <strong>Envoi des rapports avec Google</strong>
-          <p>${googleMailStatus.connection ? `Compte connecté : <strong>${escapeHtml(googleMailStatus.connection.email_google)}</strong>` : "Connectez votre compte Google pour envoyer les rapports depuis votre propre adresse Gmail."}</p>
-          ${googleMailStatus.connection ? '<button class="danger wide" id="disconnect-google" type="button">Déconnecter mon compte Google</button>' : `<button class="primary wide" id="connect-google" type="button" ${googleMailStatus.enabled ? "" : "disabled"}>Connecter mon compte Google</button>`}
-          ${googleMailStatus.enabled ? "" : `<p class="muted">Configuration serveur incomplète${googleMailStatus.configuration?.missing?.length ? ` : ${escapeHtml(googleMailStatus.configuration.missing.join(", "))}` : ". Vérifiez GMAIL_SENDING_ENABLED=true."}</p>`}
+          <strong>Comptes e-mail connectés</strong>
+          <p class="muted">L’adresse d’expédition reste celle du compte réellement connecté.</p>
+          <div class="grid2"><button class="primary" id="connect-google" type="button" ${emailMailStatus.configuration?.google?.enabled ? "" : "disabled"}>Continuer avec Google</button><button class="primary" id="connect-microsoft" type="button" ${emailMailStatus.configuration?.microsoft?.enabled ? "" : "disabled"}>Continuer avec Microsoft</button></div>
+          <button class="secondary wide" id="connect-smtp" type="button">Configurer une autre adresse e-mail</button>
+          <div class="email-connections">${emailMailStatus.connections.length ? emailMailStatus.connections.map(emailConnectionCard).join("") : '<p class="muted">Aucun compte connecté.</p>'}</div>
         </section>
         <section class="settings-intro"><strong>Navigation mobile</strong><p>Choisissez l’ordre des raccourcis et les rubriques placées dans « Plus ».</p><button class="secondary wide" id="customize-mobile-nav" type="button">${icon("more")} Personnaliser la navigation</button></section>
         <section class="settings-intro"><strong>Aide et prise en main</strong><p>Revoir la présentation des principales fonctions d’Intervium.</p><button class="primary wide" id="restart-onboarding" type="button">Relancer le tutoriel</button></section>
@@ -1106,13 +1131,14 @@ function openSettings() {
         } catch (error) { toast(error.message, true); }
     });
     document.getElementById("connect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {
-        try { const result = await api("/google/authorize"); window.location.assign(result.url); }
+        try { const result = await api("/email-connections/google/authorize"); window.location.assign(result.url); }
         catch (error) { toast(error.message, true); }
     }));
-    document.getElementById("disconnect-google")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => {
-        try { await api("/google/connection", { method: "DELETE" }); googleMailStatus.connection = null; openSettings(); toast("Compte Google déconnecté."); }
-        catch (error) { toast(error.message, true); }
-    }));
+    document.getElementById("connect-microsoft")?.addEventListener("click", async (event) => withBusy(event.currentTarget, async () => { try { const result=await api("/email-connections/microsoft/authorize"); window.location.assign(result.url); } catch(error){ toast(error.message,true); } }));
+    document.getElementById("connect-smtp")?.addEventListener("click", () => openSmtpConnection());
+    document.querySelectorAll("[data-test-email]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => { try { await api(`/email-connections/${button.dataset.testEmail}/test`,{method:"POST",body:"{}"}); emailMailStatus=await api("/email-connections"); openSettings(); toast("Connexion vérifiée."); } catch(error){ toast(error.message,true); } })));
+    document.querySelectorAll("[data-edit-email]").forEach((button) => button.addEventListener("click", () => openSmtpConnection(emailMailStatus.connections.find((item)=>String(item.id)===button.dataset.editEmail))));
+    document.querySelectorAll("[data-delete-email]").forEach((button) => button.addEventListener("click", () => withBusy(button, async () => { if(!confirm("Déconnecter ce compte e-mail ?"))return; try { await api(`/email-connections/${button.dataset.deleteEmail}`,{method:"DELETE"}); emailMailStatus=await api("/email-connections"); openSettings(); toast("Compte e-mail déconnecté."); } catch(error){ toast(error.message,true); } })));
     document.getElementById("password-settings")?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -2453,7 +2479,7 @@ async function openPhotoAnnotator(item, photo) {
     }
 }
 function pdfButton(item, usePhotoSelection = false) { return `<p><button class="primary wide" data-download-pdf="${item.id}" ${usePhotoSelection ? "data-use-photo-selection" : ""}>${icon("download")} Exporter le rapport en PDF</button></p>`; }
-function emailButton(item) { return googleMailStatus.connection ? `<p><button class="secondary wide" type="button" data-email-report="${item.id}">✉ Envoyer avec ${escapeHtml(googleMailStatus.connection.email_google)}</button></p>` : ""; }
+function emailButton(item) { const connection=emailMailStatus.connections.find((entry)=>entry.status==="ACTIVE"); return connection ? `<p><button class="secondary wide" type="button" data-email-report="${item.id}">✉ Envoyer avec ${escapeHtml(connection.email)}</button></p>` : ""; }
 
 function bindReportEmail(item) {
     document.querySelector(`[data-email-report="${item.id}"]`)?.addEventListener("click", () => openReportEmail(item));
@@ -2463,7 +2489,7 @@ function openReportEmail(item) {
     const selectedPhotoIds = [...document.querySelectorAll("[data-pdf-photo-id]:checked")].map((input) => Number(input.dataset.pdfPhotoId));
     const client = clients.find((entry) => String(entry.id) === String(item.client_id));
     const savedEmails = [...new Set([...(client?.report_emails || []), ...(client?.contact_report_emails || []), client?.email].filter(Boolean))];
-    modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${escapeHtml(item.titre)} ».\n\nCordialement,\n${escapeHtml(currentEntreprise?.report_settings?.display_name || currentEntreprise?.nom || "")}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
+    modal("Envoyer le rapport", `<form id="report-email-form"><div class="field"><label>Compte expéditeur</label><select name="connection_id">${emailMailStatus.connections.filter((entry)=>entry.status==="ACTIVE"&&entry.id).map((entry)=>`<option value="${entry.id}">${escapeHtml(entry.email)} · ${escapeHtml(entry.provider)}</option>`).join("")}</select></div><div class="field"><label>Destinataires enregistrés</label><div class="checkbox-options">${savedEmails.length ? savedEmails.map((email) => `<label><input type="checkbox" name="saved_recipient" value="${escapeHtml(email)}" checked> ${escapeHtml(email)}</label>`).join("") : '<span class="muted">Aucune adresse enregistrée.</span>'}</div></div><div class="field"><label>Adresses libres supplémentaires</label><textarea name="free_recipients" rows="3" placeholder="Une adresse par ligne"></textarea></div><div class="field"><label>Objet</label><input name="subject" value="${escapeHtml(`Rapport ${item.titre}`)}"></div><div class="field"><label>Message</label><textarea name="message" rows="5">Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${escapeHtml(item.titre)} ».\n\nCordialement,\n${escapeHtml(currentEntreprise?.report_settings?.display_name || currentEntreprise?.nom || "")}</textarea></div><button class="primary wide" type="submit">Envoyer avec le PDF</button></form>`);
     document.getElementById("report-email-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = formFromSubmitEvent(event);
@@ -2472,7 +2498,7 @@ function openReportEmail(item) {
         const recipients = [...form.querySelectorAll('[name="saved_recipient"]:checked')].map((input) => input.value).concat(freeRecipients);
         await withBusy(button, async () => {
             try {
-                await api(`/interventions/${item.id}/email`, { method: "POST", body: JSON.stringify({ recipients, free_recipients: freeRecipients, photo_ids: selectedPhotoIds, subject: form.elements.subject.value, message: form.elements.message.value }) });
+                await api(`/interventions/${item.id}/email`, { method: "POST", body: JSON.stringify({ connection_id: Number(form.elements.connection_id.value), recipients, free_recipients: freeRecipients, photo_ids: selectedPhotoIds, subject: form.elements.subject.value, message: form.elements.message.value }) });
                 closeModal();
                 toast("Rapport envoyé par e-mail.");
             } catch (error) { toast(error.message, true); }

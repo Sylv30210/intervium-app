@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
+import { decryptCredential, encryptCredential } from "./email-crypto.js";
 
 const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 
@@ -14,7 +15,7 @@ function config() {
     const clientId = envValue("GOOGLE_CLIENT_ID");
     const clientSecret = envValue("GOOGLE_CLIENT_SECRET");
     const redirectUri = envValue("GOOGLE_REDIRECT_URI") || (envValue("APP_URL") ? `${envValue("APP_URL").replace(/\/$/, "")}/api/google/callback` : "");
-    const encryptionKey = envValue("GOOGLE_TOKEN_ENCRYPTION_KEY");
+    const encryptionKey = envValue("EMAIL_CREDENTIALS_ENCRYPTION_KEY") || envValue("GOOGLE_TOKEN_ENCRYPTION_KEY");
     if (!clientId || !clientSecret || !redirectUri || !encryptionKey || !process.env.JWT_SECRET) return null;
     let key = /^[a-f0-9]{64}$/i.test(encryptionKey)
         ? Buffer.from(encryptionKey, "hex")
@@ -28,7 +29,7 @@ export function googleConfigurationStatus() {
     if (!envValue("GOOGLE_CLIENT_ID")) missing.push("GOOGLE_CLIENT_ID");
     if (!envValue("GOOGLE_CLIENT_SECRET")) missing.push("GOOGLE_CLIENT_SECRET");
     if (!envValue("GOOGLE_REDIRECT_URI") && !envValue("APP_URL")) missing.push("GOOGLE_REDIRECT_URI ou APP_URL");
-    if (!envValue("GOOGLE_TOKEN_ENCRYPTION_KEY")) missing.push("GOOGLE_TOKEN_ENCRYPTION_KEY");
+    if (!envValue("EMAIL_CREDENTIALS_ENCRYPTION_KEY") && !envValue("GOOGLE_TOKEN_ENCRYPTION_KEY")) missing.push("EMAIL_CREDENTIALS_ENCRYPTION_KEY");
     if (!envValue("JWT_SECRET")) missing.push("JWT_SECRET");
     const flagEnabled = envValue("GMAIL_SENDING_ENABLED").toLowerCase() === "true";
     return { enabled: flagEnabled && missing.length === 0, flagEnabled, missing };
@@ -37,15 +38,15 @@ export function googleConfigurationStatus() {
 export function googleEnabled() { return googleConfigurationStatus().enabled && Boolean(config()); }
 
 function encrypt(value) {
-    const { key } = config();
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-    const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-    return [iv, cipher.getAuthTag(), encrypted].map((part) => part.toString("base64url")).join(".");
+    return encryptCredential(value);
 }
 
 function decrypt(value) {
-    const { key } = config();
+    if (String(value).startsWith("v1.")) return decryptCredential(value);
+    // Compatibilité de lecture pour les jetons créés avant la migration 023.
+    const legacyConfigured = envValue("GOOGLE_TOKEN_ENCRYPTION_KEY") || envValue("EMAIL_CREDENTIALS_ENCRYPTION_KEY");
+    let key = /^[a-f0-9]{64}$/i.test(legacyConfigured) ? Buffer.from(legacyConfigured, "hex") : Buffer.from(legacyConfigured, "base64");
+    if (key.length !== 32) key = crypto.createHash("sha256").update(legacyConfigured, "utf8").digest();
     const [iv, tag, encrypted] = String(value).split(".").map((part) => Buffer.from(part, "base64url"));
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(tag);
@@ -88,6 +89,14 @@ export async function connectGoogleAccount({ code, userId, entrepriseId }) {
              scope = EXCLUDED.scope, updated_at = NOW()`,
         [userId, entrepriseId, profile.email.toLowerCase(), encrypt(tokens.refresh_token), tokens.scope || GMAIL_SEND_SCOPE]
     );
+    await pool.query("DELETE FROM connexions_email WHERE utilisateur_id=$1 AND entreprise_id=$2 AND fournisseur='google'", [userId, entrepriseId]);
+    await pool.query(
+        `INSERT INTO connexions_email (utilisateur_id,entreprise_id,fournisseur,adresse_email,type_connexion,oauth_refresh_token_chiffre,oauth_scope,statut)
+         VALUES ($1,$2,'google',$3,'OAUTH',$4,$5,'ACTIVE')
+         ON CONFLICT (utilisateur_id,entreprise_id,fournisseur,adresse_email) DO UPDATE SET oauth_refresh_token_chiffre=EXCLUDED.oauth_refresh_token_chiffre,
+         oauth_scope=EXCLUDED.oauth_scope,statut='ACTIVE',derniere_erreur=NULL,updated_at=NOW()`,
+        [userId, entrepriseId, profile.email.toLowerCase(), encrypt(tokens.refresh_token), tokens.scope || GMAIL_SEND_SCOPE]
+    );
     return profile.email;
 }
 
@@ -99,9 +108,10 @@ export async function googleConnection(user) {
 export async function disconnectGoogle(user) {
     const result = await pool.query("DELETE FROM connexions_google WHERE utilisateur_id = $1 AND entreprise_id = $2 RETURNING refresh_token_chiffre", [user.id, user.entreprise_id]);
     if (result.rowCount) await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(decrypt(result.rows[0].refresh_token_chiffre))}`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" } }).catch(() => {});
+    await pool.query("DELETE FROM connexions_email WHERE utilisateur_id=$1 AND entreprise_id=$2 AND fournisseur='google'", [user.id, user.entreprise_id]);
 }
 
-async function accessTokenFor(user) {
+export async function accessTokenFor(user) {
     const cfg = config();
     const result = await pool.query("SELECT refresh_token_chiffre FROM connexions_google WHERE utilisateur_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
     if (!result.rowCount) throw new Error("GOOGLE_NOT_CONNECTED");
@@ -120,6 +130,29 @@ function mimeMessage({ from, to, subject, text, pdf, filename }) {
         `Content-Disposition: attachment; filename="${filename}"`, "", pdf.toString("base64"), `--${boundary}--`, "",
     ];
     return Buffer.from(parts.join("\r\n")).toString("base64url");
+}
+
+function mimeEmail({ from, to, cc = [], bcc = [], subject, text, html, attachments = [] }) {
+    const boundary = `intervium-${crypto.randomBytes(12).toString("hex")}`;
+    const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
+    const lines = [`From: ${from}`, `To: ${to.join(", ")}`];
+    if (cc.length) lines.push(`Cc: ${cc.join(", ")}`);
+    if (bcc.length) lines.push(`Bcc: ${bcc.join(", ")}`);
+    lines.push(`Subject: ${encodedSubject}`, "MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${boundary}"`, "", `--${boundary}`,
+        `Content-Type: ${html ? "text/html" : "text/plain"}; charset="UTF-8"`, "Content-Transfer-Encoding: base64", "", Buffer.from(html || text || "").toString("base64"));
+    for (const item of attachments) lines.push(`--${boundary}`, `Content-Type: ${item.contentType || "application/octet-stream"}; name="${item.filename}"`, "Content-Transfer-Encoding: base64", `Content-Disposition: attachment; filename="${item.filename}"`, "", item.content.toString("base64"));
+    lines.push(`--${boundary}--`, "");
+    return Buffer.from(lines.join("\r\n")).toString("base64url");
+}
+
+export async function sendGmailEmail({ user, to, cc, bcc, subject, text, html, attachments }) {
+    const connection = await googleConnection(user);
+    if (!connection) throw new Error("GOOGLE_NOT_CONNECTED");
+    const accessToken = await accessTokenFor(user);
+    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw: mimeEmail({ from: connection.email_google, to, cc, bcc, subject, text, html, attachments }) }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "GMAIL_SEND_ERROR");
+    return data;
 }
 
 export async function sendGmailReport({ user, to, subject, text, pdf, filename }) {
