@@ -2,6 +2,16 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-19 — Fil `19f7bb22f3538cae` — clarification reçue
+
+- **Catégorie :** amélioration visuelle PDF.
+- **Résumé :** clarification reçue pour les réglages PDF : taille du logo en réglage global entreprise avec bornes minimum/maximum, coordonnées société rendues ligne par ligne, et style global des titres de champs par modèle avec couleur, taille, police, gras, souligné et fond coloré optionnel.
+- **Analyse et décision :** demande désormais suffisamment précise, sûre et cohérente avec l'architecture existante. Les réglages entreprise restent dans `report_settings`; les réglages propres aux modèles restent dans `pdf_config`, sans migration de schéma.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec résumé des changements, tests et indication de publication prochaine. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/routes/auth.js`, `Backend/routes/modeles.js`, `Backend/services/pdf.js`, `Backend/test/email-connections.test.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main` ; aucune PR nécessaire selon le workflow actuel du dépôt.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (56 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
 ## 2026-07-19 — Fil `19f7bb25348d4b77`
 
 - **Catégorie :** bug de rendu PDF.

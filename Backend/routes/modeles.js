@@ -123,6 +123,9 @@ function validatePdfConfig(value) {
     const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
     const margin = Math.min(90, Math.max(24, Number(source.margin) || 48));
     const titleSize = Math.min(28, Math.max(14, Number(source.titleSize) || 20));
+    const fieldTitleStyleSource = source.fieldTitleStyle && typeof source.fieldTitleStyle === "object" && !Array.isArray(source.fieldTitleStyle) ? source.fieldTitleStyle : {};
+    const fieldTitleColor = /^#[0-9a-fA-F]{6}$/.test(fieldTitleStyleSource.color || "") ? fieldTitleStyleSource.color : "#64748b";
+    const fieldTitleBackground = /^#[0-9a-fA-F]{6}$/.test(fieldTitleStyleSource.backgroundColor || "") ? fieldTitleStyleSource.backgroundColor : "";
     return {
         margin,
         titleSize,
@@ -134,6 +137,14 @@ function validatePdfConfig(value) {
         showSignature: source.showSignature !== false,
         showPageNumbers: source.showPageNumbers !== false,
         footerText: optionalText(source.footerText, 240),
+        fieldTitleStyle: {
+            color: fieldTitleColor,
+            size: Math.min(14, Math.max(7, Number(fieldTitleStyleSource.size) || 9)),
+            font: ["Helvetica", "Times", "Courier"].includes(fieldTitleStyleSource.font) ? fieldTitleStyleSource.font : "Helvetica",
+            bold: fieldTitleStyleSource.bold !== false,
+            underline: fieldTitleStyleSource.underline === true,
+            backgroundColor: fieldTitleBackground,
+        },
     };
 }
 

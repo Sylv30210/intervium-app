@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { allocatePhotosToSections, checkboxValueUsesCheckmark, interventionPdfFilename, pdfFieldLabelVisible, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
+import { allocatePhotosToSections, checkboxValueUsesCheckmark, contactLines, interventionPdfFilename, pdfFieldLabelVisible, pdfFieldTitleStyle, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -85,6 +85,42 @@ test("les choix de cases à cocher sont rendus ligne par ligne dans le PDF", () 
 test("les titres de signature de modèle gardent le style de champ PDF", () => {
     const source = readFileSync(new URL("../services/pdf.js", import.meta.url), "utf8");
 
-    assert.match(source, /reportSignatureLabel\(doc, field\.label \|\| "Signature", pdfFieldLabelVisible\(field\), x, width\)/);
+    assert.match(source, /reportSignatureLabel\(doc, field\.label \|\| "Signature", pdfFieldLabelVisible\(field\), x, width, fieldTitleStyle\)/);
     assert.match(source, /drawSignatureBlock\(doc, fieldSignature, "", signerName, x, width\)/);
+});
+
+test("les coordonnées société du PDF sont rendues ligne par ligne", () => {
+    assert.deepEqual(contactLines({
+        address: "384 chemin des Esperières\n30210 Valliguières",
+        registration: "SIRET 123",
+        phone: "06 00 00 00 00",
+        email: "contact@example.test",
+        website: "https://example.test",
+    }), [
+        "384 chemin des Esperières",
+        "30210 Valliguières",
+        "SIRET 123",
+        "06 00 00 00 00",
+        "contact@example.test",
+        "https://example.test",
+    ]);
+});
+
+test("le style global des titres de champs PDF est borné et validé", () => {
+    assert.deepEqual(pdfFieldTitleStyle({ fieldTitleStyle: {
+        color: "#123abc",
+        size: 99,
+        font: "Courier",
+        bold: false,
+        underline: true,
+        backgroundColor: "#ffeeaa",
+    } }), {
+        color: "#123abc",
+        size: 14,
+        font: "Courier",
+        bold: false,
+        underline: true,
+        backgroundColor: "#ffeeaa",
+    });
+    assert.equal(pdfFieldTitleStyle({ fieldTitleStyle: { color: "red", font: "Comic" } }).color, "#64748b");
 });

@@ -1191,6 +1191,7 @@ function openSettings() {
           <div class="grid2"><div class="field"><label>Téléphone</label><input name="phone" maxlength="40" value="${escapeHtml(reportSettings.phone || "")}"></div><div class="field"><label>Email</label><input name="email" type="email" maxlength="254" value="${escapeHtml(reportSettings.email || "")}"></div></div>
           <div class="field"><label>Site internet</label><input name="website" maxlength="200" placeholder="https://www.mon-entreprise.fr" value="${escapeHtml(reportSettings.website || "")}"></div>
           <div class="grid2"><div class="field color-field"><label>Couleur d’accent</label><input name="accent_color" type="color" value="${escapeHtml(reportSettings.accent_color || "#1d4ed8")}"></div><div class="field"><label>Style d’en-tête</label><select name="header_style"><option value="minimal" ${(reportSettings.header_style || "minimal") === "minimal" ? "selected" : ""}>Minimal - logo sur fond blanc</option><option value="band" ${reportSettings.header_style === "band" ? "selected" : ""}>Bandeau coloré</option><option value="none" ${reportSettings.header_style === "none" ? "selected" : ""}>Sans en-tête</option></select></div></div>
+          <div class="field"><label>Taille du logo dans le PDF (%)</label><input name="logo_scale" type="number" min="60" max="140" value="${escapeHtml(reportSettings.logo_scale || 100)}"><span class="field-help">Réglage global entreprise, de 60 % à 140 %.</span></div>
           <div class="field"><label>Texte du pied de page</label><input name="footer_text" maxlength="240" placeholder="Ex. Merci pour votre confiance" value="${escapeHtml(reportSettings.footer_text || "")}"></div>
           <div class="field"><label>Texte par défaut des e-mails de rapport</label><textarea name="default_email_message" rows="6" maxlength="1200" placeholder="Bonjour,\n\nVeuillez trouver ci-joint le rapport « {titre} ».\n\nCordialement,\n{entreprise}">${escapeHtml(reportSettings.default_email_message || "")}</textarea><span class="field-help">Variables disponibles : {titre}, {numero}, {client}, {entreprise}.</span></div>
           <div class="field"><label><input name="show_intervium" type="checkbox" ${reportSettings.show_intervium ? "checked" : ""}> Afficher discrètement « Généré avec Intervium »</label></div>
@@ -1361,6 +1362,7 @@ async function saveCompanyReportSettings(event) {
                 currentEntreprise = logoResult.entreprise;
             }
             const values = Object.fromEntries(new FormData(form));
+            values.logo_scale = Number(values.logo_scale || 100);
             values.show_intervium = form.elements.show_intervium.checked;
             const result = await api("/auth/company", {
                 method: "PUT",
@@ -1429,6 +1431,11 @@ function normalizeTemplateSection(section) {
     return normalized;
 }
 
+function templatePdfConfiguration(existing) {
+    const style = existing?.pdf_config?.fieldTitleStyle || {};
+    return `<details class="template-preview"><summary>Configuration du PDF</summary><div class="grid2"><div class="field"><label for="pdf-margin">Marges (24 à 90 pt)</label><input id="pdf-margin" type="number" min="24" max="90" value="${existing?.pdf_config?.margin || 48}"></div><div class="field"><label for="pdf-title-size">Taille du titre</label><input id="pdf-title-size" type="number" min="14" max="28" value="${existing?.pdf_config?.titleSize || 20}"></div></div><div class="checkbox-options"><label><input id="pdf-show-header" type="checkbox" ${existing?.pdf_config?.showHeader !== false ? "checked" : ""}> Afficher l’en-tête</label><label><input id="pdf-show-client" type="checkbox" ${existing?.pdf_config?.showClient !== false ? "checked" : ""}> Informations client</label><label><input id="pdf-show-equipment" type="checkbox" ${existing?.pdf_config?.showEquipment !== false ? "checked" : ""}> Équipements</label><label><input id="pdf-show-photos" type="checkbox" ${existing?.pdf_config?.showPhotos !== false ? "checked" : ""}> Photos</label><label><input id="pdf-show-signature" type="checkbox" ${existing?.pdf_config?.showSignature !== false ? "checked" : ""}> Signature</label><label><input id="pdf-show-pages" type="checkbox" ${existing?.pdf_config?.showPageNumbers !== false ? "checked" : ""}> Numéros de page</label></div><div class="section-setting-group"><h3>Titres des champs du PDF</h3><div class="grid2"><div class="field color-field"><label for="pdf-field-title-color">Couleur du texte</label><input id="pdf-field-title-color" type="color" value="${escapeHtml(style.color || "#64748b")}"></div><div class="field"><label for="pdf-field-title-size">Taille</label><input id="pdf-field-title-size" type="number" min="7" max="14" value="${escapeHtml(style.size || 9)}"></div><div class="field"><label for="pdf-field-title-font">Police</label><select id="pdf-field-title-font"><option value="Helvetica" ${(style.font || "Helvetica") === "Helvetica" ? "selected" : ""}>Helvetica</option><option value="Times" ${style.font === "Times" ? "selected" : ""}>Times</option><option value="Courier" ${style.font === "Courier" ? "selected" : ""}>Courier</option></select></div><div class="field color-field"><label for="pdf-field-title-background">Fond coloré</label><input id="pdf-field-title-background" type="color" value="${escapeHtml(style.backgroundColor || "#ffffff")}"></div></div><div class="checkbox-options"><label><input id="pdf-field-title-bold" type="checkbox" ${style.bold !== false ? "checked" : ""}> Gras</label><label><input id="pdf-field-title-underline" type="checkbox" ${style.underline ? "checked" : ""}> Souligné</label><label><input id="pdf-field-title-background-enabled" type="checkbox" ${style.backgroundColor ? "checked" : ""}> Utiliser le fond coloré</label></div><p class="field-help">Réglage global pour tous les titres de champs de ce modèle.</p></div><div class="field"><label for="pdf-footer">Pied de page</label><input id="pdf-footer" maxlength="240" value="${escapeHtml(existing?.pdf_config?.footerText || "")}"></div></details>`;
+}
+
 function openTemplateEditor(id = null) {
     const existing = reportTemplates.find((template) => String(template.id) === String(id));
     templateDraftSections = (existing?.sections || []).map(normalizeTemplateSection);
@@ -1437,7 +1444,7 @@ function openTemplateEditor(id = null) {
       <div class="field"><label for="template-description">Description</label><textarea id="template-description" rows="2">${escapeHtml(existing?.description || "")}</textarea></div>
       <div class="builder-palette">${TEMPLATE_FIELD_TYPES.map(([type, label]) => `<button type="button" class="secondary" data-add-template-field="${type}">＋ ${label}</button>`).join("")}</div>
       <div id="template-fields" class="template-fields"></div>
-      <details class="template-preview"><summary>Configuration du PDF</summary><div class="grid2"><div class="field"><label for="pdf-margin">Marges (24 à 90 pt)</label><input id="pdf-margin" type="number" min="24" max="90" value="${existing?.pdf_config?.margin || 48}"></div><div class="field"><label for="pdf-title-size">Taille du titre</label><input id="pdf-title-size" type="number" min="14" max="28" value="${existing?.pdf_config?.titleSize || 20}"></div></div><div class="checkbox-options"><label><input id="pdf-show-header" type="checkbox" ${existing?.pdf_config?.showHeader !== false ? "checked" : ""}> Afficher l’en-tête</label><label><input id="pdf-show-client" type="checkbox" ${existing?.pdf_config?.showClient !== false ? "checked" : ""}> Informations client</label><label><input id="pdf-show-equipment" type="checkbox" ${existing?.pdf_config?.showEquipment !== false ? "checked" : ""}> Équipements</label><label><input id="pdf-show-photos" type="checkbox" ${existing?.pdf_config?.showPhotos !== false ? "checked" : ""}> Photos</label><label><input id="pdf-show-signature" type="checkbox" ${existing?.pdf_config?.showSignature !== false ? "checked" : ""}> Signature</label><label><input id="pdf-show-pages" type="checkbox" ${existing?.pdf_config?.showPageNumbers !== false ? "checked" : ""}> Numéros de page</label></div><div class="field"><label for="pdf-footer">Pied de page</label><input id="pdf-footer" maxlength="240" value="${escapeHtml(existing?.pdf_config?.footerText || "")}"></div></details>
+      ${templatePdfConfiguration(existing)}
       <button class="primary wide" type="submit">${existing ? "Enregistrer le modèle" : "Créer le modèle"}</button>
     </form><details class="template-preview"><summary>Prévisualiser le formulaire</summary><div id="template-preview" inert></div></details>`);
     renderTemplateDraft();
@@ -1654,6 +1661,14 @@ async function saveTemplate(event, existing) {
                     showSignature: document.getElementById("pdf-show-signature").checked,
                     showPageNumbers: document.getElementById("pdf-show-pages").checked,
                     footerText: document.getElementById("pdf-footer").value.trim(),
+                    fieldTitleStyle: {
+                        color: document.getElementById("pdf-field-title-color").value,
+                        size: Number(document.getElementById("pdf-field-title-size").value),
+                        font: document.getElementById("pdf-field-title-font").value,
+                        bold: document.getElementById("pdf-field-title-bold").checked,
+                        underline: document.getElementById("pdf-field-title-underline").checked,
+                        backgroundColor: document.getElementById("pdf-field-title-background-enabled").checked ? document.getElementById("pdf-field-title-background").value : "",
+                    },
                 },
                 actif: true,
             };

@@ -69,15 +69,21 @@ function reportBranding(intervention) {
         website: source.website || "",
         registration: source.registration || "",
         footerText: source.footer_text || "",
+        logoScale: Math.min(140, Math.max(60, Math.round(Number(source.logo_scale) || 100))) / 100,
         accentColor: /^#[0-9a-fA-F]{6}$/.test(source.accent_color || "") ? source.accent_color : BLUE,
         headerStyle: ["minimal", "band", "none"].includes(source.header_style) ? source.header_style : "minimal",
         showIntervium: source.show_intervium === true,
     };
 }
 
-function contactText(branding) {
-    return [branding.address, branding.phone, branding.email, branding.website, branding.registration]
-        .filter(Boolean).join(" - ");
+export function contactLines(branding) {
+    return [
+        ...String(branding.address || "").split(/\r?\n/),
+        branding.registration,
+        branding.phone,
+        branding.email,
+        branding.website,
+    ].map((entry) => String(entry || "").trim()).filter(Boolean);
 }
 
 function drawReportHeader(doc, branding, logoBuffer, reportId) {
@@ -94,14 +100,16 @@ function drawReportHeader(doc, branding, logoBuffer, reportId) {
         doc.rect(0, 0, doc.page.width, 108).fill(branding.accentColor);
         let companyX = 48;
         if (logoBuffer) {
-            doc.roundedRect(40, 22, 126, 64, 5).fill("white");
-            doc.image(logoBuffer, 48, 29, { fit: [110, 50], align: "center", valign: "center" });
-            companyX = 182;
+            const logoWidth = Math.round(110 * branding.logoScale);
+            const logoHeight = Math.round(50 * branding.logoScale);
+            doc.roundedRect(40, 22, logoWidth + 16, 64, 5).fill("white");
+            doc.image(logoBuffer, 48, 29, { fit: [logoWidth, logoHeight], align: "center", valign: "center" });
+            companyX = 64 + logoWidth;
         }
         doc.font("Helvetica-Bold").fontSize(17).fillColor("white")
             .text(branding.displayName, companyX, 30, { width: 245, lineBreak: false, ellipsis: true });
-        const contacts = contactText(branding);
-        if (contacts) doc.font("Helvetica").fontSize(8).fillColor("#ffffffdd").text(contacts, companyX, 58, { width: 300, height: 28, ellipsis: true });
+        const contacts = contactLines(branding).join("\n");
+        if (contacts) doc.font("Helvetica").fontSize(8).fillColor("#ffffffdd").text(contacts, companyX, 55, { width: 300, height: 44, lineGap: 1 });
         doc.font("Helvetica-Bold").fontSize(11).fillColor("white")
             .text(reportLabel, doc.page.width - 178, 40, { width: 130, align: "right" });
         doc.y = 132;
@@ -111,13 +119,15 @@ function drawReportHeader(doc, branding, logoBuffer, reportId) {
 
     let companyX = 48;
     if (logoBuffer) {
-        doc.image(logoBuffer, 48, 18, { fit: [150, 70], align: "left", valign: "center" });
-        companyX = 214;
+        const logoWidth = Math.round(150 * branding.logoScale);
+        const logoHeight = Math.round(70 * branding.logoScale);
+        doc.image(logoBuffer, 48, 18, { fit: [logoWidth, logoHeight], align: "left", valign: "center" });
+        companyX = 64 + logoWidth;
     }
     doc.font("Helvetica-Bold").fontSize(17).fillColor(DARK)
         .text(branding.displayName, companyX, 27, { width: 240, lineBreak: false, ellipsis: true });
-    const contacts = contactText(branding);
-    if (contacts) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(contacts, companyX, 54, { width: 300, height: 28, ellipsis: true });
+    const contacts = contactLines(branding).join("\n");
+    if (contacts) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(contacts, companyX, 52, { width: 300, height: 42, lineGap: 1 });
     doc.font("Helvetica-Bold").fontSize(10).fillColor(branding.accentColor)
         .text(reportLabel, doc.page.width - 188, 32, { width: 140, align: "right" });
     doc.strokeColor(branding.accentColor).lineWidth(2).moveTo(48, 96).lineTo(doc.page.width - 48, 96).stroke();
@@ -171,22 +181,39 @@ function sectionTitle(doc, title) {
     doc.moveDown(0.55);
 }
 
-function reportField(doc, label, value, showLabel = true, x = 48, width = doc.page.width - 96) {
+export function pdfFieldTitleStyle(pdfConfig = {}) {
+    const source = pdfConfig.fieldTitleStyle && typeof pdfConfig.fieldTitleStyle === "object" ? pdfConfig.fieldTitleStyle : {};
+    return {
+        color: /^#[0-9a-fA-F]{6}$/.test(source.color || "") ? source.color : GRAY,
+        size: Math.min(14, Math.max(7, Number(source.size) || 9)),
+        font: ["Helvetica", "Times", "Courier"].includes(source.font) ? source.font : "Helvetica",
+        bold: source.bold !== false,
+        underline: source.underline === true,
+        backgroundColor: /^#[0-9a-fA-F]{6}$/.test(source.backgroundColor || "") ? source.backgroundColor : "",
+    };
+}
+
+function fieldTitleFont(style) {
+    if (style.font === "Times") return style.bold ? "Times-Bold" : "Times-Roman";
+    if (style.font === "Courier") return style.bold ? "Courier-Bold" : "Courier";
+    return style.bold ? "Helvetica-Bold" : "Helvetica";
+}
+
+function reportField(doc, label, value, showLabel = true, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
     ensureSpace(doc, showLabel ? 42 : 28);
-    if (showLabel) {
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
-            .text(String(label || "CHAMP").toUpperCase(), x, doc.y, { width });
-        doc.moveDown(0.2);
-    }
+    if (showLabel) fieldLabel(doc, label, x, width, titleStyle);
     doc.font("Helvetica").fontSize(10.5).fillColor(DARK)
         .text(value || "-", x, doc.y, { width, lineGap: 3 });
     doc.moveDown(0.45);
     doc.x = 48;
 }
 
-function fieldLabel(doc, label, x = 48, width = doc.page.width - 96) {
-    doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
-        .text(String(label || "CHAMP").toUpperCase(), x, doc.y, { width });
+function fieldLabel(doc, label, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
+    const title = String(label || "CHAMP").toUpperCase();
+    const height = doc.heightOfString(title, { width }) + 4;
+    if (titleStyle.backgroundColor) doc.roundedRect(x - 2, doc.y - 1, width + 4, height, 2).fill(titleStyle.backgroundColor);
+    doc.font(fieldTitleFont(titleStyle)).fontSize(titleStyle.size).fillColor(titleStyle.color)
+        .text(title, x, doc.y, { width, underline: titleStyle.underline });
     doc.moveDown(0.2);
 }
 
@@ -196,10 +223,10 @@ export function checkboxValueUsesCheckmark(section, rawValue) {
         (section.listMode === "checkboxes" || section.type === "checkbox");
 }
 
-function reportCheckboxField(doc, label, values, showLabel = true, x = 48, width = doc.page.width - 96) {
+function reportCheckboxField(doc, label, values, showLabel = true, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
     const entries = Array.isArray(values) ? values.map((entry) => String(entry)).filter(Boolean) : [];
     ensureSpace(doc, (showLabel ? 20 : 0) + Math.max(1, entries.length) * 16 + 12);
-    if (showLabel) fieldLabel(doc, label, x, width);
+    if (showLabel) fieldLabel(doc, label, x, width, titleStyle);
     if (!entries.length) {
         doc.font("Helvetica").fontSize(10.5).fillColor(DARK).text("-", x, doc.y, { width, lineGap: 3 });
         doc.moveDown(0.45);
@@ -264,10 +291,10 @@ function drawSignatureBlock(doc, asset, label, signerName = "", x = 48, width = 
     doc.y = top + 82;
 }
 
-function reportSignatureLabel(doc, label, showLabel = true, x = 48, width = doc.page.width - 96) {
+function reportSignatureLabel(doc, label, showLabel = true, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
     if (!showLabel) return;
     ensureSpace(doc, 24);
-    fieldLabel(doc, label || "Signature", x, width);
+    fieldLabel(doc, label || "Signature", x, width, titleStyle);
 }
 
 function reportFieldValue(section, rawValue, equipment) {
@@ -277,7 +304,7 @@ function reportFieldValue(section, rawValue, equipment) {
         : "Aucun matériel renseigné";
 }
 
-function reportTable(doc, section, rows) {
+function reportTable(doc, section, rows, titleStyle = pdfFieldTitleStyle()) {
     const columns = Array.isArray(section.columns) && section.columns.length
         ? section.columns.map((column, index) => typeof column === "string" ? { key: `c${index}`, label: column, type: "text", visiblePdf: true, align: "left", width: 3 } : column).filter((column) => column.visiblePdf !== false)
         : section.type === "price_table"
@@ -285,16 +312,12 @@ function reportTable(doc, section, rows) {
           : ["Colonne 1", "Colonne 2"].map((label, index) => ({ key: `c${index}`, label, type: "text", width: 3 }));
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-        reportField(doc, section.label, "Aucune ligne renseignée", section.showLabel !== false);
+        reportField(doc, section.label, "Aucune ligne renseignée", section.showLabel !== false, 48, doc.page.width - 96, titleStyle);
         return;
     }
     const compactTableHeight = 46 + safeRows.length * 34 + (section.type === "price_table" ? 24 : 0);
     ensureSpace(doc, Math.min(280, compactTableHeight));
-    if (section.showLabel !== false) {
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(GRAY)
-            .text(String(section.label || "TABLEAU").toUpperCase(), 48, doc.y, { width: doc.page.width - 96 });
-        doc.moveDown(0.3);
-    }
+    if (section.showLabel !== false) fieldLabel(doc, section.label || "TABLEAU", 48, doc.page.width - 96, titleStyle);
     const totalWidth = doc.page.width - 96;
     const totalUnits = columns.reduce((sum, column) => sum + (Number(column.width) || 3), 0);
     const drawRow = (values, header = false) => {
@@ -354,6 +377,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
     const logoBuffer = await localImage(intervention.entreprise_logo_url);
     const branding = reportBranding(intervention);
     const pdfConfig = intervention.modele_pdf_config && typeof intervention.modele_pdf_config === "object" ? intervention.modele_pdf_config : {};
+    const fieldTitleStyle = pdfFieldTitleStyle(pdfConfig);
     const margin = Math.min(90, Math.max(24, Number(pdfConfig.margin) || 48));
     const templateSections = Array.isArray(intervention.modele_rapport_sections) ? intervention.modele_rapport_sections : [];
     const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object" ? intervention.donnees_rapport : {};
@@ -387,7 +411,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         const renderSignatureField = (field, x = 48, width = doc.page.width - 96) => {
             const fieldSignature = templateSignatures.get(field.key);
             const signerName = signatureName(templateData, field);
-            reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field), x, width);
+            reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field), x, width, fieldTitleStyle);
             if (fieldSignature) {
                 drawSignatureBlock(doc, fieldSignature, "", signerName, x, width);
             } else {
@@ -452,7 +476,7 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 }
                 const rawValue = templateData[field.key];
                 if (["table", "price_table"].includes(field.type)) {
-                    reportTable(doc, field, rawValue);
+                    reportTable(doc, field, rawValue, fieldTitleStyle);
                     continue;
                 }
                 if (placement.pairsWithNext) {
@@ -460,12 +484,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     const startY = doc.y;
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth);
-                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
+                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth, fieldTitleStyle);
+                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth, fieldTitleStyle);
                     const firstBottom = doc.y;
                     doc.y = startY;
-                    if (checkboxValueUsesCheckmark(nextField, templateData[nextField.key])) reportCheckboxField(doc, nextField.label || nextField.key, templateData[nextField.key], pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
-                    else reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth);
+                    if (checkboxValueUsesCheckmark(nextField, templateData[nextField.key])) reportCheckboxField(doc, nextField.label || nextField.key, templateData[nextField.key], pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth, fieldTitleStyle);
+                    else reportField(doc, nextField.label || nextField.key, reportFieldValue(nextField, templateData[nextField.key], equipments[0]), pdfFieldLabelVisible(nextField), 48 + halfWidth + gap, halfWidth, fieldTitleStyle);
                     doc.y = Math.max(firstBottom, doc.y);
                     fieldIndex += 1;
                     continue;
@@ -473,12 +497,12 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                 if (placement.usesHalfWidth) {
                     const gap = 14;
                     const halfWidth = (doc.page.width - 96 - gap) / 2;
-                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth);
-                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth);
+                    if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, halfWidth, fieldTitleStyle);
+                    else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, halfWidth, fieldTitleStyle);
                     continue;
                 }
-                if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field));
-                else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field));
+                if (checkboxValueUsesCheckmark(field, rawValue)) reportCheckboxField(doc, field.label || field.key, rawValue, pdfFieldLabelVisible(field), 48, doc.page.width - 96, fieldTitleStyle);
+                else reportField(doc, field.label || field.key, reportFieldValue(field, rawValue, equipments[0]), pdfFieldLabelVisible(field), 48, doc.page.width - 96, fieldTitleStyle);
             }
         }
 

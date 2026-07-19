@@ -378,6 +378,7 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
             registration: source.registration === undefined ? previous.registration || "" : limitedText(source.registration, 120),
             footer_text: source.footer_text === undefined ? previous.footer_text || "" : limitedText(source.footer_text, 240),
             default_email_message: source.default_email_message === undefined ? previous.default_email_message || "" : limitedText(source.default_email_message, 1200),
+            logo_scale: Math.min(140, Math.max(60, Math.round(Number(source.logo_scale ?? previous.logo_scale ?? 100) || 100))),
             accent_color: accentColor,
             header_style: headerStyle,
             show_intervium: source.show_intervium === undefined ? Boolean(previous.show_intervium) : source.show_intervium === true,

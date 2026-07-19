@@ -27,7 +27,9 @@ test("AES-256-GCM chiffre avec un nonce, un tag et une version", () => {
     assert.match(first, /^v1\.[^.]+\.[^.]+\.[^.]+$/);
     assert.notEqual(first, second);
     assert.equal(decryptCredential(first), "secret-smtp");
-    assert.throws(() => decryptCredential(`${first.slice(0, -1)}A`));
+    const parts = first.split(".");
+    parts[3] = `${parts[3].slice(0, 1) === "A" ? "B" : "A"}${parts[3].slice(1)}`;
+    assert.throws(() => decryptCredential(parts.join(".")));
 });
 
 test("les réponses publiques ne contiennent aucun secret ni jeton", () => {

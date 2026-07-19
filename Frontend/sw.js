@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v22-pdf-checkbox-character";
+const CACHE_VERSION = "intervium-shell-v23-pdf-branding-style";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
