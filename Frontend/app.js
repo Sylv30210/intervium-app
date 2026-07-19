@@ -369,12 +369,14 @@ async function loadAllData() {
 function renderMain(view = "dashboard") {
     currentView = view;
     const mobileNavigation = renderMobileNavigation(view);
+    const sessionCompany = currentEntreprise?.nom || "Votre entreprise";
+    const sessionRole = currentUser.role === "ADMIN" ? "Admin" : currentUser.role === "TECHNICIEN" ? "Technicien" : "Client";
     app.innerHTML = `<div class="shell">
       <aside class="sidebar"><div>${logoLockup()}<div class="muted">${escapeHtml(currentEntreprise?.nom || "")}</div></div>
         <nav class="nav">${navButton("dashboard", "Tableau de bord", view, "home")}${navButton("interventions", "Rapports", view, "interventions")}${currentUser.role === "CLIENT" ? "" : `${navButton("planning", "Planning", view, "calendar")}${navButton("clients", "Clients", view, "clients")}${navButton("equipements", "Matériels", view, "equipment")}${navButton("modeles", "Modèles de rapport", view, "template")}`}${currentUser.role === "ADMIN" ? navButton("equipe", "Équipe", view, "team") : ""}</nav>
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
-      <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-user"><span class="mobile-user-name">${escapeHtml(currentUser.nom)}</span><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
+      <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-session" aria-label="Session connectée"><strong>${escapeHtml(currentUser.nom)}</strong><span>${escapeHtml(sessionCompany)} · ${escapeHtml(sessionRole)}</span></div><div class="mobile-user"><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
       <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleForView(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
     </div><div id="modal-root"></div><div id="onboarding-root"></div>`;
@@ -853,15 +855,145 @@ function bindDeletes(name, path, view) {
 
 function onboardingSteps() {
     const role = currentUser?.role;
+    const sharedSteps = [
+        {
+            title: "Bienvenue dans Intervium",
+            text: "Intervium regroupe les interventions, les rapports PDF, les clients et le planning dans un même espace.",
+            selector: null,
+            items: [
+                "Vérifie l’entreprise et le compte connectés avant de travailler.",
+                "Utilise la navigation pour passer rapidement d’un module à l’autre.",
+                "Le tutoriel reste disponible depuis les paramètres.",
+            ],
+        },
+        {
+            title: "Tableau de bord",
+            text: "Le tableau de bord donne l’état immédiat de l’activité.",
+            view: "dashboard",
+            selector: ".stats",
+            items: [
+                "Suis les rapports, interventions terminées, clients et matériels visibles.",
+                "Utilise les boutons rapides pour planifier, ouvrir le planning ou gérer les modèles.",
+            ],
+        },
+        {
+            title: "Navigation",
+            text: "Sur ordinateur le menu est à gauche ; sur mobile les raccourcis principaux sont en bas.",
+            selector: ".sidebar .nav, .bottom-nav",
+            items: [
+                "Le bouton Plus affiche les rubriques restantes sur mobile.",
+                "L’ordre de la barre mobile se personnalise depuis les paramètres.",
+            ],
+        },
+    ];
+    const staffSteps = role !== "CLIENT" ? [
+        {
+            title: "Planifier une intervention",
+            text: "Crée une intervention avec client, matériel, technicien, date et modèle de rapport.",
+            view: "interventions",
+            selector: "#add-interventions",
+            items: [
+                "Le technicien retrouve ensuite la mission dans Rapports ou Planning.",
+                "Les brouillons de rapport sont protégés pendant la saisie.",
+            ],
+        },
+        {
+            title: "Clients et matériels",
+            text: "Centralise les coordonnées, contacts destinataires et équipements.",
+            view: "clients",
+            selector: '[data-view="clients"]',
+            items: [
+                "Les e-mails de rapport peuvent être enregistrés par client.",
+                "Les matériels restent reliés à l’historique des interventions.",
+            ],
+        },
+        {
+            title: "Planning",
+            text: "Le planning permet de suivre les interventions à venir et leur statut.",
+            view: "planning",
+            selector: '[data-view="planning"]',
+            items: [
+                "Ouvre une intervention pour compléter son rapport.",
+                "Les statuts gardent l’équipe alignée.",
+            ],
+        },
+    ] : [];
+    const adminSteps = role === "ADMIN" ? [
+        {
+            title: "Modèles de rapport",
+            text: "Les modèles définissent les blocs à remplir et leur rendu PDF.",
+            view: "modeles",
+            selector: "#add-modeles",
+            items: [
+                "Ajoute textes, cases à cocher, photos, signatures, tableaux et sauts de page.",
+                "Configure l’affichage PDF, les choix Autre et les options de signature.",
+            ],
+        },
+        {
+            title: "Équipe et paramètres",
+            text: "Les administrateurs gèrent les accès, l’identité PDF et les comptes e-mail.",
+            view: "equipe",
+            selector: '[data-view="equipe"]',
+            items: [
+                "Connecte Google, Microsoft ou SMTP pour envoyer les rapports.",
+                "Personnalise le logo, le pied de page et le message e-mail par défaut.",
+            ],
+        },
+    ] : [];
+    const clientSteps = role === "CLIENT" ? [
+        {
+            title: "Espace client",
+            text: "Tu retrouves ici les rapports qui te concernent.",
+            view: "interventions",
+            selector: '[data-view="interventions"]',
+            items: [
+                "Ouvre un rapport pour consulter les informations disponibles.",
+                "Les données affichées sont limitées à ton entreprise et à tes accès.",
+            ],
+        },
+    ] : [];
     return [
-        { title: "Bienvenue dans Intervium", text: "Ce menu donne accès aux principales fonctions de l’application.", selector: ".sidebar .nav, .bottom-nav" },
-        ...(role !== "CLIENT" ? [{ title: "Créer une intervention", text: "Commence ici pour planifier ta première intervention.", view: "interventions", selector: "#add-interventions" }] : []),
-        ...(role !== "CLIENT" ? [{ title: "Gérer les clients", text: "Retrouve ici tous tes clients et leurs coordonnées.", view: "clients", selector: '[data-view="clients"]' }] : []),
-        ...(role === "ADMIN" ? [{ title: "Préparer les rapports", text: "Crée ici des modèles avec les questions et champs à remplir.", view: "modeles", selector: "#add-modeles" }] : []),
-        ...(role !== "CLIENT" ? [{ title: "Suivre le planning", text: "Consulte ici les interventions à venir.", view: "planning", selector: '[data-view="planning"]' }] : []),
-        { title: "Consulter les rapports", text: "Retrouve ici les interventions en cours et terminées.", view: "interventions", selector: '[data-view="interventions"]' },
-        { title: "Personnaliser le compte", text: "Tu peux modifier les paramètres de ton compte ici.", selector: "#desktop-settings, #mobile-settings" },
-        { title: "Tout est prêt !", text: "Tu peux maintenant utiliser Intervium. Le tutoriel reste disponible dans les paramètres.", selector: null },
+        ...sharedSteps,
+        ...staffSteps,
+        ...adminSteps,
+        ...clientSteps,
+        {
+            title: "Rapports, photos et PDF",
+            text: "Dans une fiche rapport, complète les champs, ajoute des photos et génère le PDF.",
+            view: "interventions",
+            selector: '[data-view="interventions"]',
+            items: [
+                "Les signatures et brouillons sont conservés pendant la rédaction.",
+                "Tu peux choisir les photos incluses avant export ou envoi e-mail.",
+            ],
+        },
+        {
+            title: "Recherche et notifications",
+            text: "Les icônes en haut ouvrent la recherche globale et les notifications.",
+            selector: "#global-search, #open-notifications",
+            items: [
+                "La recherche aide à retrouver rapidement rapports, clients ou matériels.",
+                "Les notifications signalent les actions importantes.",
+            ],
+        },
+        {
+            title: "Personnaliser le compte",
+            text: "Les paramètres regroupent sécurité, thème, e-mail, identité PDF et tutoriel.",
+            selector: "#desktop-settings, #mobile-settings",
+            items: [
+                "Sur mobile, l’en-tête rappelle le compte et l’entreprise connectés.",
+                "Tu peux relancer ce tutoriel à tout moment.",
+            ],
+        },
+        {
+            title: "Tout est prêt !",
+            text: "Tu peux maintenant utiliser Intervium avec les principaux repères.",
+            selector: null,
+            items: [
+                "Commence par planifier une intervention ou ouvrir un rapport existant.",
+                "En cas de doute, reviens aux paramètres pour relancer l’aide.",
+            ],
+        },
     ];
 }
 
@@ -963,7 +1095,10 @@ async function showOnboardingStep(index, direction = 1) {
 
     const root = document.getElementById("onboarding-root");
     if (!root) return;
-    root.innerHTML = `<div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-spotlight" aria-hidden="true"></div><section class="onboarding-bubble" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-text" tabindex="-1"><div class="onboarding-progress">Étape ${index + 1} sur ${steps.length}</div><h2 id="onboarding-title">${escapeHtml(step.title)}</h2><p id="onboarding-text">${escapeHtml(step.text)}</p><div class="onboarding-actions"><button class="secondary" id="skip-onboarding" type="button">Passer le tutoriel</button><div>${index > 0 ? '<button class="secondary" id="previous-onboarding" type="button">Précédent</button>' : ""}<button class="primary" id="next-onboarding" type="button">${index === steps.length - 1 ? "Terminer" : "Suivant"}</button></div></div></section>`;
+    const stepItems = Array.isArray(step.items) && step.items.length
+        ? `<ul class="onboarding-list">${step.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+        : "";
+    root.innerHTML = `<div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-shade"></div><div class="onboarding-spotlight" aria-hidden="true"></div><section class="onboarding-bubble" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-text" tabindex="-1"><div class="onboarding-progress">Étape ${index + 1} sur ${steps.length}</div><h2 id="onboarding-title">${escapeHtml(step.title)}</h2><p id="onboarding-text">${escapeHtml(step.text)}</p>${stepItems}<div class="onboarding-actions"><button class="secondary" id="skip-onboarding" type="button">Passer le tutoriel</button><div>${index > 0 ? '<button class="secondary" id="previous-onboarding" type="button">Précédent</button>' : ""}<button class="primary" id="next-onboarding" type="button">${index === steps.length - 1 ? "Terminer" : "Suivant"}</button></div></div></section>`;
     const bubble = root.querySelector(".onboarding-bubble");
     document.getElementById("skip-onboarding").addEventListener("click", saveOnboardingCompleted);
     document.getElementById("previous-onboarding")?.addEventListener("click", () => showOnboardingStep(index - 1, -1));

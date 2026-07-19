@@ -14,6 +14,7 @@ test("l’onboarding possède un état de compte distinct du consentement", asyn
 
 test("le tutoriel peut être terminé, ignoré et relancé depuis les paramètres", async () => {
     const frontend = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const css = await readFile(new URL("../../Frontend/app.css", import.meta.url), "utf8");
 
     assert.match(frontend, /Passer le tutoriel/);
     assert.match(frontend, /Relancer le tutoriel/);
@@ -21,4 +22,23 @@ test("le tutoriel peut être terminé, ignoré et relancé depuis les paramètre
     assert.match(frontend, /if \(!currentUser\.onboarding_completed\)/);
     assert.match(frontend, /completed: false/);
     assert.match(frontend, /completed: true/);
+    assert.match(frontend, /Tableau de bord/);
+    assert.match(frontend, /Planifier une intervention/);
+    assert.match(frontend, /Modèles de rapport/);
+    assert.match(frontend, /Rapports, photos et PDF/);
+    assert.match(frontend, /Recherche et notifications/);
+    assert.match(frontend, /class="onboarding-list"/);
+    assert.match(css, /\.onboarding-list/);
+});
+
+test("l’en-tête mobile affiche le compte et l’entreprise connectés", async () => {
+    const frontend = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const css = await readFile(new URL("../../Frontend/app.css", import.meta.url), "utf8");
+
+    assert.match(frontend, /const sessionCompany = currentEntreprise\?\.nom \|\| "Votre entreprise"/);
+    assert.match(frontend, /const sessionRole = currentUser\.role === "ADMIN"/);
+    assert.match(frontend, /class="mobile-session"/);
+    assert.match(frontend, /\$\{escapeHtml\(sessionCompany\)\} · \$\{escapeHtml\(sessionRole\)\}/);
+    assert.match(css, /\.mobile-session/);
+    assert.doesNotMatch(css, /\.mobile-user-name\{display:none\}/);
 });
