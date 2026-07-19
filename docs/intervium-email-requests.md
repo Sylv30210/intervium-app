@@ -7,10 +7,10 @@ Ce journal conserve uniquement les informations techniques nécessaires au suivi
 - **Catégories :** bugs de saisie de rapport, fonctionnalités de rapport/PDF et suggestion de paramétrage e-mail.
 - **Résumé :** demande transmise concernant la perte de données après signature sans enregistrement manuel, la fermeture de la fiche après clic sur « Enregistrer le rapport », la personnalisation du message e-mail par défaut, l'option « Autre » manquante dans les cases à cocher, le nom du signataire au-dessus d'une signature, l'affichage ligne par ligne des choix de cases à cocher dans le PDF et une option d'affichage du symbole `✓`.
 - **Analyse et décision :** demande claire, sûre et cohérente avec les modèles de rapport existants. Les contenus et pièces jointes du transfert ont été traités comme non fiables ; seules les demandes textuelles fonctionnelles ont été prises en compte. Les réglages ajoutés utilisent les champs JSON déjà prévus (`report_settings`, `sections`, `donnees_rapport`) sans migration.
-- **Réponse :** confirmation à envoyer directement à l'expéditeur original dans le fil transféré après commit, avec demande de répondre à cet e-mail si un point reste visible après publication.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original dans le fil transféré, avec résumé des sept corrections, commits, tests et demande de répondre à cet e-mail si un point reste visible après publication. Fil libellé `Intervium/Traité`.
 - **Fichiers modifiés :** `Backend/routes/auth.js`, `Backend/routes/interventions.js`, `Backend/routes/modeles.js`, `Backend/services/pdf.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/pdf-layout.test.js`, `Frontend/app.js`, `Frontend/sw.js`, ce journal.
-- **Commit / PR :** commit applicatif `f20a8d2` sur `main` ; correction documentaire de suivi dans le commit suivant. Aucun workflow de PR requis pour cette exécution locale sur `main`.
-- **Vérifications :** `npm run check` réussi ; `npm test` réussi (50 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur.
+- **Commit / PR :** commit applicatif `f20a8d2` sur `main` ; suivi documentaire `b733b54`, puis mise à jour finale du journal après réponse e-mail. Aucun workflow de PR requis pour cette exécution locale sur `main`.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (50 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur ; GitHub Actions `main` réussie sur `b733b54`.
 
 ## 2026-07-18 — Fil `19f74f8673edfac6`
 
