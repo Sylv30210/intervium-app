@@ -2462,26 +2462,23 @@ function setupReportSignatureCanvases(interventionId, root) {
             saveButton: field?.querySelector("[data-save-report-signature]"),
             onEmpty: () => toast("La signature est vide.", true),
             onSave: async ({ event, signatureData }) => {
-            const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
-            await withBusy(event.currentTarget, async () => {
-                try {
-                    const item = interventions.find((entry) => String(entry.id) === String(interventionId));
-                    const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData }) });
-                    const fullPayload = {
-                        ...pendingPayload,
-                        expected_version: result.report_version,
-                        donnees_rapport: { ...(pendingPayload.donnees_rapport || {}), [key]: result.signature_url },
-                    };
-                    const updated = await api(`/interventions/${interventionId}`, { method: "PUT", body: JSON.stringify(fullPayload) });
-                    item.donnees_rapport = updated.donnees_rapport;
-                    item.report_version = updated.report_version;
-                    item.statut = updated.statut;
-                    item.adresse_chantier = updated.adresse_chantier;
-                    clearReportDraft(item.id); reportAutosavePending = false;
-                    openIntervention(interventionId); toast("Signature enregistrée.");
-                } catch (error) { toast(error.message, true); }
-            });
-        }});
+                const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
+                await withBusy(event.currentTarget, async () => {
+                    try {
+                        const item = interventions.find((entry) => String(entry.id) === String(interventionId));
+                        const signerName = field?.querySelector(`[data-report-key="${CSS.escape(`${key}_name`)}"]`)?.value || "";
+                        const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ signatureData, signerName }) });
+                        item.donnees_rapport = {
+                            ...(pendingPayload.donnees_rapport || {}),
+                            ...(result.donnees_rapport || { [key]: result.signature_url, [`${key}_name`]: result.signer_name || "" }),
+                        };
+                        item.report_version = result.report_version;
+                        persistReportDraft(item, { ...pendingPayload, donnees_rapport: item.donnees_rapport });
+                        reportAutosavePending = true;
+                        openIntervention(interventionId); toast("Signature enregistrée.");
+                    } catch (error) { toast(error.message, true); }
+                });
+            }});
         field?.querySelector("[data-delete-report-signature]")?.addEventListener("click", async (event) => {
             if (!confirm("Supprimer cette signature ?")) return;
             const pendingPayload = root?.matches("form") ? currentReportPayload(root) : { donnees_rapport: {} };
@@ -2489,9 +2486,12 @@ function setupReportSignatureCanvases(interventionId, root) {
                 try {
                     const result = await api(`/uploads/signature-field/${interventionId}/${encodeURIComponent(key)}`, { method: "DELETE" });
                     const item = interventions.find((entry) => String(entry.id) === String(interventionId));
-                    item.donnees_rapport = { ...(item.donnees_rapport || {}) }; delete item.donnees_rapport[key];
+                    item.donnees_rapport = result.donnees_rapport || { ...(item.donnees_rapport || {}) };
+                    delete item.donnees_rapport[key];
+                    delete item.donnees_rapport[`${key}_name`];
                     item.report_version = result.report_version;
                     pendingPayload.donnees_rapport = { ...(pendingPayload.donnees_rapport || {}) }; delete pendingPayload.donnees_rapport[key];
+                    delete pendingPayload.donnees_rapport[`${key}_name`];
                     persistReportDraft(item, pendingPayload); reportAutosavePending = true;
                     openIntervention(interventionId); toast("Signature supprimée.");
                 } catch (error) { toast(error.message, true); }

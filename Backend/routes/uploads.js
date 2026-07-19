@@ -410,6 +410,9 @@ router.post("/signature-field/:intervention_id/:section_key", verifyToken, async
     const interventionId = parseInterventionId(req.params.intervention_id);
     const sectionKey = signatureFieldKey(req.params.section_key);
     const signatureData = req.body?.signatureData ?? req.body?.signature_data;
+    const signerName = typeof req.body?.signerName === "string"
+        ? req.body.signerName.trim().slice(0, 150)
+        : "";
     if (!interventionId || !sectionKey) return res.status(400).json({ error: "Signature de rapport invalide." });
     if (!signatureData) return res.status(400).json({ error: "Aucune signature fournie." });
     let relativeUrl;
@@ -424,13 +427,27 @@ router.post("/signature-field/:intervention_id/:section_key", verifyToken, async
         relativeUrl = await uploadSignatureBase64(signatureData);
         const signatureUrl = absoluteUploadUrl(req, relativeUrl);
         const result = await pool.query(
-            `UPDATE interventions SET donnees_rapport=jsonb_set(COALESCE(donnees_rapport, '{}'::jsonb), ARRAY[$1]::text[], to_jsonb($2::text), true), report_version=report_version+1, updated_at=NOW()
-             WHERE id=$3 AND entreprise_id=$4 RETURNING id, report_version`,
-            [sectionKey, signatureUrl, interventionId, req.user.entreprise_id]
+            `UPDATE interventions
+             SET donnees_rapport=jsonb_set(
+                    jsonb_set(COALESCE(donnees_rapport, '{}'::jsonb), ARRAY[$1]::text[], to_jsonb($2::text), true),
+                    ARRAY[$3]::text[], to_jsonb($4::text), true
+                 ),
+                 report_version=report_version+1,
+                 updated_at=NOW()
+             WHERE id=$5 AND entreprise_id=$6
+             RETURNING id, report_version, donnees_rapport`,
+            [sectionKey, signatureUrl, `${sectionKey}_name`, signerName, interventionId, req.user.entreprise_id]
         );
         if (!result.rowCount) throw new Error("Intervention introuvable.");
         await removeStoredUpload(current.rows[0]?.url).catch(() => {});
-        return res.json({ intervention_id: interventionId, section_key: sectionKey, signature_url: signatureUrl, report_version: result.rows[0].report_version });
+        return res.json({
+            intervention_id: interventionId,
+            section_key: sectionKey,
+            signature_url: signatureUrl,
+            signer_name: signerName,
+            report_version: result.rows[0].report_version,
+            donnees_rapport: result.rows[0].donnees_rapport,
+        });
     } catch (error) {
         if (relativeUrl) await removeStoredUpload(relativeUrl).catch(() => {});
         if (error instanceof TypeError || error instanceof RangeError) return res.status(400).json({ error: error.message });
@@ -448,9 +465,9 @@ router.delete("/signature-field/:intervention_id/:section_key", verifyToken, asy
         if (!intervention) return res.status(404).json({ error: "Intervention introuvable." });
         const current = await pool.query("SELECT donnees_rapport->>$1 AS url FROM interventions WHERE id=$2 AND entreprise_id=$3", [sectionKey, interventionId, req.user.entreprise_id]);
         if (!current.rows[0]?.url) return res.status(404).json({ error: "Aucune signature enregistrée pour ce champ." });
-        const result = await pool.query(`UPDATE interventions SET donnees_rapport=COALESCE(donnees_rapport, '{}'::jsonb)-$1, report_version=report_version+1, updated_at=NOW() WHERE id=$2 AND entreprise_id=$3 RETURNING report_version`, [sectionKey, interventionId, req.user.entreprise_id]);
+        const result = await pool.query(`UPDATE interventions SET donnees_rapport=COALESCE(donnees_rapport, '{}'::jsonb)-$1-$2, report_version=report_version+1, updated_at=NOW() WHERE id=$3 AND entreprise_id=$4 RETURNING report_version, donnees_rapport`, [sectionKey, `${sectionKey}_name`, interventionId, req.user.entreprise_id]);
         const fileDeleted = await removeStoredUpload(current.rows[0].url);
-        return res.json({ intervention_id: interventionId, section_key: sectionKey, file_deleted: fileDeleted, report_version: result.rows[0].report_version });
+        return res.json({ intervention_id: interventionId, section_key: sectionKey, file_deleted: fileDeleted, report_version: result.rows[0].report_version, donnees_rapport: result.rows[0].donnees_rapport });
     } catch (error) {
         console.error("Échec de la suppression d’une signature de rapport", error);
         return res.status(500).json({ error: "Impossible de supprimer cette signature." });

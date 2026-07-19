@@ -55,10 +55,15 @@ test("la création d'un rapport direct n'est plus proposée dans l'interface", a
 
 test("la saisie du rapport reste ouverte et complète après enregistrement ou signature", async () => {
     const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const uploads = await readFile(new URL("../routes/uploads.js", import.meta.url), "utf8");
     assert.match(app, /toast\("Rapport enregistr/);
     assert.doesNotMatch(app, /closeModal\(\);\s*await finishMutation\("interventions", "Rapport enregistr/);
-    assert.match(app, /expected_version: result\.report_version/);
-    assert.match(app, /method: "PUT", body: JSON\.stringify\(fullPayload\)/);
+    assert.match(app, /signerName/);
+    assert.match(app, /uploads\/signature-field/);
+    assert.doesNotMatch(app, /JSON\.stringify\(fullPayload\)/);
+    assert.match(uploads, /signerName/);
+    assert.match(uploads, /\$\{sectionKey\}_name/);
+    assert.match(uploads, /RETURNING id, report_version, donnees_rapport/);
 });
 
 test("les rapports exposent le choix autre, le nom du signataire et le message e-mail par défaut", async () => {

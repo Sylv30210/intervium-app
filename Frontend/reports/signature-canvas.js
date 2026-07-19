@@ -32,11 +32,13 @@ export function bindSignatureCanvas({ canvas, clearButton, saveButton, onSave, o
     const stopDrawing = () => { drawing = false; };
     canvas.addEventListener("pointerup", stopDrawing);
     canvas.addEventListener("pointercancel", stopDrawing);
-    clearButton?.addEventListener("click", () => {
+    clearButton?.addEventListener("click", (event) => {
+        event.preventDefault();
         context.clearRect(0, 0, canvas.width, canvas.height);
         hasInk = false;
     });
     saveButton?.addEventListener("click", async (event) => {
+        event.preventDefault();
         if (!hasInk) return onEmpty?.();
         await onSave?.({ event, signatureData: canvas.toDataURL("image/png") });
     });

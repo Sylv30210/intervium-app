@@ -69,5 +69,5 @@ test("le fichier PDF reprend le numéro métier du rapport", () => {
 
 test("les choix de cases à cocher sont rendus ligne par ligne dans le PDF", () => {
     assert.equal(reportValue({ type: "checkbox" }, ["Conforme", "Validé"]), "Conforme\nValidé");
-    assert.equal(reportValue({ type: "checkbox", showCheckmark: true }, ["Conforme", "Validé"]), "✓ Conforme\n✓ Validé");
+    assert.equal(reportValue({ type: "checkbox", showCheckmark: true }, ["Conforme", "Validé"]), "[x] Conforme\n[x] Validé");
 });
