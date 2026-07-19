@@ -17,6 +17,13 @@ test("adresse et matériel peuvent partager la même ligne du PDF", () => {
     );
 });
 
+test("deux signatures demi-largeur peuvent partager la même ligne du PDF", () => {
+    assert.deepEqual(
+        pdfHalfWidthPlacement({ type: "signature", width: "half" }, { type: "electronic_signature", width: "half" }),
+        { usesHalfWidth: true, pairsWithNext: true },
+    );
+});
+
 test("les tableaux restent en pleine largeur pour préserver leur lisibilité", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "table", width: "half" }, { type: "text", width: "half" }), {
         usesHalfWidth: false,
@@ -78,6 +85,6 @@ test("les choix de cases à cocher sont rendus ligne par ligne dans le PDF", () 
 test("les titres de signature de modèle gardent le style de champ PDF", () => {
     const source = readFileSync(new URL("../services/pdf.js", import.meta.url), "utf8");
 
-    assert.match(source, /reportSignatureLabel\(doc, field\.label \|\| "Signature", pdfFieldLabelVisible\(field\)\)/);
-    assert.match(source, /drawSignatureBlock\(doc, fieldSignature, "", signerName\)/);
+    assert.match(source, /reportSignatureLabel\(doc, field\.label \|\| "Signature", pdfFieldLabelVisible\(field\), x, width\)/);
+    assert.match(source, /drawSignatureBlock\(doc, fieldSignature, "", signerName, x, width\)/);
 });

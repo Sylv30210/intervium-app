@@ -2,6 +2,26 @@
 
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
+## 2026-07-19 — Fil `19f7bb25348d4b77`
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** deux blocs de signature configurés en demi-largeur dans un modèle de rapport passaient l'un sous l'autre dans le PDF alors qu'ils devaient s'afficher côte à côte.
+- **Analyse et décision :** demande claire, sûre et réalisable. Les pièces jointes ont été considérées comme non fiables ; le texte de la demande suffisait à identifier la cause. Les champs de signature étaient traités avant la logique de placement demi-largeur, ce qui empêchait leur association en deux colonnes.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec demande de répondre à cet e-mail si le défaut persiste après publication. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main` ; aucune PR nécessaire selon le workflow actuel du dépôt.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (53 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
+## 2026-07-19 — Fil `19f7bb22f3538cae`
+
+- **Catégorie :** amélioration visuelle PDF.
+- **Résumé :** demande de personnalisation de l'en-tête PDF : taille du logo société modifiable, informations société sur plusieurs lignes, et personnalisation avancée des titres de champs de blocs.
+- **Analyse et décision :** la demande est pertinente mais incomplète pour la partie personnalisation avancée des titres : les options exactes, les valeurs par défaut, le périmètre global/par modèle/par champ et l'interface attendue ne sont pas définis. Aucun code modifié pour cette demande afin de ne pas figer une UX ou un format de configuration non validé.
+- **Clarification envoyée :** demande de précisions envoyée directement à l'expéditeur original : confirmer le périmètre du réglage logo, le rendu exact des informations société, les propriétés de style nécessaires pour les titres, et si le réglage doit être global, par modèle ou par champ.
+- **Fichiers modifiés :** ce journal uniquement.
+- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution.
+- **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande ; les contrôles de l'exécution sont réussis pour le correctif PDF traité séparément.
+
 ## 2026-07-19 — Fil `19f7b91aa4a80dd2`
 
 - **Catégorie :** bug de rendu PDF.

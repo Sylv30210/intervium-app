@@ -8,7 +8,7 @@ const BLUE = "#1d4ed8";
 const DARK = "#172554";
 const GRAY = "#64748b";
 const LIGHT = "#e2e8f0";
-const PDF_HALF_WIDTH_TYPES = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "client", "equipment"]);
+const PDF_HALF_WIDTH_TYPES = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "client", "equipment", "signature", "electronic_signature"]);
 
 export function pdfHalfWidthPlacement(field, nextField) {
     const usesHalfWidth = field?.width === "half" && PDF_HALF_WIDTH_TYPES.has(field?.type);
@@ -246,25 +246,28 @@ function signatureName(templateData, field) {
     return typeof name === "string" ? name.trim().slice(0, 150) : "";
 }
 
-function drawSignatureBlock(doc, asset, label, signerName = "") {
+function drawSignatureBlock(doc, asset, label, signerName = "", x = 48, width = doc.page.width - 96) {
     let top = doc.y;
     if (signerName) {
-        doc.font("Helvetica").fontSize(10).fillColor(DARK).text(signerName, 58, top, { width: 260 });
+        doc.font("Helvetica").fontSize(10).fillColor(DARK).text(signerName, x + 10, top, { width: Math.max(1, width - 20) });
         top = doc.y + 6;
     }
-    doc.rect(48, top, asset.layout.frameWidth, 75).strokeColor(LIGHT).stroke();
-    doc.image(asset.buffer, 58, top + 8, {
-        width: asset.layout.imageWidth,
-        height: asset.layout.imageHeight,
+    const frameWidth = Math.min(asset.layout.frameWidth, Math.max(1, width));
+    const imageWidth = Math.min(asset.layout.imageWidth, Math.max(1, frameWidth - 20));
+    const imageHeight = Math.round(asset.layout.imageHeight * (imageWidth / Math.max(1, asset.layout.imageWidth)));
+    doc.rect(x, top, frameWidth, 75).strokeColor(LIGHT).stroke();
+    doc.image(asset.buffer, x + 10, top + 8, {
+        width: imageWidth,
+        height: imageHeight,
     });
-    if (label) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(label, 58, top + 61);
+    if (label) doc.font("Helvetica").fontSize(8).fillColor(GRAY).text(label, x + 10, top + 61, { width: Math.max(1, width - 20) });
     doc.y = top + 82;
 }
 
-function reportSignatureLabel(doc, label, showLabel = true) {
+function reportSignatureLabel(doc, label, showLabel = true, x = 48, width = doc.page.width - 96) {
     if (!showLabel) return;
     ensureSpace(doc, 24);
-    fieldLabel(doc, label || "Signature");
+    fieldLabel(doc, label || "Signature", x, width);
 }
 
 function reportFieldValue(section, rawValue, equipment) {
@@ -376,6 +379,21 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         const photoAllocations = allocatePhotosToSections(templateSections, photoBuffers);
         const photosBySection = new Map(photoAllocations.map(({ section, photos: sectionPhotos }) => [section, sectionPhotos]));
         const hasTemplateSignature = templateSections.some((section) => signatureTypes.has(section.type));
+        const signatureRenderHeight = (field) => {
+            const signerName = signatureName(templateData, field);
+            const fieldSignature = templateSignatures.get(field.key);
+            return fieldSignature ? 95 + (signerName ? 18 : 0) : 38;
+        };
+        const renderSignatureField = (field, x = 48, width = doc.page.width - 96) => {
+            const fieldSignature = templateSignatures.get(field.key);
+            const signerName = signatureName(templateData, field);
+            reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field), x, width);
+            if (fieldSignature) {
+                drawSignatureBlock(doc, fieldSignature, "", signerName, x, width);
+            } else {
+                doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.", x, doc.y, { width });
+            }
+        };
         const renderPhotoBlock = (field, sectionPhotos) => {
             if (pdfConfig.showPhotos === false) return;
             const layout = pdfPhotoGridLayout(field, doc.page.width);
@@ -407,18 +425,25 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     sectionTitle(doc, field.label || "Section");
                     continue;
                 }
+                const nextField = templateSections[fieldIndex + 1];
+                const placement = pdfHalfWidthPlacement(field, nextField);
                 if (signatureTypes.has(field.type)) {
                     if (pdfConfig.showSignature === false) continue;
-                    const fieldSignature = templateSignatures.get(field.key);
-                    const signerName = signatureName(templateData, field);
-                    const signatureBlockHeight = fieldSignature ? 95 + (signerName ? 18 : 0) : 38;
-                    ensureSpace(doc, signatureBlockHeight + 38);
-                    reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field));
-                    if (fieldSignature) {
-                        drawSignatureBlock(doc, fieldSignature, "", signerName);
-                    } else {
-                        doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.");
+                    if (placement.pairsWithNext && signatureTypes.has(nextField?.type)) {
+                        const gap = 14;
+                        const halfWidth = (doc.page.width - 96 - gap) / 2;
+                        ensureSpace(doc, Math.max(signatureRenderHeight(field), signatureRenderHeight(nextField)) + 38);
+                        const startY = doc.y;
+                        renderSignatureField(field, 48, halfWidth);
+                        const firstBottom = doc.y;
+                        doc.y = startY;
+                        renderSignatureField(nextField, 48 + halfWidth + gap, halfWidth);
+                        doc.y = Math.max(firstBottom, doc.y);
+                        fieldIndex += 1;
+                        continue;
                     }
+                    ensureSpace(doc, signatureRenderHeight(field) + 38);
+                    renderSignatureField(field, 48, placement.usesHalfWidth ? (doc.page.width - 96 - 14) / 2 : doc.page.width - 96);
                     continue;
                 }
                 if (photoTypes.has(field.type)) {
@@ -430,8 +455,6 @@ export async function generateInterventionPdf({ intervention, equipments, photos
                     reportTable(doc, field, rawValue);
                     continue;
                 }
-                const nextField = templateSections[fieldIndex + 1];
-                const placement = pdfHalfWidthPlacement(field, nextField);
                 if (placement.pairsWithNext) {
                     ensureSpace(doc, 54);
                     const startY = doc.y;
