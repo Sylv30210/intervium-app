@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { allocatePhotosToSections, checkboxValueUsesCheckmark, contactLines, interventionPdfFilename, pdfFieldLabelVisible, pdfFieldTitleStyle, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
+import { allocatePhotosToSections, checkboxValueUsesCheckmark, contactLines, interventionPdfFilename, pdfFieldLabelVisible, pdfFieldTitleBox, pdfFieldTitleStyle, pdfHalfWidthPlacement, pdfPhotoGridLayout, reportValue, signatureFrameLayout } from "../services/pdf.js";
 
 test("un champ demi-largeur reste en demi-colonne même lorsqu’il est seul", () => {
     assert.deepEqual(pdfHalfWidthPlacement({ type: "address", width: "half" }, null), {
@@ -123,4 +123,9 @@ test("le style global des titres de champs PDF est borné et validé", () => {
         backgroundColor: "#ffeeaa",
     });
     assert.equal(pdfFieldTitleStyle({ fieldTitleStyle: { color: "red", font: "Comic" } }).color, "#64748b");
+});
+
+test("le fond colore des titres de champs PDF conserve une hauteur stable", () => {
+    assert.deepEqual(pdfFieldTitleBox(9, { size: 9 }), { paddingY: 3, height: 15 });
+    assert.deepEqual(pdfFieldTitleBox(18, { size: 14 }), { paddingY: 5, height: 28 });
 });

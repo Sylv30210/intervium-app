@@ -199,6 +199,13 @@ function fieldTitleFont(style) {
     return style.bold ? "Helvetica-Bold" : "Helvetica";
 }
 
+export function pdfFieldTitleBox(textHeight, titleStyle = pdfFieldTitleStyle()) {
+    const size = Math.min(14, Math.max(7, Number(titleStyle.size) || 9));
+    const paddingY = Math.max(3, Math.round(size * 0.35));
+    const height = Math.max(textHeight + paddingY * 2, size + paddingY * 2);
+    return { paddingY, height };
+}
+
 function reportField(doc, label, value, showLabel = true, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
     ensureSpace(doc, showLabel ? 42 : 28);
     if (showLabel) fieldLabel(doc, label, x, width, titleStyle);
@@ -210,11 +217,15 @@ function reportField(doc, label, value, showLabel = true, x = 48, width = doc.pa
 
 function fieldLabel(doc, label, x = 48, width = doc.page.width - 96, titleStyle = pdfFieldTitleStyle()) {
     const title = String(label || "CHAMP").toUpperCase();
-    const height = doc.heightOfString(title, { width }) + 4;
-    if (titleStyle.backgroundColor) doc.roundedRect(x - 2, doc.y - 1, width + 4, height, 2).fill(titleStyle.backgroundColor);
+    const boxY = doc.y;
+    doc.font(fieldTitleFont(titleStyle)).fontSize(titleStyle.size);
+    const textHeight = doc.heightOfString(title, { width });
+    const { height } = pdfFieldTitleBox(textHeight, titleStyle);
+    const textY = boxY + Math.max(0, (height - textHeight) / 2);
+    if (titleStyle.backgroundColor) doc.roundedRect(x - 2, boxY, width + 4, height, 2).fill(titleStyle.backgroundColor);
     doc.font(fieldTitleFont(titleStyle)).fontSize(titleStyle.size).fillColor(titleStyle.color)
-        .text(title, x, doc.y, { width, underline: titleStyle.underline });
-    doc.moveDown(0.2);
+        .text(title, x, textY, { width, underline: titleStyle.underline });
+    doc.y = Math.max(doc.y, boxY + height + 3);
 }
 
 export function checkboxValueUsesCheckmark(section, rawValue) {

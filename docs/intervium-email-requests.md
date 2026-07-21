@@ -1,5 +1,25 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-21 — Fil `19f85cc92402346f`
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** les fonds colorés configurés pour les titres de champs du PDF ne sont pas centrés verticalement sur le libellé et présentent des épaisseurs irrégulières selon les champs.
+- **Analyse et décision :** demande claire, sûre et cohérente avec la personnalisation PDF ajoutée précédemment. La pièce jointe PDF a été considérée comme non fiable ; le texte du signalement suffisait à identifier le problème dans le calcul de hauteur du fond des libellés.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec résumé du correctif, commit et tests. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** commit applicatif et documentaire créé sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante.
+
+## 2026-07-21 — Fil `19f85cc3a3873cd5`
+
+- **Catégorie :** fonctionnalité / développement futur.
+- **Résumé :** demande d'intégrer au rapport un fichier joint client, par exemple une liste de contrôle PDF, en le rendant modifiable pour le remplir puis le joindre au rapport.
+- **Analyse et décision :** demande pertinente mais trop large pour être implémentée sans cadrage : il faut préciser le type de fichiers à supporter, le mode d'édition attendu, le stockage, le lien avec les modèles, le rendu final PDF et les contraintes de sécurité sur les pièces jointes client. Aucun code modifié pour cette demande.
+- **Clarification envoyée :** demande de précisions envoyée directement à l'expéditeur original, avec consigne de répondre à cet e-mail. Fil libellé `Intervium/En attente`.
+- **Fichiers modifiés :** ce journal uniquement.
+- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution.
+- **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande.
+
 Ce journal conserve uniquement les informations techniques nécessaires au suivi. Les coordonnées personnelles, secrets et contenus sans rapport avec Intervium en sont exclus.
 
 ## 2026-07-19 — Fil `19f7bb22f3538cae` — clarification reçue
