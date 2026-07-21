@@ -655,7 +655,7 @@ function renderPlanning() {
 }
 
 function renderTemplates() {
-    if (!reportTemplates.length) return `<section class="panel"><div class="empty">Aucun modèle de rapport. Un ADMIN peut créer une structure réutilisable.</div></section>`;
+    if (!reportTemplates.length) return `<section class="panel"><div class="empty">Aucun modèle de rapport. Un ADMIN peut créer une structure réutilisable pour accélérer la saisie terrain et uniformiser les PDF.</div></section>`;
     return `<section class="panel"><div class="panel-head"><div><h2>Modèles réutilisables</h2><p class="muted">Les champs du modèle apparaissent lors de la création et dans le PDF du rapport.</p></div></div><div class="template-list">${reportTemplates.map((template) => `<article class="template-card"><div><strong>${escapeHtml(template.nom)}</strong><div class="muted">${escapeHtml(template.description || "Sans description")} · ${(template.sections || []).length} bloc(s)</div></div>${currentUser.role === "ADMIN" ? `<div class="actions"><button class="secondary" data-duplicate-template="${template.id}">Dupliquer</button><button class="secondary" data-edit-template="${template.id}">${icon("edit")} Configurer</button><button class="danger" data-delete-template="${template.id}">${icon("trash")} Supprimer définitivement</button></div>` : ""}</article>`).join("")}</div></section>`;
 }
 
@@ -665,7 +665,12 @@ function renderDocuments() {
     return `<section class="stats"><div class="stat"><span class="muted">Documents</span><strong>${commercialDocuments.length}</strong></div><div class="stat"><span class="muted">Total TTC</span><strong>${formatMoney(total)}</strong></div><div class="stat"><span class="muted">Payé</span><strong>${formatMoney(paid)}</strong></div><div class="stat"><span class="muted">À encaisser</span><strong>${formatMoney(total - paid)}</strong></div></section><section class="panel"><div class="document-list">${commercialDocuments.length ? commercialDocuments.map((document) => `<article class="document-card"><div><strong>${escapeHtml(document.numero || document.type)}</strong><div class="muted">${escapeHtml(document.client_nom)} · ${formatDate(document.date_emission)} · ${escapeHtml(document.statut)}</div></div><div class="actions"><strong>${formatMoney(document.total_ttc, document.devise)}</strong><button class="secondary" data-open-document="${document.id}">${icon("documents")} Voir</button><button class="danger" data-delete-document="${document.id}">${icon("trash")} Supprimer</button></div></article>`).join("") : `<div class="empty">Aucun devis ou facture.</div>`}</div></section>`;
 }
 function interventionTable(items, actions) {
-    if (!items.length) return `<div class="empty">Aucun rapport.</div>`;
+    if (!items.length) {
+        const emptyMessage = currentUser.role === "CLIENT"
+            ? "Aucun rapport disponible avec votre compte actuellement."
+            : "Aucun rapport pour le moment. Planifiez une intervention ou créez un rapport direct pour démarrer le suivi.";
+        return `<div class="empty">${emptyMessage}</div>`;
+    }
     return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Matériel</th><th>Rapport</th><th>Technicien</th><th>Statut</th>${actions ? "<th>Actions</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="Date">${formatDate(item.date_intervention)} ${escapeHtml(item.heure?.slice(0,5) || "")}</td><td data-label="Client">${escapeHtml(item.client_nom)}</td><td data-label="Matériel">${escapeHtml(equipmentLabel(item))}</td><td data-label="Rapport"><strong>${escapeHtml(item.numero_rapport || "Historique")}</strong><br>${escapeHtml(item.titre)}${item.creation_type === "RAPPORT_DIRECT" ? '<br><span class="badge off">Rapport direct</span>' : ""}</td><td data-label="Technicien">${escapeHtml(item.technicien_nom || "Non assigné")}</td><td data-label="Statut"><span class="badge">${statusLabel(item.statut)}</span></td>${actions ? `<td data-label="Actions" class="actions"><button class="secondary" data-edit-intervention="${item.id}">${icon("edit")} Ouvrir</button>${currentUser.role === "ADMIN" ? `<button class="danger" data-delete-intervention="${item.id}">${icon("trash")} Supprimer</button>` : ""}</td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
