@@ -1,5 +1,15 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-21 — Fil `19f85ecdf2f08160`
+
+- **Catégorie :** bug CI / maintenance.
+- **Résumé :** alerte GitHub Actions indiquant l'échec du workflow CI sur `main` pour le commit de correction PDF.
+- **Analyse et décision :** demande pertinente et sûre à traiter. Les logs GitHub Actions montrent que l'échec vient du test d'intégration PostgreSQL : l'intervention de test utilisait une date fixe `2026-07-20`, devenue passée au moment de l'exécution du 2026-07-21 ; aucune notification `INTERVENTION_SOON` n'était donc créée, et le test lisait `items[0]` alors que la liste était vide.
+- **Réponse :** aucune réponse envoyée à l'adresse automatisée GitHub `noreply`; fil labellisé `Intervium/Traité` après validation.
+- **Fichiers modifiés :** `Backend/test/integration-api.test.js`, ce journal.
+- **Commit / PR :** correctif à inclure dans le commit de cette exécution sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi localement (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante. La validation finale de l'intégration PostgreSQL est attendue sur GitHub Actions après push.
+
 ## 2026-07-21 — Fil `19f85cc92402346f`
 
 - **Catégorie :** bug de rendu PDF.

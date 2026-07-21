@@ -22,6 +22,7 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
     );
     const agent = request.agent(app);
     await agent.post("/api/auth/login").send({ email: "admin-a@example.test", password }).expect(200);
+    const today = await pool.query("SELECT CURRENT_DATE::TEXT AS date");
     const created = await agent.post("/api/clients").send({ nom: "Client test", email: "client@example.test" }).expect(201);
     assert.equal(created.body.entreprise_id, firstCompany.rows[0].id);
     await agent.put(`/api/clients/${created.body.id}`).send({ nom: "Client modifié", email: "client@example.test", report_emails: [] }).expect(200);
@@ -33,7 +34,7 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         creation_type: "PLANIFIEE",
         statut: "PLANIFIEE",
         titre: "Maintenance préventive",
-        date_intervention: "2026-07-20",
+        date_intervention: today.rows[0].date,
         heure: "08:00",
         donnees_rapport: {},
     }).expect(201);
