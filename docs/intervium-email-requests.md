@@ -7,8 +7,8 @@
 - **Analyse et décision :** demande pertinente et sûre à traiter. Les logs GitHub Actions montrent que l'échec vient du test d'intégration PostgreSQL : l'intervention de test utilisait une date fixe `2026-07-20`, devenue passée au moment de l'exécution du 2026-07-21 ; aucune notification `INTERVENTION_SOON` n'était donc créée, et le test lisait `items[0]` alors que la liste était vide.
 - **Réponse :** aucune réponse envoyée à l'adresse automatisée GitHub `noreply`; fil labellisé `Intervium/Traité` après validation.
 - **Fichiers modifiés :** `Backend/test/integration-api.test.js`, ce journal.
-- **Commit / PR :** correctif à inclure dans le commit de cette exécution sur `main`; aucune PR nécessaire selon le workflow actuel.
-- **Vérifications :** `npm run check` réussi ; `npm test` réussi localement (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante. La validation finale de l'intégration PostgreSQL est attendue sur GitHub Actions après push.
+- **Commit / PR :** correctif `16c3924` créé et poussé sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi localement (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante. GitHub Actions CI `29857292088` réussie sur `16c3924`, avec intégration PostgreSQL active.
 
 ## 2026-07-21 — Fil `19f85cc92402346f`
 
