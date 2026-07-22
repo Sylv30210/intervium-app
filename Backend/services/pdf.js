@@ -201,10 +201,10 @@ function fieldTitleFont(style) {
 
 export function pdfFieldTitleBox(textHeight, titleStyle = pdfFieldTitleStyle()) {
     const size = Math.min(14, Math.max(7, Number(titleStyle.size) || 9));
-    const paddingY = Math.max(4, Math.round(size * 0.45));
-    const height = Math.ceil(Math.max(textHeight, size) + paddingY * 2);
-    const textOffsetY = Math.max(paddingY, (height - textHeight) / 2);
-    const gapAfter = Math.max(6, Math.round(size * 0.65));
+    const paddingY = Math.max(5, Math.round(size * 0.55));
+    const height = Math.ceil(Math.max(textHeight + paddingY * 2, size + paddingY * 2));
+    const textOffsetY = Math.max(2, Math.round((height - textHeight) / 2));
+    const gapAfter = Math.max(9, Math.round(size * 0.9));
     return { paddingY, height, textOffsetY, gapAfter };
 }
 
