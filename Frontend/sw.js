@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v24-audit-empty-states";
+const CACHE_VERSION = "intervium-shell-v25-table-display-modes";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",
