@@ -119,19 +119,6 @@ export async function accessTokenFor(user) {
     return tokens.access_token;
 }
 
-function mimeMessage({ from, to, subject, text, pdf, filename }) {
-    const boundary = `intervium-${crypto.randomBytes(12).toString("hex")}`;
-    const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
-    const parts = [
-        `From: ${from}`, `To: ${to.join(", ")}`, `Subject: ${encodedSubject}`, "MIME-Version: 1.0",
-        `Content-Type: multipart/mixed; boundary="${boundary}"`, "", `--${boundary}`,
-        'Content-Type: text/plain; charset="UTF-8"', "Content-Transfer-Encoding: base64", "", Buffer.from(text).toString("base64"),
-        `--${boundary}`, `Content-Type: application/pdf; name="${filename}"`, "Content-Transfer-Encoding: base64",
-        `Content-Disposition: attachment; filename="${filename}"`, "", pdf.toString("base64"), `--${boundary}--`, "",
-    ];
-    return Buffer.from(parts.join("\r\n")).toString("base64url");
-}
-
 function mimeEmail({ from, to, cc = [], bcc = [], subject, text, html, attachments = [] }) {
     const boundary = `intervium-${crypto.randomBytes(12).toString("hex")}`;
     const encodedSubject = `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`;
@@ -150,16 +137,6 @@ export async function sendGmailEmail({ user, to, cc, bcc, subject, text, html, a
     if (!connection) throw new Error("GOOGLE_NOT_CONNECTED");
     const accessToken = await accessTokenFor(user);
     const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw: mimeEmail({ from: connection.email_google, to, cc, bcc, subject, text, html, attachments }) }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || "GMAIL_SEND_ERROR");
-    return data;
-}
-
-export async function sendGmailReport({ user, to, subject, text, pdf, filename }) {
-    const connection = await googleConnection(user);
-    if (!connection) throw new Error("GOOGLE_NOT_CONNECTED");
-    const accessToken = await accessTokenFor(user);
-    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ raw: mimeMessage({ from: connection.email_google, to, subject, text, pdf, filename }) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || "GMAIL_SEND_ERROR");
     return data;

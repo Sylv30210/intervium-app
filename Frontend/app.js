@@ -19,7 +19,7 @@ let technicians = [];
 let creationClients = [];
 let creationEquipements = [];
 let reportTemplates = [];
-let commercialDocuments = []; // Données historiques conservées, module volontairement masqué.
+let commercialDocuments = []; // Données historiques conservées, module volontairement masqué dans la navigation principale.
 let planningCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let templateDraftSections = [];
 let currentView = "dashboard";
@@ -338,6 +338,7 @@ async function loadAllData() {
         creationClients = [];
         creationEquipements = [];
         reportTemplates = [];
+        commercialDocuments = [];
         return;
     }
     const results = await Promise.allSettled([
@@ -347,6 +348,7 @@ async function loadAllData() {
         currentUser.role === "ADMIN" ? api("/auth/users") : Promise.resolve([]),
         api("/interventions/stats"),
         api("/modeles"),
+        currentUser.role === "ADMIN" ? api("/documents") : Promise.resolve([]),
     ]);
     const stateTargets = [
         (value) => { interventions = value.items; Object.assign(collectionPages.interventions, value); },
@@ -355,6 +357,7 @@ async function loadAllData() {
         (value) => { technicians = value; },
         (value) => { dashboardStats = value; },
         (value) => { reportTemplates = value; },
+        (value) => { commercialDocuments = value; },
     ];
     const failures = [];
     results.forEach((result, index) => {
@@ -572,6 +575,7 @@ function renderView(view) {
     if (view === "clients") return renderClients();
     if (view === "equipements") return renderEquipements();
     if (view === "modeles") return renderTemplates();
+    if (view === "documents") return renderDocuments();
     if (view === "activity") return `<section class="panel"><div class="table-tools"><select id="activity-type"><option value="">Toutes les ressources</option><option value="client">Clients</option><option value="equipement">Matériels</option><option value="intervention">Interventions</option><option value="modele">Modèles</option><option value="utilisateur">Utilisateurs</option></select><button class="secondary" id="activity-refresh">Actualiser</button></div><div id="activity-list" class="activity-list"><div class="empty"><span class="spinner"></span> Chargement…</div></div></section>`;
     return renderTeam();
 }
@@ -2654,15 +2658,6 @@ async function finishMutation(view, successMessage) {
     } catch (error) {
         renderMain(view);
         toast(`${successMessage} Actualisation partielle : ${error.message}`, true);
-    }
-}
-async function reloadModal(id, successMessage) {
-    try {
-        await loadAllData();
-        openIntervention(id);
-        toast(successMessage);
-    } catch (error) {
-        toast(`${successMessage} Rouvrez la fiche pour actualiser l'aperçu.`, true);
     }
 }
 async function withBusy(button, action) {
