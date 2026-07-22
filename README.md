@@ -1,27 +1,29 @@
 # Intervium
 
-Intervium est une application SaaS multi-tenant de gestion d’interventions terrain. Elle centralise les clients, les équipements, le planning, les rapports personnalisables, les photos, les signatures, les devis et les factures.
+Intervium est une application SaaS multi-tenant de gestion d’interventions terrain. Elle permet de centraliser les clients, les matériels, le planning, les rapports personnalisables, les photos, les signatures, les notifications et l’envoi de rapports par e-mail.
 
-L’application est également installable comme PWA sur ordinateur, Android et iOS.
+L’application est pensée pour un usage bureau et mobile, et peut être installée comme PWA sur ordinateur, Android et iOS.
 
-## Fonctionnalités
+## Fonctionnalités principales
 
-- Authentification sécurisée par JWT dans un cookie `HttpOnly`.
+- Authentification sécurisée avec JWT stocké dans un cookie `HttpOnly`.
 - Isolation stricte des données par entreprise.
-- Rôles `ADMIN`, `TECHNICIEN` et `CLIENT`.
-- Gestion des clients et fiches client détaillées.
-- Gestion des équipements associés aux clients.
-- Planning et suivi des interventions.
-- Création d’interventions par les administrateurs et techniciens.
-- Modèles de rapport configurables.
-- Photos optimisées avec Sharp.
-- Signatures tactiles.
-- Stockage Cloudinary en production ou stockage local en développement.
-- Rapports PDF personnalisés avec l’identité de l’entreprise.
-- Gestion des devis, factures et avoirs.
-- Gestion des comptes techniciens.
+- Rôles `ADMIN`, `TECHNICIEN`, `CLIENT` et accès d’assistance super-développeur encadré.
+- Tableau de bord avec indicateurs, prochaines interventions et actions rapides.
+- Gestion des clients, contacts client et matériels associés.
+- Planning des interventions.
+- Création, édition, signature et export PDF des rapports d’intervention.
+- Modèles de rapports configurables avec champs, sections, tableaux, photos et signatures.
+- Personnalisation de l’identité PDF de l’entreprise : logo, nom affiché, SIRET, adresse et styles visuels.
+- Ajout, optimisation, annotation, rotation et inclusion sélective des photos dans les PDF.
+- Envoi de rapports par e-mail via SMTP, Gmail ou Microsoft selon la configuration.
+- Notifications applicatives.
+- Recherche globale.
+- Historique d’activité.
 - Thèmes Classique, Sombre et Liquid Glass.
-- PWA installable avec service worker et écran hors connexion.
+- PWA installable avec service worker, page hors connexion et cache sécurisé.
+- Pages publiques obligatoires : conditions, confidentialité, mentions légales et politique de cookies si nécessaire.
+- Suppression définitive de compte avec confirmation renforcée.
 
 ## Stack technique
 
@@ -29,9 +31,10 @@ L’application est également installable comme PWA sur ordinateur, Android et 
 
 - HTML5
 - CSS responsive mobile-first
-- JavaScript natif
+- JavaScript natif en modules ES
 - Fetch API
-- Service Worker et Web App Manifest
+- Service Worker
+- Web App Manifest
 
 ### Backend
 
@@ -46,6 +49,7 @@ L’application est également installable comme PWA sur ordinateur, Android et 
 - Cloudinary
 - PDFKit
 - Helmet
+- Nodemailer
 
 ### Hébergement recommandé
 
@@ -64,48 +68,71 @@ Intervium.app/
 │   │   └── migrate.js
 │   ├── middleware/
 │   ├── routes/
+│   ├── scripts/
 │   ├── services/
+│   ├── test/
 │   ├── server.js
 │   └── package.json
 ├── Frontend/
+│   ├── api/
+│   ├── clients/
+│   ├── components/
+│   ├── documents/
 │   ├── icons/
+│   ├── navigation/
+│   ├── reports/
+│   ├── styles/
+│   ├── utils/
+│   ├── views/
+│   ├── app.css
 │   ├── app.js
 │   ├── index.html
 │   ├── manifest.webmanifest
 │   ├── offline.html
+│   ├── robots.txt
+│   ├── sitemap.xml
 │   └── sw.js
+├── docs/
+├── .github/workflows/
+├── AUDIT_AMELIORATIONS.md
+├── CHANGELOG.md
+├── DEPLOYMENT.md
+├── OPERATIONS.md
 ├── Dockerfile
 ├── Procfile
 ├── render.yaml
-└── fly.toml
+└── package.json
 ```
 
 ## Prérequis
 
-- Node.js 22 ou version compatible
-- PostgreSQL 14 ou supérieur
-- npm
-- Un compte Cloudinary pour le stockage distant en production
+- Node.js 20 ou version supérieure.
+- npm.
+- PostgreSQL 14 ou version supérieure.
+- Un compte Cloudinary pour le stockage distant en production.
+- Des identifiants SMTP, Gmail ou Microsoft si l’envoi d’e-mails doit être activé.
 
 ## Installation locale
 
-Clonez le dépôt puis installez les dépendances du backend :
+Clonez le dépôt puis installez les dépendances :
 
 ```bash
 git clone https://github.com/Sylv30210/intervium-app.git
-cd Intervium.app/Backend
+cd intervium-app
 npm install
 ```
 
-Créez ensuite votre fichier d’environnement à partir du modèle :
+Créez ensuite le fichier d’environnement du backend :
 
 ```bash
+cd Backend
 cp .env.example .env
 ```
 
 Sous Windows PowerShell :
 
 ```powershell
+cd Backend
 Copy-Item .env.example .env
 ```
 
@@ -125,7 +152,7 @@ JWT_SECRET=replace_with_a_long_random_secret
 STORAGE_DRIVER=local
 ```
 
-Lancez l’application :
+Lancez ensuite l’application depuis la racine :
 
 ```bash
 npm start
@@ -141,25 +168,37 @@ Le frontend est servi directement par Express depuis le dossier `Frontend`.
 
 ## Scripts npm
 
-Depuis le dossier `Backend` :
+Depuis la racine du projet :
 
 ```bash
-npm start
+npm run check
 ```
 
-Applique les migrations puis démarre le serveur.
+Vérifie les fichiers JavaScript principaux.
 
 ```bash
-npm run dev
+npm test
 ```
 
-Démarre le serveur avec Nodemon.
+Lance la suite de tests backend.
+
+```bash
+npm run release:check
+```
+
+Exécute les contrôles de pré-publication du projet.
 
 ```bash
 npm run migrate
 ```
 
-Exécute uniquement les migrations PostgreSQL.
+Applique les migrations PostgreSQL.
+
+```bash
+npm start
+```
+
+Démarre l’application via le backend.
 
 ## Migrations PostgreSQL
 
@@ -178,6 +217,8 @@ Les fichiers SQL se trouvent dans :
 Backend/database/migrations/
 ```
 
+Une migration déjà appliquée ne doit pas être modifiée sans procédure de régularisation explicite.
+
 ## Stockage des médias
 
 ### Développement local
@@ -195,9 +236,36 @@ STORAGE_DRIVER=cloudinary
 CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 ```
 
-Les photos sont redimensionnées à une largeur maximale de 1200 pixels puis converties en WebP avec une qualité de 80 %. Les logos et signatures sont également validés et optimisés avant leur transfert.
+Les photos sont redimensionnées et converties en WebP. Les logos et signatures sont validés et optimisés avant stockage.
 
 Les secrets Cloudinary ne doivent jamais être ajoutés au dépôt Git.
+
+## Envoi d’e-mails
+
+Intervium peut envoyer des rapports et messages depuis plusieurs fournisseurs :
+
+- SMTP ;
+- Gmail OAuth ;
+- Microsoft OAuth.
+
+Les jetons et identifiants sensibles sont chiffrés côté serveur. Les scopes OAuth doivent rester limités à l’envoi d’e-mails.
+
+Variables courantes :
+
+```env
+GMAIL_SENDING_ENABLED=true
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=...
+GOOGLE_TOKEN_ENCRYPTION_KEY=...
+
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+MICROSOFT_REDIRECT_URI=...
+
+EMAIL_CREDENTIALS_ENCRYPTION_KEY=...
+APP_URL=...
+```
 
 ## Variables d’environnement de production
 
@@ -209,23 +277,31 @@ JWT_SECRET=...
 STORAGE_DRIVER=cloudinary
 CLOUDINARY_URL=cloudinary://...
 DB_POOL_MAX=10
+APP_URL=https://...
+PUBLIC_REGISTRATION_ENABLED=false
 ```
 
 - `DATABASE_URL` peut utiliser la connexion poolée Neon.
 - `MIGRATION_DATABASE_URL` doit idéalement utiliser la connexion directe Neon.
 - Render fournit automatiquement `PORT`.
-- `FRONTEND_ORIGIN` est facultatif lorsque le frontend est hébergé séparément.
+- `FRONTEND_ORIGIN` est facultatif lorsque le frontend est servi par le même backend.
 
 ## Déploiement sur Render
 
 Le fichier `render.yaml` contient la configuration Blueprint.
 
-1. Poussez le projet sur GitHub ou GitLab.
-2. Créez un nouveau Blueprint sur Render.
-3. Sélectionnez le dépôt.
-4. Renseignez `DATABASE_URL`, `MIGRATION_DATABASE_URL` et `CLOUDINARY_URL`.
-5. Laissez Render générer `JWT_SECRET`.
-6. Lancez le déploiement.
+Deux services sont déclarés :
+
+- `intervium` : production, déploiement manuel.
+- `intervium-staging` : staging, déploiement après contrôles réussis.
+
+Étapes générales :
+
+1. Pousser le projet sur GitHub.
+2. Créer ou mettre à jour le Blueprint Render.
+3. Renseigner les variables sensibles dans le Dashboard Render.
+4. Vérifier que la CI GitHub est verte.
+5. Déclencher manuellement le déploiement production si nécessaire.
 
 Endpoint de vérification :
 
@@ -240,7 +316,7 @@ Pour plus de détails, consultez [DEPLOYMENT.md](./DEPLOYMENT.md).
 Intervium comprend :
 
 - un manifest complet ;
-- des icônes 192 × 192, 512 × 512 et maskable ;
+- des icônes adaptées ;
 - un service worker versionné ;
 - une page hors connexion ;
 - un bouton d’installation sur les navigateurs compatibles ;
@@ -258,32 +334,43 @@ Les réponses privées de l’API, les PDF, les logos, les photos et les signatu
 - Les identifiants d’entreprise envoyés par le frontend ne sont jamais utilisés comme source de vérité.
 - Les requêtes PostgreSQL sont paramétrées.
 - Helmet configure les principaux en-têtes HTTP de sécurité.
-- Les réponses API utilisent `Cache-Control: no-store, private`.
+- Les réponses API privées utilisent `Cache-Control: no-store, private`.
+- Les limites anti-abus sensibles utilisent un rate limiter persistant.
+- Les actions destructives sensibles exigent une confirmation explicite.
 
 ### Rôles
 
 - `ADMIN` : gestion complète de son entreprise.
-- `TECHNICIEN` : accès aux interventions qui lui sont attribuées et aux ressources nécessaires à son travail.
+- `TECHNICIEN` : accès aux interventions attribuées et aux ressources nécessaires au travail terrain.
 - `CLIENT` : accès en lecture à ses propres rapports.
+- Super-développeur : assistance encadrée, lecture seule par défaut, sans contournement des protections de suppression.
 
 ## Vérifications avant contribution
 
-Avant de proposer une modification :
+Avant de proposer ou pousser une modification :
 
 ```bash
-cd Backend
-npm run migrate
-node --check server.js
-node --check ../Frontend/app.js
-node --check ../Frontend/sw.js
+npm run check
+npm test
+npm run release:check
 ```
 
 Vérifiez également :
 
 - qu’aucun secret ou fichier `.env` n’est versionné ;
-- que les nouvelles routes filtrent systématiquement par tenant ;
+- que les nouvelles routes filtrent systématiquement par entreprise ;
 - que les médias ne sont jamais enregistrés en Base64 dans PostgreSQL ;
-- que les réponses privées ne sont pas ajoutées au cache PWA.
+- que les réponses privées ne sont pas ajoutées au cache PWA ;
+- que les actions sensibles ont une confirmation claire ;
+- que le responsive mobile reste utilisable.
+
+## Documentation complémentaire
+
+- [DEPLOYMENT.md](./DEPLOYMENT.md) : déploiement et hébergement.
+- [OPERATIONS.md](./OPERATIONS.md) : exploitation et maintenance.
+- [CHANGELOG.md](./CHANGELOG.md) : historique des changements.
+- [AUDIT_AMELIORATIONS.md](./AUDIT_AMELIORATIONS.md) : audit et pistes d’amélioration.
+- [docs/intervium-email-requests.md](./docs/intervium-email-requests.md) : suivi des demandes reçues par e-mail.
 
 ## Licence
 
