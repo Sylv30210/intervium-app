@@ -1,5 +1,35 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-22 — Fil `19f85cc92402346f` — confirmation après publication
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** après la correction du chevauchement, le bandeau de titre PDF était jugé trop épais. Le réglage a été affiné manuellement, puis publié.
+- **Analyse et décision :** suivi clair, sûr et déjà traité dans le code. Le rendu final conserve le centrage vertical et l'espace empêchant le texte du champ suivant d'empiéter sur le fond, tout en réduisant la hauteur visuelle du bandeau.
+- **Réponse :** confirmation finale envoyée directement à l'expéditeur original, avec les commits `261661d` et `29c864c`, le déploiement Render `dep-d9gh7fvlk1mc73aaedt0` et les vérifications. Fil libellé `Intervium/Traité`.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js` via le correctif manuel précédent ; ce journal pour le suivi e-mail.
+- **Commit / PR :** correctif applicatif `29c864c` déjà poussé sur `main`; ce suivi documentaire est ajouté séparément.
+- **Vérifications :** `npm run check`, `npm test`, `npm run release:check`, déploiement Render `live`, `/api/health` HTTP 200.
+
+## 2026-07-22 — Fil `19f8a98bdc880158` — clarification reçue
+
+- **Catégorie :** amélioration / fonctionnalité sensible.
+- **Résumé :** l'expéditeur confirme que l'admin peut consulter/supprimer la signature technicien, que le technicien modifie sa propre signature, que le bloc PDF est distinct et uniquement présent si le modèle le contient, avec affichage “Technicien non assigné” sans affectation et signature manuelle si aucune signature mémorisée n'existe.
+- **Analyse et décision :** la demande reste sensible pour la partie compte utilisateur : modification de mot de passe par admin et modification d'e-mail par technicien. Une confirmation de sécurité est nécessaire pour s'assurer qu'il s'agit d'une réinitialisation sans affichage du mot de passe existant et pour définir la validation lors du changement d'adresse e-mail.
+- **Clarification envoyée :** demande ciblée envoyée directement à l'expéditeur original sur la réinitialisation du mot de passe et la confirmation du changement d'e-mail. Fil maintenu sous `Intervium/En attente`.
+- **Fichiers modifiés :** ce journal uniquement.
+- **Commit / PR :** suivi documentaire ajouté séparément.
+- **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande.
+
+## 2026-07-22 — Fil `19f85cc3a3873cd5` — clarification reçue
+
+- **Catégorie :** fonctionnalité / document client PDF.
+- **Résumé :** l'expéditeur confirme une première cible PDF uniquement, avec annotation libre, fusion dans le PDF final, conservation comme média d'intervention et import possible par le technicien au moment du rapport. Il souhaite aussi une analyse du PDF pour transformer les carrés vides en champs remplissables.
+- **Analyse et décision :** la demande est pertinente mais l'analyse automatique de PDF arbitraires est fragile et risquée comme première version : les documents clients n'ont pas toujours une structure stable permettant une détection fiable des zones à remplir.
+- **Clarification envoyée :** proposition d'une première version plus sûre : import PDF, affichage page par page, ajout manuel de textes/coches/annotations, conservation du PDF annoté avec l'intervention et fusion à la fin du rapport. Confirmation demandée avant code. Fil maintenu sous `Intervium/En attente`.
+- **Fichiers modifiés :** ce journal uniquement.
+- **Commit / PR :** suivi documentaire ajouté séparément.
+- **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande.
+
 ## 2026-07-22 — Fil `19f85cc92402346f` — suivi
 
 - **Catégorie :** bug de rendu PDF.
