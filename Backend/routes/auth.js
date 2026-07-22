@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 import { COOKIE_NAME, optionalAuth, requireRole, verifyToken } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
+import { removeStoredUpload } from "../services/storage.js";
 import { createPersistentRateLimiter } from "../middleware/security.js";
 import { verify as verifyTotp } from "otplib";
 import { decryptSecret } from "../services/secret-box.js";
@@ -34,6 +35,10 @@ function companyPayload(row) {
 
 function limitedText(value, maxLength) {
     return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function uniqueMediaUrls(rows, ...keys) {
+    return [...new Set(rows.flatMap((row) => keys.map((key) => row?.[key])).filter(Boolean))];
 }
 
 function sessionCookieOptions() {
@@ -263,6 +268,96 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
     } catch (error) {
         console.error("Échec de la modification du mot de passe", error);
         return res.status(500).json({ error: "Impossible de modifier le mot de passe." });
+    }
+});
+
+router.delete("/account", verifyToken, authRateLimit, async (req, res) => {
+    const currentPassword = typeof req.body.current_password === "string" ? req.body.current_password : "";
+    const confirmation = typeof req.body.confirmation === "string" ? req.body.confirmation.trim() : "";
+    if (!currentPassword || confirmation !== "SUPPRIMER") {
+        return res.status(400).json({ error: "Mot de passe et confirmation SUPPRIMER requis." });
+    }
+    if (req.user.role === "SUPER_DEVELOPPEUR" || req.user.impersonated_company_id) {
+        return res.status(403).json({ error: "Ce compte ne peut pas être supprimé depuis une session d’assistance." });
+    }
+
+    const client = await pool.connect();
+    const mediaUrls = [];
+    try {
+        await client.query("BEGIN");
+        const userResult = await client.query(
+            `SELECT id, entreprise_id, nom, email, password, role, signature_url
+             FROM utilisateurs
+             WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE
+             FOR UPDATE`,
+            [req.user.id, req.user.home_entreprise_id]
+        );
+        const user = userResult.rows[0];
+        if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+            await client.query("ROLLBACK");
+            return res.status(401).json({ error: "Mot de passe actuel incorrect." });
+        }
+
+        if (user.role === "ADMIN") {
+            const mediaResult = await client.query(
+                `SELECT e.logo_url, u.signature_url AS user_signature_url,
+                        i.signature_url AS intervention_signature_url, p.url AS photo_url
+                 FROM entreprises e
+                 LEFT JOIN utilisateurs u ON u.entreprise_id = e.id
+                 LEFT JOIN interventions i ON i.entreprise_id = e.id
+                 LEFT JOIN photos p ON p.entreprise_id = e.id
+                 WHERE e.id = $1`,
+                [user.entreprise_id]
+            );
+            mediaUrls.push(...uniqueMediaUrls(mediaResult.rows, "logo_url", "user_signature_url", "intervention_signature_url", "photo_url"));
+
+            await client.query("DELETE FROM photos WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM notifications WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM activites WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM journal_envois_email WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM connexions_email WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM connexions_google WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM interventions WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM documents_commerciaux WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM modeles_rapport WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM contacts_clients WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM equipements WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM clients WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM utilisateurs WHERE entreprise_id = $1", [user.entreprise_id]);
+            await client.query("DELETE FROM entreprises WHERE id = $1", [user.entreprise_id]);
+            await client.query("COMMIT");
+        } else {
+            mediaUrls.push(user.signature_url);
+            const replacement = await client.query(
+                `SELECT id FROM utilisateurs
+                 WHERE entreprise_id = $1 AND role = 'ADMIN' AND actif = TRUE
+                 ORDER BY id ASC LIMIT 1`,
+                [user.entreprise_id]
+            );
+            const replacementAdminId = replacement.rows[0]?.id;
+            if (!replacementAdminId) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({ error: "Impossible de supprimer ce compte sans administrateur actif dans l’entreprise." });
+            }
+            await client.query("UPDATE interventions SET technicien_id = NULL, updated_at = NOW() WHERE technicien_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
+            await client.query("UPDATE clients SET utilisateur_id = NULL, updated_at = NOW() WHERE utilisateur_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
+            await client.query("UPDATE modeles_rapport SET createur_id = $1, updated_at = NOW() WHERE createur_id = $2 AND entreprise_id = $3", [replacementAdminId, user.id, user.entreprise_id]);
+            await client.query("UPDATE documents_commerciaux SET createur_id = $1, updated_at = NOW() WHERE createur_id = $2 AND entreprise_id = $3", [replacementAdminId, user.id, user.entreprise_id]);
+            await client.query("DELETE FROM notifications WHERE utilisateur_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
+            await client.query("DELETE FROM utilisateurs WHERE id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
+            await client.query("COMMIT");
+        }
+
+        await Promise.allSettled(uniqueMediaUrls(mediaUrls.map((url) => ({ url })), "url").map((url) => removeStoredUpload(url)));
+        const { maxAge: _maxAge, ...clearOptions } = sessionCookieOptions();
+        res.clearCookie(COOKIE_NAME, clearOptions);
+        return res.json({ deleted: true });
+    } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        console.error("Échec de la suppression du compte", error);
+        return res.status(500).json({ error: "Impossible de supprimer le compte." });
+    } finally {
+        client.release();
     }
 });
 

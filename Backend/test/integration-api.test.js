@@ -97,5 +97,24 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
     await agent.delete(`/api/clients/${created.body.id}`).expect(204);
     const activity = await pool.query("SELECT COUNT(*)::INTEGER AS count FROM activites WHERE entreprise_id=$1 AND utilisateur_id=$2", [firstCompany.rows[0].id, admin.rows[0].id]);
     assert.ok(activity.rows[0].count >= 4);
+
+    const tech = await pool.query(
+        `INSERT INTO utilisateurs(entreprise_id,nom,email,password,role,conditions_version)
+         VALUES($1,'Tech suppression','tech-delete@example.test',$2,'TECHNICIEN','2026-07-17') RETURNING id`,
+        [firstCompany.rows[0].id, hash]
+    );
+    const techAgent = request.agent(app);
+    await techAgent.post("/api/auth/login").send({ email: "tech-delete@example.test", password }).expect(200);
+    await techAgent.delete("/api/auth/account")
+        .send({ current_password: password, confirmation: "NON" })
+        .expect(400);
+    await techAgent.delete("/api/auth/account")
+        .send({ current_password: password, confirmation: "SUPPRIMER" })
+        .expect(200);
+    await techAgent.get("/api/auth/me").expect(401);
+    const deletedTech = await pool.query("SELECT COUNT(*)::INTEGER AS count FROM utilisateurs WHERE id=$1", [tech.rows[0].id]);
+    assert.equal(deletedTech.rows[0].count, 0);
+    const companyStillThere = await pool.query("SELECT COUNT(*)::INTEGER AS count FROM entreprises WHERE id=$1", [firstCompany.rows[0].id]);
+    assert.equal(companyStillThere.rows[0].count, 1);
     t.after(async () => pool.end());
 });

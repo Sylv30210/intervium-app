@@ -69,6 +69,17 @@ test("la saisie du rapport reste ouverte et complète après enregistrement ou s
     assert.match(uploads, /RETURNING id, report_version, donnees_rapport/);
 });
 
+test("la suppression définitive de compte exige une zone dangereuse et une confirmation", async () => {
+    const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const auth = await readFile(new URL("../routes/auth.js", import.meta.url), "utf8");
+    assert.match(app, /Zone dangereuse/);
+    assert.match(app, /Tapez exactement SUPPRIMER/);
+    assert.match(app, /api\(\"\/auth\/account\"/);
+    assert.match(auth, /router\.delete\(\"\/account\"/);
+    assert.match(auth, /confirmation !== "SUPPRIMER"/);
+    assert.match(auth, /res\.clearCookie\(COOKIE_NAME/);
+});
+
 test("les rapports exposent le choix autre, le nom du signataire et le message e-mail par défaut", async () => {
     const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
     assert.match(app, /data-report-other-for="\$\{escapeHtml\(section\.key\)\}"/);

@@ -1211,6 +1211,17 @@ function openSettings() {
           <canvas class="canvas" id="user-signature-canvas" aria-label="Zone de dessin pour votre signature technicien"></canvas>
           <div class="actions"><button class="secondary" type="button" id="clear-user-signature">Effacer</button><button class="primary" type="button" id="save-user-signature">Enregistrer ma signature</button>${currentUser.signature_url ? `<button class="danger" type="button" id="delete-user-signature">Supprimer ma signature</button>` : ""}</div>
         </section>` : "";
+    const accountDeletionScope = currentUser.role === "ADMIN"
+        ? "votre compte administrateur, l’entreprise et toutes les données associées : clients, matériels, rapports, photos, signatures, modèles, documents, notifications et connexions e-mail"
+        : "votre compte, vos connexions, notifications et données personnelles associées. Les rapports déjà créés dans l’entreprise seront conservés mais ne vous seront plus assignés";
+    const accountDeletionSettings = !currentUser.is_super_developer && !currentUser.support_session ? `
+        <form id="delete-account-settings" class="settings-intro">
+          <strong>Zone dangereuse</strong>
+          <p class="muted">Cette action supprimera définitivement ${accountDeletionScope}. Elle est irréversible.</p>
+          <div class="field"><label>Mot de passe actuel</label><input name="current_password" type="password" autocomplete="current-password" required></div>
+          <div class="field"><label>Confirmation</label><input name="confirmation" autocomplete="off" placeholder="Tapez SUPPRIMER" required><span class="field-help">Tapez exactement SUPPRIMER pour confirmer.</span></div>
+          <button class="danger wide" type="submit">${icon("trash")} Supprimer définitivement mon compte</button>
+        </form>` : "";
     modal("Paramètres", `
         ${developerSettings}
         <div class="settings-intro">
@@ -1243,6 +1254,7 @@ function openSettings() {
         ${pwaSettings}
         ${companySettings}
         ${currentUser.role === "ADMIN" ? '<section class="settings-intro"><strong>État du service</strong><p>Consultez l’usage de la base, du stockage et la version serveur.</p><button class="secondary wide" id="open-admin-status" type="button">Afficher l’état interne</button></section>' : ""}
+        ${accountDeletionSettings}
         <section class="settings-intro" aria-labelledby="about-intervium"><strong id="about-intervium">À propos</strong><p>Intervium — gestion des interventions, rapports et documents métier.</p><p class="muted">Version ${escapeHtml(appVersion)} · Conçu par Sylvain Lecoeuvre</p></section>
     `);
 
@@ -1329,6 +1341,33 @@ function openSettings() {
             toast("Signature technicien supprimée.");
         } catch (error) { toast(error.message, true); }
     }));
+    document.getElementById("delete-account-settings")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = formFromSubmitEvent(event);
+        const values = Object.fromEntries(new FormData(form));
+        if (values.confirmation !== "SUPPRIMER") return toast("Tapez exactement SUPPRIMER pour confirmer.", true);
+        const warning = currentUser.role === "ADMIN"
+            ? "Supprimer définitivement votre entreprise et toutes ses données ? Cette action est irréversible."
+            : "Supprimer définitivement votre compte ? Cette action est irréversible.";
+        if (!confirm(warning)) return;
+        const button = form.querySelector('button[type="submit"]');
+        await withBusy(button, async () => {
+            try {
+                await api("/auth/account", {
+                    method: "DELETE",
+                    body: JSON.stringify({
+                        current_password: values.current_password,
+                        confirmation: values.confirmation,
+                    }),
+                });
+                currentUser = null;
+                currentEntreprise = null;
+                closeModal(true);
+                showAuth();
+                toast("Compte supprimé définitivement.");
+            } catch (error) { toast(error.message, true); }
+        });
+    });
     updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
     bindFileUpload(document.querySelector("#company-logo-file")?.closest("[data-file-upload]"), { onChange: (file, component) => {
