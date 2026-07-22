@@ -19,6 +19,7 @@ CREATE TABLE utilisateurs (
     nom VARCHAR(100) NOT NULL CHECK (btrim(nom) <> ''),
     email VARCHAR(254) NOT NULL CHECK (btrim(email) <> ''),
     password TEXT NOT NULL CHECK (length(password) > 0),
+    signature_url TEXT,
     role VARCHAR(20) NOT NULL DEFAULT 'TECHNICIEN'
         CHECK (role IN ('ADMIN', 'TECHNICIEN', 'CLIENT', 'SUPER_DEVELOPPEUR')),
     actif BOOLEAN NOT NULL DEFAULT TRUE,

@@ -8,7 +8,7 @@ const BLUE = "#1d4ed8";
 const DARK = "#172554";
 const GRAY = "#64748b";
 const LIGHT = "#e2e8f0";
-const PDF_HALF_WIDTH_TYPES = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "client", "equipment", "signature", "electronic_signature"]);
+const PDF_HALF_WIDTH_TYPES = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "client", "equipment", "signature", "electronic_signature", "technician_signature"]);
 
 export function pdfHalfWidthPlacement(field, nextField) {
     const usesHalfWidth = field?.width === "half" && PDF_HALF_WIDTH_TYPES.has(field?.type);
@@ -289,6 +289,11 @@ function signatureName(templateData, field) {
     return typeof name === "string" ? name.trim().slice(0, 150) : "";
 }
 
+function technicianSignatureName(intervention, templateData, field) {
+    if (!intervention?.technicien_id) return "Technicien non assigné";
+    return signatureName(templateData, field) || intervention.technicien_nom || "Technicien";
+}
+
 function drawSignatureBlock(doc, asset, label, signerName = "", x = 48, width = doc.page.width - 96) {
     let top = doc.y;
     if (signerName) {
@@ -398,8 +403,13 @@ export async function generateInterventionPdf({ intervention, equipments, photos
     const templateSections = Array.isArray(intervention.modele_rapport_sections) ? intervention.modele_rapport_sections : [];
     const templateData = intervention.donnees_rapport && typeof intervention.donnees_rapport === "object" ? intervention.donnees_rapport : {};
     const templateSignatures = new Map((await Promise.all(templateSections
-        .filter((section) => ["signature", "electronic_signature"].includes(section.type))
-        .map(async (section) => [section.key, await signatureAsset(templateData[section.key])])))
+        .filter((section) => ["signature", "electronic_signature", "technician_signature"].includes(section.type))
+        .map(async (section) => [
+            section.key,
+            await signatureAsset(section.type === "technician_signature"
+                ? (intervention.technicien_signature_url || templateData[section.key])
+                : templateData[section.key])
+        ])))
         .filter(([, asset]) => asset));
 
     return new Promise((resolve, reject) => {
@@ -415,21 +425,27 @@ export async function generateInterventionPdf({ intervention, equipments, photos
         if (pdfConfig.showHeader !== false) drawReportHeader(doc, branding, logoBuffer, intervention.numero_rapport || intervention.id);
 
         const photoTypes = new Set(["photo", "multi_photo", "event_photos"]);
-        const signatureTypes = new Set(["signature", "electronic_signature"]);
+        const signatureTypes = new Set(["signature", "electronic_signature", "technician_signature"]);
         const photoAllocations = allocatePhotosToSections(templateSections, photoBuffers);
         const photosBySection = new Map(photoAllocations.map(({ section, photos: sectionPhotos }) => [section, sectionPhotos]));
         const hasTemplateSignature = templateSections.some((section) => signatureTypes.has(section.type));
         const signatureRenderHeight = (field) => {
-            const signerName = signatureName(templateData, field);
+            const signerName = field.type === "technician_signature"
+                ? technicianSignatureName(intervention, templateData, field)
+                : signatureName(templateData, field);
             const fieldSignature = templateSignatures.get(field.key);
             return fieldSignature ? 95 + (signerName ? 18 : 0) : 38;
         };
         const renderSignatureField = (field, x = 48, width = doc.page.width - 96) => {
             const fieldSignature = templateSignatures.get(field.key);
-            const signerName = signatureName(templateData, field);
+            const signerName = field.type === "technician_signature"
+                ? technicianSignatureName(intervention, templateData, field)
+                : signatureName(templateData, field);
             reportSignatureLabel(doc, field.label || "Signature", pdfFieldLabelVisible(field), x, width, fieldTitleStyle);
             if (fieldSignature) {
                 drawSignatureBlock(doc, fieldSignature, "", signerName, x, width);
+            } else if (field.type === "technician_signature" && !intervention.technicien_id) {
+                doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Technicien non assigné.", x, doc.y, { width });
             } else {
                 doc.font("Helvetica").fontSize(10).fillColor(GRAY).text("Aucune signature enregistrée.", x, doc.y, { width });
             }

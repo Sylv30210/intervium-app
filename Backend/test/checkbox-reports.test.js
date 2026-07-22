@@ -17,3 +17,10 @@ test("une liste simple refuse plusieurs valeurs", () => {
     }] };
     assert.match(validateTemplateData(template, { suite: ["Devis", "Commande"] }), /Une seule valeur/);
 });
+
+test("un bloc signature technicien peut être rempli automatiquement hors données du rapport", () => {
+    const template = { sections: [{
+        key: "signature_tech", label: "Signature technicien", type: "technician_signature", required: true,
+    }] };
+    assert.equal(validateTemplateData(template, {}), null);
+});

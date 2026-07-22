@@ -5,7 +5,7 @@ import { escapeHtml, formatMoney, statusLabel } from "../../Frontend/utils/forma
 import { icon } from "../../Frontend/components/icons.js";
 import { parseEmailList } from "../../Frontend/clients/forms.js";
 import { calculateDocumentTotals } from "../../Frontend/documents/totals.js";
-import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "../../Frontend/utils/media.js";
+import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl, userSignatureSourceUrl } from "../../Frontend/utils/media.js";
 import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "../../Frontend/utils/collections.js";
 
 test("les valeurs injectées dans l'interface sont échappées", () => {
@@ -31,6 +31,7 @@ test("les aperçus de médias utilisent les sources authentifiées", () => {
         reportSignatureSourceUrl(17, "validation client"),
         "/api/uploads/signature-field/17/validation%20client/source"
     );
+    assert.equal(userSignatureSourceUrl(9), "/api/uploads/user-signature/9/source");
 });
 
 test("les listes gardent une pagination stable et transmettent la recherche au serveur", () => {
@@ -60,6 +61,8 @@ test("la saisie du rapport reste ouverte et complète après enregistrement ou s
     assert.doesNotMatch(app, /closeModal\(\);\s*await finishMutation\("interventions", "Rapport enregistr/);
     assert.match(app, /signerName/);
     assert.match(app, /uploads\/signature-field/);
+    assert.match(app, /technician_signature/);
+    assert.match(app, /uploads\/user-signature\/me/);
     assert.doesNotMatch(app, /JSON\.stringify\(fullPayload\)/);
     assert.match(uploads, /signerName/);
     assert.match(uploads, /\$\{sectionKey\}_name/);

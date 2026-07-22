@@ -7,7 +7,7 @@ import { titleForView, viewFromHash } from "./navigation/routes.js";
 import { bindSignatureCanvas } from "./reports/signature-canvas.js";
 import { clientContactFields, equipmentFields, parseEmailList } from "./clients/forms.js";
 import { calculateDocumentTotals } from "./documents/totals.js";
-import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl } from "./utils/media.js";
+import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl, userSignatureSourceUrl } from "./utils/media.js";
 import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "./utils/collections.js";
 
 let currentUser = null;
@@ -1203,6 +1203,14 @@ function openSettings() {
           <button class="primary wide" type="submit">Enregistrer l’identité des PDF</button>
         </form>` : "";
     const developerSettings = currentUser.is_super_developer ? `<section class="settings-intro"><strong>Super-développeur</strong><p>Entreprise consultée : <strong>${escapeHtml(currentEntreprise?.nom || "")}</strong></p><div class="field"><label>Ouvrir une session d’assistance (30 minutes)</label><select id="developer-company"><option value="">Choisir une entreprise</option>${platformCompanies.map((company) => `<option value="${company.id}" ${String(company.id) === String(currentUser.support_session?.company_id) ? "selected" : ""}>${escapeHtml(company.nom)}</option>`).join("")}</select></div>${currentUser.support_session && !currentUser.support_session.write_enabled ? '<button class="secondary wide" id="elevate-support" type="button">Autoriser l’écriture pendant 10 minutes</button>' : ""}<p class="muted">Lecture seule par défaut. Toutes les ouvertures et élévations sont journalisées. Les suppressions et la gestion des accès restent interdites.</p></section>` : "";
+    const personalSignatureSettings = ["ADMIN", "TECHNICIEN"].includes(currentUser.role) ? `
+        <section class="settings-intro">
+          <strong>Signature technicien</strong>
+          <p class="muted">Elle sera utilisée automatiquement dans les modèles qui contiennent le bloc « Signature technicien ».</p>
+          ${currentUser.signature_url ? `<div class="saved-signature"><img src="${userSignatureSourceUrl(currentUser.id)}" alt="Signature technicien enregistrée"><span class="field-help">Signature mémorisée pour votre compte.</span></div>` : `<p class="muted">Aucune signature mémorisée pour votre compte.</p>`}
+          <canvas class="canvas" id="user-signature-canvas" aria-label="Zone de dessin pour votre signature technicien"></canvas>
+          <div class="actions"><button class="secondary" type="button" id="clear-user-signature">Effacer</button><button class="primary" type="button" id="save-user-signature">Enregistrer ma signature</button>${currentUser.signature_url ? `<button class="danger" type="button" id="delete-user-signature">Supprimer ma signature</button>` : ""}</div>
+        </section>` : "";
     modal("Paramètres", `
         ${developerSettings}
         <div class="settings-intro">
@@ -1222,6 +1230,7 @@ function openSettings() {
           <div class="field"><label>Confirmer le nouveau mot de passe</label><input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></div>
           <button class="secondary wide" type="submit">Modifier mon mot de passe</button>
         </form>
+        ${personalSignatureSettings}
         <section class="settings-intro">
           <strong>Comptes e-mail connectés</strong>
           <p class="muted">L’adresse d’expédition reste celle du compte réellement connecté.</p>
@@ -1295,6 +1304,31 @@ function openSettings() {
             } catch (error) { toast(error.message, true); }
         });
     });
+    bindSignatureCanvas({
+        canvas: document.getElementById("user-signature-canvas"),
+        clearButton: document.getElementById("clear-user-signature"),
+        saveButton: document.getElementById("save-user-signature"),
+        onEmpty: () => toast("La signature est vide.", true),
+        onSave: async ({ event, signatureData }) => {
+            await withBusy(event.currentTarget, async () => {
+                try {
+                    const result = await api("/uploads/user-signature/me", { method: "POST", body: JSON.stringify({ signatureData }) });
+                    currentUser.signature_url = result.signature_url;
+                    openSettings();
+                    toast("Signature technicien enregistrée.");
+                } catch (error) { toast(error.message, true); }
+            });
+        },
+    });
+    document.getElementById("delete-user-signature")?.addEventListener("click", (event) => withBusy(event.currentTarget, async () => {
+        if (!confirm("Supprimer votre signature technicien mémorisée ?")) return;
+        try {
+            await api("/uploads/user-signature/me", { method: "DELETE" });
+            currentUser.signature_url = null;
+            openSettings();
+            toast("Signature technicien supprimée.");
+        } catch (error) { toast(error.message, true); }
+    }));
     updateInstallUi();
     document.getElementById("company-report-settings")?.addEventListener("submit", saveCompanyReportSettings);
     bindFileUpload(document.querySelector("#company-logo-file")?.closest("[data-file-upload]"), { onChange: (file, component) => {
@@ -1386,6 +1420,7 @@ const TEMPLATE_FIELD_TYPES = [
     ["select", "Liste de choix"], ["client", "Client"], ["equipment", "Matériel client"],
     ["photo", "Photo"], ["multi_photo", "Multi-photos"], ["event_photos", "Photos événement"],
     ["signature", "Signature"], ["electronic_signature", "Signature électronique"],
+    ["technician_signature", "Signature technicien"],
     ["creator", "Profil du créateur"], ["gps", "Position GPS"], ["address", "Adresse"],
     ["table", "Tableau"], ["price_table", "Tableau de prix"], ["page_break", "Saut de page"],
 ];
@@ -1518,6 +1553,9 @@ function templateSpecificConfiguration(section, index) {
     }
     if (["signature", "electronic_signature"].includes(section.type)) {
         fields.push(`<p class="field-help">Le titre affiché identifie le signataire (par exemple « Signature du technicien »). Chaque bloc possède sa propre signature.</p>`);
+    }
+    if (section.type === "technician_signature") {
+        fields.push(`<p class="field-help">Ce bloc utilise automatiquement le technicien assigné. Sans signature mémorisée, le technicien signe manuellement dans la fiche du rapport.</p>`);
     }
     return fields.join("");
 }
@@ -1983,6 +2021,27 @@ function openNewTechnician() {
 }
 
 function bindTeamActions() {
+    document.querySelectorAll("[data-edit-technician-profile]").forEach((button) => button.addEventListener("click", () => {
+        const user = technicians.find((entry) => String(entry.id) === String(button.dataset.editTechnicianProfile));
+        if (!user) return;
+        modal("Modifier le technicien", `<form id="edit-technician-profile-form"><div class="field"><label>Nom complet</label><input name="nom" maxlength="100" required value="${escapeHtml(user.nom)}"></div><div class="field"><label>Nouveau mot de passe</label><input name="password" type="password" minlength="8" autocomplete="new-password"><span class="field-help">Laissez vide pour conserver le mot de passe actuel. L’ancien mot de passe n’est jamais affiché.</span></div><button class="primary wide" type="submit">Enregistrer</button></form>`);
+        document.getElementById("edit-technician-profile-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const form = formFromSubmitEvent(event);
+            const submit = form.querySelector("button[type='submit']");
+            const payload = { nom: form.elements.nom.value };
+            if (form.elements.password.value) payload.password = form.elements.password.value;
+            await withBusy(submit, async () => {
+                try {
+                    const result = await api(`/auth/users/${user.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+                    replaceTechnician(result.user);
+                    closeModal(true);
+                    renderMain("equipe");
+                    toast("Technicien modifié.");
+                } catch (error) { toast(error.message, true); }
+            });
+        });
+    }));
     document.querySelectorAll("[data-edit-technician-email]").forEach((button) => button.addEventListener("click", () => {
         const user = technicians.find((entry) => String(entry.id) === String(button.dataset.editTechnicianEmail));
         if (!user) return;
@@ -2036,6 +2095,19 @@ function bindTeamActions() {
                 await loadAllData();
                 renderMain("equipe");
                 toast(`Technicien supprimé définitivement. ${result.detached_interventions} intervention(s) désassignée(s).`);
+            } catch (error) { toast(error.message, true); }
+        }))
+    );
+    document.querySelectorAll("[data-delete-technician-signature]").forEach((button) =>
+        button.addEventListener("click", () => withBusy(button, async () => {
+            const name = button.dataset.technicianName || "ce technicien";
+            if (!confirm(`Supprimer la signature mémorisée de ${name} ?`)) return;
+            try {
+                const result = await api(`/uploads/user-signature/${button.dataset.deleteTechnicianSignature}`, { method: "DELETE" });
+                const user = technicians.find((entry) => String(entry.id) === String(result.user_id));
+                if (user) replaceTechnician({ ...user, signature_url: null });
+                renderMain("equipe");
+                toast("Signature technicien supprimée.");
             } catch (error) { toast(error.message, true); }
         }))
     );
@@ -2100,7 +2172,7 @@ async function openNewIntervention() {
     });
 }
 
-function renderReportFields(template, data = {}, interventionId = null) {
+function renderReportFields(template, data = {}, interventionId = null, reportContext = template) {
     const sections = Array.isArray(template?.sections || template?.modele_rapport_sections) ? (template.sections || template.modele_rapport_sections) : [];
     if (!sections.length) return "";
     return `<section class="panel"><div class="panel-head"><div><h2>${escapeHtml(template.nom || template.modele_rapport_nom || "Rapport personnalisé")}</h2><p class="muted">Complétez les contrôles définis dans le modèle.</p></div></div><div class="report-fields-grid">${sections.map((section) => {
@@ -2117,6 +2189,21 @@ function renderReportFields(template, data = {}, interventionId = null) {
         if (section.type === "title") return `<h3 class="report-section-title">${escapeHtml(section.label)}</h3>`;
         if (section.type === "page_break") return `<div class="report-page-break"><hr><span class="field-help">Saut de page dans le PDF</span></div>`;
         if (["photo", "multi_photo", "event_photos"].includes(section.type)) return wrapper(`<div class="field">${label}<p class="muted">📷 Ajoutez jusqu’à ${Number(section.maxPhotos || (section.type === "photo" ? 1 : 5))} photo(s) depuis la fiche de l’intervention.</p></div>`);
+        if (section.type === "technician_signature") {
+            const manualSignatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
+            const assignedTechnicianId = reportContext?.technicien_id;
+            const assignedTechnicianName = reportContext?.technicien_nom || "";
+            const savedTechnicianSignature = reportContext?.technicien_signature_url || "";
+            const signerName = data?.[`${section.key}_name`] || assignedTechnicianName || "";
+            if (!assignedTechnicianId) {
+                return wrapper(`<div class="field">${label}<p class="muted">Technicien non assigné. Assignez un technicien pour utiliser ce bloc.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""><input type="hidden" data-report-key="${escapeHtml(section.key)}_name" value="Technicien non assigné"></div>`, "signature-field");
+            }
+            if (savedTechnicianSignature) {
+                return wrapper(`<div class="field">${label}<div class="saved-signature"><img src="${userSignatureSourceUrl(assignedTechnicianId)}" alt="Signature mémorisée de ${escapeHtml(assignedTechnicianName || "technicien")}"><span class="field-help">Signature mémorisée de ${escapeHtml(assignedTechnicianName || "technicien")}</span></div><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""><input type="hidden" data-report-key="${escapeHtml(section.key)}_name" value="${escapeHtml(assignedTechnicianName || "Technicien")}"></div>`, "signature-field");
+            }
+            if (!interventionId) return wrapper(`<div class="field">${label}<p class="muted">Enregistrez d’abord l’intervention, puis ouvrez sa fiche pour recueillir la signature du technicien.</p><input type="hidden" data-report-key="${escapeHtml(section.key)}" value=""><input type="hidden" data-report-key="${escapeHtml(section.key)}_name" value="${escapeHtml(signerName)}"></div>`, "signature-field");
+            return wrapper(`<div class="field report-signature-field" data-signature-field="${escapeHtml(section.key)}">${label}<input data-report-key="${escapeHtml(section.key)}_name" maxlength="150" value="${escapeHtml(signerName)}" placeholder="Nom du technicien">${manualSignatureUrl ? `<div class="saved-signature"><img src="${reportSignatureSourceUrl(interventionId, section.key)}" alt="${escapeHtml(section.label)}"><span class="field-help">Signature manuelle enregistrée</span></div>` : `<p class="muted">Aucune signature mémorisée pour ce technicien : signez manuellement ce rapport.</p>`}<canvas class="canvas report-signature-canvas" data-signature-canvas="${escapeHtml(section.key)}" aria-label="Zone de dessin pour ${escapeHtml(section.label)}"></canvas><input type="hidden" data-report-key="${escapeHtml(section.key)}" value="${escapeHtml(manualSignatureUrl)}"><div class="actions"><button class="secondary" type="button" data-clear-report-signature="${escapeHtml(section.key)}">Effacer</button><button class="primary" type="button" data-save-report-signature="${escapeHtml(section.key)}">Enregistrer</button>${manualSignatureUrl ? `<button class="danger" type="button" data-delete-report-signature="${escapeHtml(section.key)}">Supprimer</button>` : ""}</div></div>`, "signature-field");
+        }
         if (["signature", "electronic_signature"].includes(section.type)) {
             const signatureUrl = typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
             const signerName = data?.[`${section.key}_name`] || "";
@@ -2258,7 +2345,7 @@ function bindReportFieldActions(container = document) {
 function reportDataSummary(item) {
     const sections = Array.isArray(item.modele_rapport_sections) ? item.modele_rapport_sections : [];
     const data = item.donnees_rapport || {};
-    const rows = sections.filter((section) => Object.hasOwn(data, section.key) && !["title", "page_break", "photo", "multi_photo", "event_photos", "signature", "electronic_signature"].includes(section.type));
+    const rows = sections.filter((section) => Object.hasOwn(data, section.key) && !["title", "page_break", "photo", "multi_photo", "event_photos", "signature", "electronic_signature", "technician_signature"].includes(section.type));
     if (!rows.length) return "";
     return `<section class="panel"><h3>${escapeHtml(item.modele_rapport_nom || "Informations du rapport")}</h3>${rows.map((section) => {
         const value = data[section.key];
@@ -2355,7 +2442,7 @@ async function openIntervention(id) {
         if (event.target.value === "__snapshot__") container.innerHTML = renderReportFields(item, item.donnees_rapport || {}, item.id);
         else {
             const template = reportTemplates.find((entry) => String(entry.id) === String(event.target.value));
-            container.innerHTML = template ? renderReportFields(template, {}, item.id) : "";
+            container.innerHTML = template ? renderReportFields(template, {}, item.id, item) : "";
         }
         bindReportFieldActions(container);
         setupReportSignatureCanvases(id, container);

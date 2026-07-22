@@ -52,6 +52,7 @@ function publicUser(user) {
         entreprise_id: user.entreprise_id,
         nom: user.nom,
         email: user.email,
+        signature_url: user.signature_url ?? null,
         role: user.role === "SUPER_DEVELOPPEUR" ? "ADMIN" : user.role,
         is_super_developer: user.role === "SUPER_DEVELOPPEUR",
         doit_changer_mot_de_passe: user.doit_changer_mot_de_passe === true,
@@ -176,7 +177,7 @@ router.post("/login", authRateLimit, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, entreprise_id, nom, email, password, role, doit_changer_mot_de_passe,
-                    conditions_version, cookies_choice, onboarding_completed, totp_secret_chiffre, totp_active
+                    conditions_version, cookies_choice, onboarding_completed, signature_url, totp_secret_chiffre, totp_active
              FROM utilisateurs
              WHERE email = $1 AND actif = TRUE
              LIMIT 1`,
@@ -207,7 +208,7 @@ router.get("/me", verifyToken, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT u.id, $2::bigint AS entreprise_id, u.nom, u.email, u.role, u.doit_changer_mot_de_passe,
-                    u.conditions_version, u.cookies_choice, u.onboarding_completed,
+                    u.conditions_version, u.cookies_choice, u.onboarding_completed, u.signature_url,
                     e.nom AS entreprise_nom, e.logo_url AS entreprise_logo_url,
                     e.report_settings AS entreprise_report_settings
              FROM utilisateurs u
@@ -400,7 +401,7 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
 router.get("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, entreprise_id, nom, email, role, actif, created_at, updated_at
+            `SELECT id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at
              FROM utilisateurs
              WHERE entreprise_id = $1 AND role = 'TECHNICIEN'
              ORDER BY actif DESC, nom ASC, id ASC`,
@@ -434,7 +435,7 @@ router.post("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
             `INSERT INTO utilisateurs
                 (entreprise_id, nom, email, password, role, actif)
              VALUES ($1, $2, $3, $4, 'TECHNICIEN', TRUE)
-             RETURNING id, entreprise_id, nom, email, role, actif, created_at, updated_at`,
+             RETURNING id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at`,
             [req.user.entreprise_id, nom, email, hashedPassword]
         );
         await logActivity({ user: req.user, action: "CREATE", resourceType: "utilisateur", resourceId: result.rows[0].id, summary: `Technicien « ${result.rows[0].nom} » ajouté.` });
@@ -459,7 +460,7 @@ router.patch("/users/:id/status", verifyToken, requireRole(["ADMIN"]), async (re
             `UPDATE utilisateurs
              SET actif = $1, updated_at = NOW()
              WHERE id = $2 AND entreprise_id = $3 AND role = 'TECHNICIEN'
-             RETURNING id, entreprise_id, nom, email, role, actif, created_at, updated_at`,
+             RETURNING id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at`,
             [req.body.actif, id, req.user.entreprise_id]
         );
         if (result.rowCount === 0) {
@@ -472,6 +473,45 @@ router.patch("/users/:id/status", verifyToken, requireRole(["ADMIN"]), async (re
     }
 });
 
+router.patch("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+    const id = Number(req.params.id);
+    const nom = typeof req.body.nom === "string" ? req.body.nom.trim().slice(0, 100) : undefined;
+    const password = typeof req.body.password === "string" ? req.body.password : undefined;
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: "Identifiant technicien invalide." });
+    if (nom !== undefined && !nom) return res.status(400).json({ error: "Le nom du technicien est requis." });
+    if (password !== undefined && password !== "" && password.length < 8) {
+        return res.status(400).json({ error: "Le nouveau mot de passe doit contenir au moins 8 caractères." });
+    }
+    if (nom === undefined && !password) return res.status(400).json({ error: "Aucune modification fournie." });
+
+    try {
+        const assignments = [];
+        const values = [];
+        if (nom !== undefined) {
+            values.push(nom);
+            assignments.push(`nom = $${values.length}`);
+        }
+        if (password) {
+            values.push(await bcrypt.hash(password, 12));
+            assignments.push(`password = $${values.length}`, "doit_changer_mot_de_passe = FALSE");
+        }
+        values.push(id, req.user.entreprise_id);
+        const result = await pool.query(
+            `UPDATE utilisateurs
+             SET ${assignments.join(", ")}, updated_at = NOW()
+             WHERE id = $${values.length - 1} AND entreprise_id = $${values.length} AND role = 'TECHNICIEN'
+             RETURNING id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at`,
+            values
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Compte technicien « ${result.rows[0].nom} » modifié.` });
+        return res.json({ user: result.rows[0] });
+    } catch (error) {
+        console.error("Échec de la modification du compte technicien", error);
+        return res.status(500).json({ error: "Impossible de modifier le compte technicien." });
+    }
+});
+
 router.patch("/users/:id/email", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     const id = Number(req.params.id);
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -480,7 +520,7 @@ router.patch("/users/:id/email", verifyToken, requireRole(["ADMIN"]), async (req
         const result = await pool.query(
             `UPDATE utilisateurs SET email=$1, updated_at=NOW()
              WHERE id=$2 AND entreprise_id=$3 AND role='TECHNICIEN'
-             RETURNING id, entreprise_id, nom, email, role, actif, created_at, updated_at`,
+             RETURNING id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at`,
             [email, id, req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });

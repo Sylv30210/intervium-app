@@ -1,5 +1,15 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-22 — Fils transférés `Fwd: intervium` — confirmations collées
+
+- **Catégories :** fonctionnalité signature technicien ; fonctionnalité document client PDF.
+- **Résumé :** deux conversations transférées par Sylvain contiennent les confirmations de Claudine. Pour la signature technicien : l’admin peut consulter/supprimer la signature, le technicien modifie sa propre signature, le bloc PDF est distinct, s’affiche uniquement si le modèle le contient, indique “Technicien non assigné” sans affectation et demande une signature manuelle si le technicien assigné n’a pas de signature mémorisée. Pour le document client : première version PDF uniquement, import depuis la fiche rapport, annotation libre page par page, conservation comme média d’intervention et fusion à la fin du rapport final ; la détection automatique des cases vides est repoussée.
+- **Analyse et décision :** la partie signature technicien est claire, sûre et compatible avec l’architecture actuelle. La partie document client PDF est claire dans son objectif mais structurante : elle nécessite stockage de PDF, rendu/annotation page par page, fusion PDF et contrôles de sécurité supplémentaires ; elle est conservée comme chantier dédié afin de ne pas mêler une grosse brique documentaire à la signature personnelle.
+- **Réponse :** aucune réponse Gmail envoyée depuis cette session, car le connecteur Gmail n’est pas disponible ici. Un brouillon de confirmation devra être envoyé à l’expéditeur original Claudine lors du prochain passage Gmail.
+- **Fichiers modifiés :** `Backend/database/schema.sql`, `Backend/database/migrations/024_user_signatures.sql`, `Backend/routes/auth.js`, `Backend/routes/interventions.js`, `Backend/routes/modeles.js`, `Backend/routes/uploads.js`, `Backend/services/pdf.js`, `Backend/test/checkbox-reports.test.js`, `Backend/test/frontend-utils.test.js`, `Frontend/app.js`, `Frontend/utils/media.js`, `Frontend/views/resources.js`, ce journal.
+- **Commit / PR :** à créer après validation finale.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (58 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante.
+
 ## 2026-07-22 — Fil `19f85cc92402346f` — confirmation après publication
 
 - **Catégorie :** bug de rendu PDF.

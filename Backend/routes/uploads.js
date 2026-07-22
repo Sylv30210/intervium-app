@@ -178,6 +178,116 @@ router.delete("/company-logo", verifyToken, requireRole(["ADMIN"]), async (req, 
     }
 });
 
+function parseUserId(value) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+async function readableUserSignature(userId, user) {
+    if (!userId) return null;
+    const result = await pool.query(
+        `SELECT id, entreprise_id, nom, role, signature_url
+         FROM utilisateurs
+         WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE
+           AND role IN ('ADMIN', 'TECHNICIEN')`,
+        [userId, user.entreprise_id]
+    );
+    const target = result.rows[0];
+    if (!target) return null;
+    if (user.role === "ADMIN" || Number(user.id) === Number(target.id)) return target;
+    return null;
+}
+
+router.get("/user-signature/:user_id/source", verifyToken, async (req, res) => {
+    const userId = parseUserId(req.params.user_id);
+    try {
+        const target = await readableUserSignature(userId, req.user);
+        if (!target?.signature_url) return res.status(404).json({ error: "Signature technicien introuvable." });
+        return await sendStoredImage(res, target.signature_url);
+    } catch (error) {
+        console.error("Échec du chargement de la signature technicien", safeStorageError(error));
+        return res.status(502).json({ error: "Impossible de charger cette signature." });
+    }
+});
+
+router.post("/user-signature/me", verifyToken, requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
+    const signatureData = req.body?.signatureData ?? req.body?.signature_data;
+    if (!signatureData) return res.status(400).json({ error: "Aucune signature fournie." });
+    let relativeUrl;
+    try {
+        const previous = await pool.query(
+            "SELECT signature_url FROM utilisateurs WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE",
+            [req.user.id, req.user.entreprise_id]
+        );
+        if (!previous.rowCount) return res.status(404).json({ error: "Compte introuvable." });
+        relativeUrl = await uploadSignatureBase64(signatureData);
+        const signatureUrl = absoluteUploadUrl(req, relativeUrl);
+        const result = await pool.query(
+            `UPDATE utilisateurs
+             SET signature_url = $1, updated_at = NOW()
+             WHERE id = $2 AND entreprise_id = $3 AND actif = TRUE
+             RETURNING id, signature_url`,
+            [signatureUrl, req.user.id, req.user.entreprise_id]
+        );
+        await removeStoredUpload(previous.rows[0]?.signature_url).catch(() => {});
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Signature technicien enregistrée." });
+        return res.json({ user_id: result.rows[0].id, signature_url: result.rows[0].signature_url });
+    } catch (error) {
+        if (relativeUrl) await removeStoredUpload(relativeUrl).catch(() => {});
+        if (error instanceof TypeError || error instanceof RangeError) return res.status(400).json({ error: error.message });
+        console.error("Échec de l’upload de la signature technicien", error);
+        return res.status(500).json({ error: "Impossible d’enregistrer cette signature." });
+    }
+});
+
+router.delete("/user-signature/me", verifyToken, requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
+    try {
+        const previous = await pool.query(
+            "SELECT signature_url FROM utilisateurs WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE",
+            [req.user.id, req.user.entreprise_id]
+        );
+        const result = await pool.query(
+            `UPDATE utilisateurs
+             SET signature_url = NULL, updated_at = NOW()
+             WHERE id = $1 AND entreprise_id = $2 AND actif = TRUE
+             RETURNING id, signature_url`,
+            [req.user.id, req.user.entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Compte introuvable." });
+        await removeStoredUpload(previous.rows[0]?.signature_url).catch(() => {});
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Signature technicien supprimée." });
+        return res.json({ user_id: result.rows[0].id, signature_url: null });
+    } catch (error) {
+        console.error("Échec de la suppression de la signature technicien", error);
+        return res.status(500).json({ error: "Impossible de supprimer cette signature." });
+    }
+});
+
+router.delete("/user-signature/:user_id", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
+    const userId = parseUserId(req.params.user_id);
+    if (!userId) return res.status(400).json({ error: "Identifiant technicien invalide." });
+    try {
+        const previous = await pool.query(
+            "SELECT signature_url FROM utilisateurs WHERE id = $1 AND entreprise_id = $2 AND role = 'TECHNICIEN'",
+            [userId, req.user.entreprise_id]
+        );
+        const result = await pool.query(
+            `UPDATE utilisateurs
+             SET signature_url = NULL, updated_at = NOW()
+             WHERE id = $1 AND entreprise_id = $2 AND role = 'TECHNICIEN'
+             RETURNING id, nom, signature_url`,
+            [userId, req.user.entreprise_id]
+        );
+        if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });
+        await removeStoredUpload(previous.rows[0]?.signature_url).catch(() => {});
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: userId, summary: `Signature de « ${result.rows[0].nom} » supprimée par un administrateur.` });
+        return res.json({ user_id: result.rows[0].id, signature_url: null });
+    } catch (error) {
+        console.error("Échec de la suppression admin de la signature technicien", error);
+        return res.status(500).json({ error: "Impossible de supprimer cette signature." });
+    }
+});
+
 async function canModifyIntervention(interventionId, user) {
     const result = await pool.query(
         `SELECT i.technicien_id, i.signature_url,
@@ -420,7 +530,7 @@ router.post("/signature-field/:intervention_id/:section_key", verifyToken, async
         const intervention = await canModifyIntervention(interventionId, req.user);
         if (!intervention) return res.status(404).json({ error: "Intervention introuvable." });
         const section = Array.isArray(intervention.report_sections)
-            ? intervention.report_sections.find((entry) => entry.key === sectionKey && ["signature", "electronic_signature"].includes(entry.type))
+            ? intervention.report_sections.find((entry) => entry.key === sectionKey && ["signature", "electronic_signature", "technician_signature"].includes(entry.type))
             : null;
         if (!section) return res.status(404).json({ error: "Ce champ de signature n’existe pas dans le modèle." });
         const current = await pool.query("SELECT donnees_rapport->>$1 AS url FROM interventions WHERE id=$2 AND entreprise_id=$3", [sectionKey, interventionId, req.user.entreprise_id]);

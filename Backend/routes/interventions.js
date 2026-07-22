@@ -82,12 +82,13 @@ function reportSnapshot(template) {
 
 export function validateTemplateData(template, data, { requireSignatures = true } = {}) {
     if (!template) return null;
-    const dataTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table", "signature", "electronic_signature"]);
+    const dataTypes = new Set(["text", "textarea", "date", "number", "checkbox", "select", "creator", "gps", "address", "table", "price_table", "signature", "electronic_signature", "technician_signature"]);
     for (const section of Array.isArray(template.sections) ? template.sections : []) {
         if (!dataTypes.has(section.type)) continue;
         const value = data[section.key];
         const empty = value === undefined || value === null || value === "" ||
             (Array.isArray(value) && value.length === 0);
+        if (section.type === "technician_signature" && empty) continue;
         const signatureType = ["signature", "electronic_signature"].includes(section.type);
         if (section.required && (!signatureType || requireSignatures) && (empty || (section.type === "checkbox" && !(section.options || []).length && value !== true))) {
             return `Le champ « ${section.label} » est requis.`;
@@ -208,6 +209,7 @@ router.get("/", async (req, res) => {
                     eq.modele AS equipement_modele,
                     eq.numero_serie AS equipement_numero_serie,
                     u.nom AS technicien_nom,
+                    u.signature_url AS technicien_signature_url,
                     COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
                     COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
                     COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config,
@@ -398,6 +400,7 @@ router.get("/:id/pdf", async (req, res) => {
                     c.nom AS client_nom, c.adresse AS client_adresse,
                     c.utilisateur_id AS client_utilisateur_id,
                     u.nom AS technicien_nom,
+                    u.signature_url AS technicien_signature_url,
                     COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
                     COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
                     COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config
@@ -477,6 +480,7 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
                     e.report_settings AS entreprise_report_settings,
                     c.nom AS client_nom, c.adresse AS client_adresse, c.report_emails,
                     u.nom AS technicien_nom,
+                    u.signature_url AS technicien_signature_url,
                     COALESCE(m.nom, i.modele_rapport_snapshot->>'nom') AS modele_rapport_nom,
                     COALESCE(m.sections, i.modele_rapport_snapshot->'sections') AS modele_rapport_sections,
                     COALESCE(m.pdf_config, i.modele_rapport_snapshot->'pdf_config', '{}'::jsonb) AS modele_pdf_config

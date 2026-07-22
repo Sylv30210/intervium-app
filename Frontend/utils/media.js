@@ -17,3 +17,7 @@ export function signatureSourceUrl(interventionId) {
 export function reportSignatureSourceUrl(interventionId, sectionKey) {
     return `/api/uploads/signature-field/${encoded(interventionId)}/${encoded(sectionKey)}/source`;
 }
+
+export function userSignatureSourceUrl(userId) {
+    return `/api/uploads/user-signature/${encoded(userId)}/source`;
+}
