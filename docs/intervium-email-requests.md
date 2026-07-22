@@ -5,19 +5,19 @@
 - **Catégorie :** bug de rendu PDF.
 - **Résumé :** après le premier correctif, le texte des titres PDF reste imparfaitement aligné avec le fond coloré et le contenu du champ suivant empiète partiellement sur le fond.
 - **Analyse et décision :** suivi clair, sûr et réalisable. La pièce jointe PDF est considérée comme non fiable ; le texte du retour suffit à corriger le calcul de boîte du libellé. Le rendu des fonds de titres doit isoler le remplissage, utiliser un padding vertical plus généreux et imposer un espacement fixe avant la valeur du champ suivant.
-- **Réponse :** confirmation à envoyer directement à l'expéditeur original après commit, avec résumé du correctif et des tests.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original, avec résumé du correctif et des tests locaux. Fil libellé `Intervium/Traité`.
 - **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
-- **Commit / PR :** correction à inclure dans le commit de cette exécution sur `main`; aucune PR nécessaire selon le workflow actuel.
-- **Vérifications :** `npm run check` réussi ; `npm test` réussi (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante.
+- **Commit / PR :** commit `b91af51` poussé sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (57 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `npm run build --if-present` terminé ; `git diff --check` sans erreur bloquante ; GitHub Actions CI `29937066518` réussie sur `b91af51`.
 
 ## 2026-07-22 — Fil `19f85cc3a3873cd5` — clarification reçue
 
 - **Catégorie :** fonctionnalité / développement futur.
 - **Résumé :** l'expéditeur précise vouloir remplir directement dans Intervium des champs existants d'un document client PDF, fusionner le document rempli à la fin du rapport, l'ajouter au cas par cas, avec usage admin ou technicien. L'exemple “OT Eiffage” est un modèle réutilisable mais pouvant évoluer côté client.
 - **Analyse et décision :** la demande reste trop structurante pour être implémentée sans cadrage complémentaire. Les points encore ambigus concernent le support Word ou PDF seulement, la détection des champs PDF, le comportement si le PDF client n'a pas de champs remplissables, la conservation/version des modèles client évolutifs et les droits exacts admin/technicien.
-- **Clarification envoyée :** à envoyer directement à l'expéditeur original ; aucun code modifié pour cette demande tant que ces choix ne sont pas confirmés.
+- **Clarification envoyée :** demande de précisions envoyée directement à l'expéditeur original ; aucun code modifié pour cette demande tant que ces choix ne sont pas confirmés. Fil maintenu sous `Intervium/En attente`.
 - **Fichiers modifiés :** ce journal uniquement.
-- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution si le correctif PDF est validé.
+- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution.
 - **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande.
 
 ## 2026-07-22 — Fil `19f8a98bdc880158`
@@ -25,9 +25,9 @@
 - **Catégorie :** amélioration / fonctionnalité.
 - **Résumé :** demande d'ajouter une signature mémorisée et modifiable dans la fiche technicien, un menu de modification technicien accessible aux admins et techniciens, puis un bloc “signature technicien” dans les modèles de rapport reprenant automatiquement le technicien assigné et sa signature mémorisée.
 - **Analyse et décision :** demande pertinente mais sensible car elle touche aux signatures personnelles, aux droits de modification des comptes techniciens et à l'insertion automatique dans les PDF. Des précisions sont nécessaires avant tout code : qui peut modifier quelle signature, validation par le technicien, comportement sans technicien assigné ou sans signature, et impact sur les signatures existantes.
-- **Clarification envoyée :** à envoyer directement à l'expéditeur original ; aucun code modifié pour cette demande.
+- **Clarification envoyée :** demande de précisions envoyée directement à l'expéditeur original ; aucun code modifié pour cette demande. Fil libellé `Intervium/En attente`.
 - **Fichiers modifiés :** ce journal uniquement.
-- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution si le correctif PDF est validé.
+- **Commit / PR :** suivi documentaire inclus dans le commit de cette exécution.
 - **Vérifications :** aucune vérification applicative dédiée, car aucune modification de code pour cette demande.
 
 ## 2026-07-21 — Fil `19f85ecdf2f08160`
