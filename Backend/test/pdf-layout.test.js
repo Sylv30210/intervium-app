@@ -126,6 +126,6 @@ test("le style global des titres de champs PDF est borné et validé", () => {
 });
 
 test("le fond colore des titres de champs PDF conserve une hauteur stable", () => {
-    assert.deepEqual(pdfFieldTitleBox(9, { size: 9 }), { paddingY: 3, height: 15 });
-    assert.deepEqual(pdfFieldTitleBox(18, { size: 14 }), { paddingY: 5, height: 28 });
+    assert.deepEqual(pdfFieldTitleBox(9, { size: 9 }), { paddingY: 4, height: 17, textOffsetY: 4, gapAfter: 6 });
+    assert.deepEqual(pdfFieldTitleBox(18, { size: 14 }), { paddingY: 6, height: 30, textOffsetY: 6, gapAfter: 9 });
 });
