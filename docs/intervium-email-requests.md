@@ -5,10 +5,20 @@
 - **Catégorie :** bug / amélioration d’interface.
 - **Résumé :** l'expéditeur signale que, dans le nouveau bloc “Signature technicien”, le nom du technicien n'apparaît pas comme dans un bloc “Signature” classique.
 - **Analyse et décision :** demande claire, sûre et limitée. Le PDF disposait déjà d'une logique de nom signataire pour le technicien, mais l'affichage formulaire avec signature mémorisée ne montrait que l'image et une aide textuelle. Le correctif ajoute le nom du technicien assigné en lecture seule au-dessus de la signature mémorisée, tout en conservant la valeur cachée utilisée par l'export PDF.
-- **Réponse :** confirmation à envoyer directement à l'expéditeur original après push et validation.
+- **Réponse :** confirmation envoyée directement à l'expéditeur original avec le commit `d36694b`, les contrôles locaux et la CI GitHub réussie. Fil labellisé `Intervium/Traité`.
 - **Fichiers modifiés :** `Frontend/app.js`, `Backend/test/frontend-utils.test.js`, ce journal.
-- **Commit / PR :** commit à compléter après push ; aucune PR nécessaire selon le workflow actuel sur `main`.
-- **Vérifications :** `npm run check` réussi ; `npm test` réussi (59 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+- **Commit / PR :** commit `d36694b` poussé sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (59 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante ; GitHub Actions CI `30011386708` réussie.
+
+## 2026-07-23 — Fil `19f85cc3a3873cd5` — confirmation du périmètre PDF annotable
+
+- **Catégorie :** fonctionnalité / document client PDF.
+- **Résumé :** l'expéditeur confirme que la première version manuelle proposée convient pour le document client PDF.
+- **Analyse et décision :** le besoin est maintenant cadré pour une première version : PDF uniquement, import depuis la fiche rapport, annotation manuelle libre page par page, conservation avec l'intervention et fusion à la fin du rapport final. La demande reste structurante et doit être développée dans un chantier dédié, séparé des correctifs rapides.
+- **Réponse :** accusé envoyé directement à l'expéditeur original ; le fil reste en attente de développement dédié.
+- **Fichiers modifiés :** ce journal uniquement.
+- **Commit / PR :** suivi documentaire ajouté après le correctif `d36694b`.
+- **Vérifications :** non applicable, aucune modification applicative pour ce chantier pendant cette exécution.
 
 ## 2026-07-22 — Fils transférés `Fwd: intervium` — confirmations collées
 
