@@ -7,7 +7,7 @@
 - **Analyse et décision :** demande claire, sûre et cohérente avec le flux d’envoi existant. La copie est ajoutée en copie cachée (`BCC`) afin de ne pas exposer l’adresse administrateur aux destinataires client. Les adresses admin actives de la même entreprise sont utilisées, avec normalisation et suppression des doublons.
 - **Réponse :** à envoyer à l’expéditeur original après validation et publication.
 - **Fichiers modifiés :** `Backend/routes/interventions.js`, `Backend/services/email-admin-copy.js`, `Backend/test/frontend-utils.test.js`, ce journal.
-- **Commit / PR :** commit en préparation sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Commit / PR :** commit `ca56c98` poussé sur `main`; aucune PR nécessaire selon le workflow actuel.
 - **Vérifications :** `npm run check` réussi ; `npm test` réussi (60 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
 
 ## 2026-07-23 — Fils transférés `signature technicien` et `intervium`
