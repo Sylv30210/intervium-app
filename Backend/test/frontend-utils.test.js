@@ -7,6 +7,7 @@ import { parseEmailList } from "../../Frontend/clients/forms.js";
 import { calculateDocumentTotals } from "../../Frontend/documents/totals.js";
 import { companyLogoSourceUrl, photoSourceUrl, reportSignatureSourceUrl, signatureSourceUrl, userSignatureSourceUrl } from "../../Frontend/utils/media.js";
 import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "../../Frontend/utils/collections.js";
+import { adminCopyRecipients, normalizeEmailList } from "../services/email-admin-copy.js";
 
 test("les valeurs injectées dans l'interface sont échappées", () => {
     assert.equal(escapeHtml('<img src=x onerror="alert(1)">'), "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
@@ -15,6 +16,14 @@ test("les valeurs injectées dans l'interface sont échappées", () => {
 test("les modules clients et documents restent indépendants de l’application", () => {
     assert.deepEqual(parseEmailList("a@example.test; b@example.test\nc@example.test"), ["a@example.test", "b@example.test", "c@example.test"]);
     assert.deepEqual(calculateDocumentTotals([{ quantite: 2, prix_unitaire: 50, taux_tva: 20 }]), { ht: 100, tva: 20 });
+});
+
+test("la copie automatique admin des e-mails de rapport reste masquée et sans doublon", () => {
+    assert.deepEqual(normalizeEmailList([" Admin@Example.test ", "bad", "admin@example.test"]), ["admin@example.test"]);
+    assert.deepEqual(
+        adminCopyRecipients(["admin@example.test", "client@example.test"], ["client@example.test"]),
+        ["admin@example.test"]
+    );
 });
 
 test("les utilitaires de présentation restent stables", () => {

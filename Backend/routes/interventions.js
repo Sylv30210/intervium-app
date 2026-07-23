@@ -5,6 +5,7 @@ import { createNotification, logActivity } from "../services/activity.js";
 import { generateInterventionPdf, interventionPdfFilename } from "../services/pdf.js";
 import { removeStoredUpload } from "../services/storage.js";
 import { sendEmail } from "../services/email-sender.js";
+import { activeAdminEmails, adminCopyRecipients } from "../services/email-admin-copy.js";
 import { paginatedResponse, paginationFromRequest } from "../utils/pagination.js";
 
 const router = express.Router();
@@ -516,14 +517,18 @@ router.post("/:id/email", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res)
         const photos = selectedIds ? photoResult.rows.filter((photo) => selectedIds.includes(Number(photo.id))) : photoResult.rows;
         const pdf = await generateInterventionPdf({ intervention, equipments: equipmentResult.rows, photos });
         const settings = intervention.entreprise_report_settings || {};
+        const adminBcc = req.user.role === "TECHNICIEN"
+            ? adminCopyRecipients(await activeAdminEmails(req.user.entreprise_id), recipients)
+            : [];
         await sendEmail({
             user: req.user, connectionId: Number(req.body.connection_id) || null, to: recipients,
+            bcc: adminBcc,
             subject: req.body.subject?.trim() || `Rapport ${intervention.titre}`,
             text: req.body.message?.trim() || `Bonjour,\n\nVeuillez trouver ci-joint le rapport « ${intervention.titre} ».\n\nCordialement,\n${settings.display_name || intervention.entreprise_nom}`,
             attachments: [{ content: pdf, filename: interventionPdfFilename(intervention), contentType: "application/pdf" }],
         });
-        await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s).` });
-        return res.json({ sent: true, recipients });
+        await logActivity({ user: req.user, action: "SEND", resourceType: "intervention", resourceId: id, summary: `Rapport envoyé à ${recipients.length} destinataire(s)${adminBcc.length ? `, copie admin automatique (${adminBcc.length})` : ""}.` });
+        return res.json({ sent: true, recipients, admin_copies: adminBcc.length });
     } catch (error) {
         console.error("Échec de l’envoi du rapport", { code: String(error?.message || "EMAIL_ERROR").slice(0, 80) });
         const status = error.message === "EMAIL_RATE_LIMIT" ? 429 : error.message === "EMAIL_CONNECTION_NOT_FOUND" ? 409 : 502;
