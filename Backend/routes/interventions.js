@@ -326,10 +326,21 @@ router.post("/", requireRole(["ADMIN", "TECHNICIEN"]), async (req, res) => {
                  SELECT pg_advisory_xact_lock(hashtextextended($1::bigint::text || ':' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 0))
              ), next_report_number AS (
                  SELECT EXTRACT(YEAR FROM CURRENT_DATE)::integer AS year,
-                        COALESCE(MAX(substring(i.numero_rapport FROM '^[0-9]{4}-([0-9]+)$')::integer), 0) + 1 AS sequence
-                 FROM interventions i, lock_report_number
-                 WHERE i.entreprise_id = $1::bigint
+                        GREATEST(
+                            COALESCE(MAX(substring(i.numero_rapport FROM '^[0-9]{4}-([0-9]+)$')::integer), 0),
+                            COALESCE(MAX(CASE
+                                WHEN e.report_settings->>'report_number_start_year' ~ '^[0-9]{4}$'
+                                  AND e.report_settings->>'report_number_start_sequence' ~ '^[0-9]+$'
+                                  AND (e.report_settings->>'report_number_start_year')::integer = EXTRACT(YEAR FROM CURRENT_DATE)::integer
+                                THEN (e.report_settings->>'report_number_start_sequence')::integer
+                                ELSE 0
+                            END), 0)
+                        ) + 1 AS sequence
+                 FROM entreprises e
+                 CROSS JOIN lock_report_number
+                 LEFT JOIN interventions i ON i.entreprise_id = e.id
                    AND i.numero_rapport LIKE EXTRACT(YEAR FROM CURRENT_DATE)::text || '-%'
+                 WHERE e.id = $1::bigint
              )
              INSERT INTO interventions
                 (entreprise_id, client_id, equipement_id, technicien_id, titre, description,

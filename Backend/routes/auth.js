@@ -475,6 +475,8 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
             footer_text: source.footer_text === undefined ? previous.footer_text || "" : limitedText(source.footer_text, 240),
             default_email_message: source.default_email_message === undefined ? previous.default_email_message || "" : limitedText(source.default_email_message, 1200),
             logo_scale: Math.min(140, Math.max(60, Math.round(Number(source.logo_scale ?? previous.logo_scale ?? 100) || 100))),
+            report_number_start_year: new Date().getFullYear(),
+            report_number_start_sequence: Math.min(9999, Math.max(0, Math.round(Number(source.report_number_start_sequence ?? previous.report_number_start_sequence ?? 0) || 0))),
             accent_color: accentColor,
             header_style: headerStyle,
             show_intervium: source.show_intervium === undefined ? Boolean(previous.show_intervium) : source.show_intervium === true,

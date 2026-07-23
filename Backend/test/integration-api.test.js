@@ -23,6 +23,13 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
     const agent = request.agent(app);
     await agent.post("/api/auth/login").send({ email: "admin-a@example.test", password }).expect(200);
     const today = await pool.query("SELECT CURRENT_DATE::TEXT AS date");
+    const reportYear = today.rows[0].date.slice(0, 4);
+    await pool.query(
+        `UPDATE entreprises
+         SET report_settings = jsonb_build_object('report_number_start_year', $2::int, 'report_number_start_sequence', 120)
+         WHERE id = $1`,
+        [firstCompany.rows[0].id, Number(reportYear)]
+    );
     const created = await agent.post("/api/clients").send({ nom: "Client test", email: "client@example.test" }).expect(201);
     assert.equal(created.body.entreprise_id, firstCompany.rows[0].id);
     await agent.put(`/api/clients/${created.body.id}`).send({ nom: "Client modifié", email: "client@example.test", report_emails: [] }).expect(200);
@@ -38,7 +45,7 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         heure: "08:00",
         donnees_rapport: {},
     }).expect(201);
-    assert.match(intervention.body.numero_rapport, /^\d{4}-\d{4}$/);
+    assert.equal(intervention.body.numero_rapport, `${reportYear}-0121`);
     const notifications = await agent.get("/api/notifications").expect(200);
     assert.equal(notifications.body.items[0].type, "INTERVENTION_SOON");
     assert.equal(notifications.body.pagination.total, 1);

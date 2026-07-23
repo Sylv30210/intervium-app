@@ -1,5 +1,15 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-23 — Fils transférés `signature technicien` et `intervium`
+
+- **Catégories :** bug / amélioration d’interface ; question / amélioration de paramétrage.
+- **Résumé :** l'expéditeur signale que l’aperçu de signature technicien mémorisée dans les paramètres est beaucoup trop grand. Il demande aussi comment les numéros de rapport sont générés et s’il est possible de commencer la numérotation de l’année en cours après 120 rapports papier déjà réalisés.
+- **Analyse et décision :** les deux demandes sont claires et sûres. La signature était affichée à sa taille naturelle hors fiche rapport, car la règle CSS de dimensionnement ne ciblait que `.report-signature-field`. La numérotation existante repart par année et calcule `YYYY-0001`, `YYYY-0002`, etc. à partir du maximum des rapports Intervium de l’année. Pour intégrer les rapports papier sans collision, un réglage admin “dernier numéro papier utilisé” est ajouté dans les paramètres PDF d’entreprise ; le prochain rapport prend `max(numéro Intervium existant, dernier numéro papier) + 1`.
+- **Réponse :** à envoyer à l'expéditeur original après validation CI.
+- **Fichiers modifiés :** `Frontend/styles/reports.css`, `Frontend/app.js`, `Backend/routes/auth.js`, `Backend/routes/interventions.js`, `Backend/test/frontend-utils.test.js`, `Backend/test/integration-api.test.js`, ce journal.
+- **Commit / PR :** à compléter après commit.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (59 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
 ## 2026-07-23 — Fil `19f8a98bdc880158` — nom visible dans le bloc signature technicien
 
 - **Catégorie :** bug / amélioration d’interface.

@@ -1184,6 +1184,7 @@ function openSmtpConnection(existing = null) {
 function openSettings() {
     const activeTheme = document.documentElement.dataset.theme || "classic";
     const reportSettings = currentEntreprise?.report_settings || {};
+    const reportNumberYear = new Date().getFullYear();
     const pwaSettings = isStandaloneMode()
         ? `<div class="pwa-help"><strong>Intervium est installée</strong><p>L'application fonctionne actuellement en mode autonome.</p></div>`
         : isIosDevice()
@@ -1201,6 +1202,7 @@ function openSettings() {
           <div class="field"><label>Site internet</label><input name="website" maxlength="200" placeholder="https://www.mon-entreprise.fr" value="${escapeHtml(reportSettings.website || "")}"></div>
           <div class="grid2"><div class="field color-field"><label>Couleur d’accent</label><input name="accent_color" type="color" value="${escapeHtml(reportSettings.accent_color || "#1d4ed8")}"></div><div class="field"><label>Style d’en-tête</label><select name="header_style"><option value="minimal" ${(reportSettings.header_style || "minimal") === "minimal" ? "selected" : ""}>Minimal - logo sur fond blanc</option><option value="band" ${reportSettings.header_style === "band" ? "selected" : ""}>Bandeau coloré</option><option value="none" ${reportSettings.header_style === "none" ? "selected" : ""}>Sans en-tête</option></select></div></div>
           <div class="field"><label>Taille du logo dans le PDF (%)</label><input name="logo_scale" type="number" min="60" max="140" value="${escapeHtml(reportSettings.logo_scale || 100)}"><span class="field-help">Réglage global entreprise, de 60 % à 140 %.</span></div>
+          <div class="field"><label>Dernier numéro papier utilisé en ${reportNumberYear}</label><input name="report_number_start_sequence" type="number" min="0" max="9999" value="${escapeHtml(reportSettings.report_number_start_sequence || 0)}"><span class="field-help">Exemple : indiquez 120 si le dernier rapport papier est le n° 120 ; le prochain rapport Intervium sera ${reportNumberYear}-0121. La numérotation repart par année.</span></div>
           <div class="field"><label>Texte du pied de page</label><input name="footer_text" maxlength="240" placeholder="Ex. Merci pour votre confiance" value="${escapeHtml(reportSettings.footer_text || "")}"></div>
           <div class="field"><label>Texte par défaut des e-mails de rapport</label><textarea name="default_email_message" rows="6" maxlength="1200" placeholder="Bonjour,\n\nVeuillez trouver ci-joint le rapport « {titre} ».\n\nCordialement,\n{entreprise}">${escapeHtml(reportSettings.default_email_message || "")}</textarea><span class="field-help">Variables disponibles : {titre}, {numero}, {client}, {entreprise}.</span></div>
           <div class="field"><label><input name="show_intervium" type="checkbox" ${reportSettings.show_intervium ? "checked" : ""}> Afficher discrètement « Généré avec Intervium »</label></div>
@@ -1445,6 +1447,7 @@ async function saveCompanyReportSettings(event) {
             }
             const values = Object.fromEntries(new FormData(form));
             values.logo_scale = Number(values.logo_scale || 100);
+            values.report_number_start_sequence = Number(values.report_number_start_sequence || 0);
             values.show_intervium = form.elements.show_intervium.checked;
             const result = await api("/auth/company", {
                 method: "PUT",

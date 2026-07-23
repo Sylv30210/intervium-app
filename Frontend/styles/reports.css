@@ -1,3 +1,21 @@
+.saved-signature {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 10px 0;
+}
+
+.saved-signature img {
+    display: block;
+    width: min(260px, 100%);
+    max-height: 120px;
+    object-fit: contain;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+}
+
 .report-signature-field .saved-signature {
     display: flex;
     align-items: center;

@@ -95,7 +95,10 @@ test("les réglages visuels PDF exposent logo global et styles de titres", async
     const modeles = await readFile(new URL("../routes/modeles.js", import.meta.url), "utf8");
 
     assert.match(app, /name="logo_scale"/);
+    assert.match(app, /name="report_number_start_sequence"/);
+    assert.match(app, /Dernier numéro papier utilisé/);
     assert.match(app, /fieldTitleStyle/);
     assert.match(auth, /logo_scale/);
+    assert.match(auth, /report_number_start_sequence/);
     assert.match(modeles, /fieldTitleStyle/);
 });
