@@ -62,6 +62,7 @@ test("la saisie du rapport reste ouverte et complète après enregistrement ou s
     assert.match(app, /signerName/);
     assert.match(app, /uploads\/signature-field/);
     assert.match(app, /technician_signature/);
+    assert.match(app, /Nom du technicien signataire/);
     assert.match(app, /uploads\/user-signature\/me/);
     assert.doesNotMatch(app, /JSON\.stringify\(fullPayload\)/);
     assert.match(uploads, /signerName/);

@@ -1,5 +1,15 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-23 — Fil `19f8a98bdc880158` — nom visible dans le bloc signature technicien
+
+- **Catégorie :** bug / amélioration d’interface.
+- **Résumé :** l'expéditeur signale que, dans le nouveau bloc “Signature technicien”, le nom du technicien n'apparaît pas comme dans un bloc “Signature” classique.
+- **Analyse et décision :** demande claire, sûre et limitée. Le PDF disposait déjà d'une logique de nom signataire pour le technicien, mais l'affichage formulaire avec signature mémorisée ne montrait que l'image et une aide textuelle. Le correctif ajoute le nom du technicien assigné en lecture seule au-dessus de la signature mémorisée, tout en conservant la valeur cachée utilisée par l'export PDF.
+- **Réponse :** confirmation à envoyer directement à l'expéditeur original après push et validation.
+- **Fichiers modifiés :** `Frontend/app.js`, `Backend/test/frontend-utils.test.js`, ce journal.
+- **Commit / PR :** commit à compléter après push ; aucune PR nécessaire selon le workflow actuel sur `main`.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (59 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
 ## 2026-07-22 — Fils transférés `Fwd: intervium` — confirmations collées
 
 - **Catégories :** fonctionnalité signature technicien ; fonctionnalité document client PDF.
