@@ -1,5 +1,15 @@
 # Demandes Intervium reçues par e-mail
 
+## 2026-07-23 — Fil transféré `Fwd: intervium` — dates de tableau PDF
+
+- **Catégorie :** bug de rendu PDF.
+- **Résumé :** dans les tableaux du rapport PDF, les dates apparaissent au format ISO `aaaa-mm-jj` au lieu du format européen `jj/mm/aaaa`.
+- **Analyse et décision :** demande claire, sûre et limitée. Les champs date simples du PDF étaient déjà formatés en français, mais les cellules des tableaux utilisaient directement la valeur brute saisie. Le rendu des cellules de type `date` et `datetime` passe désormais par un formatage `fr-FR`.
+- **Réponse :** non envoyée depuis Codex dans cette session, faute de connecteur Gmail disponible.
+- **Fichiers modifiés :** `Backend/services/pdf.js`, `Backend/test/pdf-layout.test.js`, ce journal.
+- **Commit / PR :** commit `ca184d8` créé sur `main`; aucune PR nécessaire selon le workflow actuel.
+- **Vérifications :** `npm run check` réussi ; `npm test` réussi (61 tests passés, 1 intégration PostgreSQL ignorée localement) ; `npm run release:check` réussi ; `git diff --check` sans erreur bloquante.
+
 ## 2026-07-23 — Fil transféré `Fwd: intervium` — copie admin des PDF
 
 - **Catégorie :** fonctionnalité.

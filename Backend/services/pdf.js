@@ -284,6 +284,21 @@ export function reportValue(section, rawValue) {
     return String(rawValue);
 }
 
+export function reportTableCellValue(column, rawValue, rowIndex = 0) {
+    if (column.type === "row_number") return rowIndex + 1;
+    if (rawValue === undefined || rawValue === null || rawValue === "") return column.defaultValue ?? "";
+    if (typeof rawValue === "boolean") return rawValue ? "Oui" : "Non";
+    if (column.type === "date") {
+        const date = new Date(`${String(rawValue).slice(0, 10)}T12:00:00`);
+        if (!Number.isNaN(date.getTime())) return new Intl.DateTimeFormat("fr-FR").format(date);
+    }
+    if (column.type === "datetime") {
+        const date = new Date(rawValue);
+        if (!Number.isNaN(date.getTime())) return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(date);
+    }
+    return String(rawValue);
+}
+
 function signatureName(templateData, field) {
     const name = templateData?.[`${field.key}_name`];
     return typeof name === "string" ? name.trim().slice(0, 150) : "";
@@ -360,7 +375,7 @@ function reportTable(doc, section, rows, titleStyle = pdfFieldTitleStyle()) {
         doc.y = y + height;
     };
     drawRow(columns.map((column) => column.label), true);
-    safeRows.forEach((row, rowIndex) => drawRow(columns.map((column) => column.type === "row_number" ? rowIndex + 1 : typeof row?.[column.key] === "boolean" ? (row[column.key] ? "Oui" : "Non") : row?.[column.key] ?? "")));
+    safeRows.forEach((row, rowIndex) => drawRow(columns.map((column) => reportTableCellValue(column, row?.[column.key], rowIndex))));
     if (section.type === "price_table") {
         const quantity = columns.find((column) => column.type === "decimal" || column.type === "integer")?.key || "c1";
         const price = columns.find((column) => column.type === "currency")?.key || "c2";
