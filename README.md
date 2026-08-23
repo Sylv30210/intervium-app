@@ -267,6 +267,19 @@ EMAIL_CREDENTIALS_ENCRYPTION_KEY=...
 APP_URL=...
 ```
 
+## Intervium AI (Gemini)
+
+Intervium AI appelle Gemini exclusivement depuis le backend. La clé n’est jamais fournie au navigateur et ne doit jamais être ajoutée à Git.
+
+```env
+# À définir dans Backend/.env localement ou dans les variables du fournisseur d'hébergement.
+GEMINI_API_KEY=...
+# Facultatif : gemini-2.5-flash-lite est utilisé si cette variable est absente.
+GEMINI_MODEL=gemini-2.5-flash-lite
+```
+
+La V1 traite uniquement le message saisi par l’utilisateur authentifié ; elle n’envoie ni données PostgreSQL, ni données d’une autre entreprise à Gemini. La route protégée est `POST /api/ai/chat`.
+
 ## Variables d’environnement de production
 
 ```env

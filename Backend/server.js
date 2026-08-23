@@ -19,6 +19,7 @@ import search from "./routes/search.js";
 import google from "./routes/google.js";
 import emailConnections from "./routes/email-connections.js";
 import admin from "./routes/admin.js";
+import ai from "./routes/ai.js";
 import { UPLOADS_DIRECTORY } from "./config/cloud.js";
 import { ensureUploadDirectories } from "./services/storage.js";
 import pool from "./config/database.js";
@@ -90,6 +91,7 @@ app.use(express.json({ limit: "12mb" }));
 const uploadRateLimit = createPersistentRateLimiter({ name: "uploads", windowMs: 15 * 60 * 1000, max: 40, message: "Trop d'envois de fichiers. Réessayez plus tard." });
 const documentRateLimit = createPersistentRateLimiter({ name: "documents", windowMs: 15 * 60 * 1000, max: 60, message: "Trop de générations ou d'envois de documents." });
 const searchRateLimit = createPersistentRateLimiter({ name: "search", windowMs: 60 * 1000, max: 90, message: "Trop de recherches. Réessayez dans une minute." });
+const aiRateLimit = createPersistentRateLimiter({ name: "ai", windowMs: 60 * 1000, max: 20, message: "Trop de messages envoyés à Intervium AI. Réessayez dans une minute." });
 
 async function authorizeLocalMedia(req, res, next) {
     const match = req.path.match(/^\/(photos|signatures|logos)\/([a-zA-Z0-9._-]+)$/);
@@ -151,6 +153,7 @@ app.use("/api/search", searchRateLimit, search);
 app.use("/api/google", google);
 app.use("/api/email-connections", emailConnections);
 app.use("/api/admin", admin);
+app.use("/api/ai", aiRateLimit, ai);
 
 app.get("/sw.js", (_req, res) => {
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");

@@ -37,6 +37,8 @@ let onboardingKeyHandler = null;
 let onboardingPositionHandler = null;
 let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equipments: 0 };
 let appVersion = "2.2.0";
+let aiSessionMessages = [];
+let aiSessionUserId = null;
 const collectionPages = {
     interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
     clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
@@ -45,7 +47,7 @@ const collectionPages = {
 
 const app = document.getElementById("app");
 applyStoredTheme();
-const api = createApiClient({ onUnauthorized: () => { currentUser = null; showAuth(); } });
+const api = createApiClient({ onUnauthorized: () => { currentUser = null; aiSessionMessages = []; aiSessionUserId = null; showAuth(); } });
 
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -318,6 +320,8 @@ async function logout() {
     try { await api("/auth/logout", { method: "POST" }); } catch {}
     currentUser = null;
     currentEntreprise = null;
+    aiSessionMessages = [];
+    aiSessionUserId = null;
     showAuth();
 }
 
@@ -380,7 +384,7 @@ function renderMain(view = "dashboard") {
         <div class="profile"><strong>${escapeHtml(currentUser.nom)}</strong><br>${escapeHtml(currentUser.role)}<div class="profile-actions"><button class="icon-button install-button" data-install-app hidden>${icon("download")} Installer Intervium</button><button id="desktop-settings" class="icon-button">${icon("settings")} Paramètres</button><button id="desktop-logout" class="secondary">${icon("logout")} Déconnexion</button></div></div>
       </aside>
       <header class="mobile-header">${logoLockup("compact mobile-brand")}<div class="mobile-session" aria-label="Session connectée"><strong>${escapeHtml(currentUser.nom)}</strong><span>${escapeHtml(sessionCompany)} · ${escapeHtml(sessionRole)}</span></div><div class="mobile-user"><button id="mobile-settings" class="mobile-settings icon-only" aria-label="Ouvrir les paramètres" title="Paramètres">${icon("settings")}</button><button id="mobile-logout" class="mobile-logout icon-only" aria-label="Se déconnecter" title="Déconnexion">${icon("logout")}</button></div></header>
-      <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleForView(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
+      <main class="main">${currentUser.support_session ? `<div class="support-banner"><strong>Assistance : vous consultez ${escapeHtml(currentEntreprise?.nom || "une entreprise")}</strong><span>${currentUser.support_session.write_enabled ? "Écriture temporaire activée" : "Lecture seule"}</span><button id="leave-support" class="secondary" type="button">Quitter l’entreprise</button></div>` : ""}<header class="topbar"><div><h1>${titleForView(view)}</h1><div class="muted">Données de ${escapeHtml(currentEntreprise?.nom || "votre entreprise")}</div></div><div class="topbar-actions"><button class="secondary icon-only" id="open-intervium-ai" aria-label="Ouvrir Intervium AI" title="Intervium AI">${icon("sparkles")}</button><button class="secondary icon-only" id="global-search" aria-label="Recherche globale" title="Recherche globale">${icon("search")}</button><button class="secondary notification-button icon-only" id="open-notifications" aria-label="Notifications" title="Notifications">${icon("alert")}<span id="notification-count" class="notification-count hidden">0</span></button>${adminButtonFor(view)}</div></header><div id="view">${renderView(view)}</div></main>
       <nav class="bottom-nav" aria-label="Navigation principale" data-mobile-nav>${mobileNavigation}</nav>
     </div><div id="modal-root"></div><div id="onboarding-root"></div>`;
 
@@ -392,6 +396,7 @@ function renderMain(view = "dashboard") {
     document.getElementById("mobile-settings").addEventListener("click", openSettings);
     document.getElementById("mobile-more")?.addEventListener("click", openMoreMenu);
     document.getElementById("global-search")?.addEventListener("click", openGlobalSearch);
+    document.getElementById("open-intervium-ai")?.addEventListener("click", openInterviumAi);
     document.getElementById("open-notifications")?.addEventListener("click", openNotifications);
     document.getElementById("leave-support")?.addEventListener("click", async () => {
         await api("/auth/support-session", { method: "DELETE" });
@@ -1133,7 +1138,52 @@ function startOnboarding() {
     showOnboardingStep(0);
 }
 
-function modal(title, content) {
+function openInterviumAi() {
+    if (aiSessionUserId !== currentUser.id) {
+        aiSessionUserId = currentUser.id;
+        aiSessionMessages = [];
+    }
+    const renderMessages = () => {
+        const container = document.getElementById("ai-messages");
+        if (!container) return;
+        container.innerHTML = aiSessionMessages.length
+            ? aiSessionMessages.map((entry) => `<article class="ai-message ai-message-${entry.role}"><strong>${entry.role === "user" ? "Vous" : "Intervium AI"}</strong><p>${escapeHtml(entry.text)}</p></article>`).join("")
+            : '<p class="muted ai-empty">Posez une question à Intervium AI. Cette première version n’accède à aucune donnée de votre entreprise.</p>';
+        container.scrollTop = container.scrollHeight;
+    };
+    modal("Intervium AI", `<div class="ai-chat"><div id="ai-messages" class="ai-messages" aria-live="polite"></div><form id="ai-chat-form" class="ai-chat-form"><label class="sr-only" for="ai-chat-input">Votre message</label><textarea id="ai-chat-input" name="message" rows="3" maxlength="4000" placeholder="Écrivez votre message…" required></textarea><div class="ai-chat-actions"><span class="muted">Aucune donnée métier n’est partagée.</span><button class="primary" type="submit">${icon("sparkles")} Envoyer</button></div></form></div>`, { trackDirty: false });
+    renderMessages();
+    const form = document.getElementById("ai-chat-form");
+    const input = document.getElementById("ai-chat-input");
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
+        const submit = form.querySelector("button[type='submit']");
+        aiSessionMessages.push({ role: "user", text: message });
+        input.value = "";
+        input.disabled = true;
+        renderMessages();
+        const loading = document.createElement("article");
+        loading.className = "ai-message ai-message-assistant ai-message-loading";
+        loading.innerHTML = `<strong>Intervium AI</strong><p><span class="spinner" aria-hidden="true"></span> Réponse en cours…</p>`;
+        document.getElementById("ai-messages")?.append(loading);
+        await withBusy(submit, async () => {
+            try {
+                const result = await api("/ai/chat", { method: "POST", body: JSON.stringify({ message }) });
+                aiSessionMessages.push({ role: "assistant", text: result.reply });
+            } catch (error) {
+                aiSessionMessages.push({ role: "assistant", text: `Erreur : ${error.message}` });
+            } finally {
+                input.disabled = false;
+                renderMessages();
+                input.focus();
+            }
+        });
+    });
+}
+
+function modal(title, content, { trackDirty = true } = {}) {
     const root = document.getElementById("modal-root");
     root.innerHTML = `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${escapeHtml(title)}</h2><button class="close icon-only" id="close-modal" type="button" aria-label="Fermer" title="Fermer">${icon("close")}</button></header>${content}</section></div>`;
     const dialog = root.querySelector(".modal");
@@ -1148,8 +1198,10 @@ function modal(title, content) {
     root._keyHandler = keyHandler;
     root._dirty = false;
     document.addEventListener("keydown", keyHandler);
-    dialog.addEventListener("input", () => { root._dirty = true; });
-    dialog.addEventListener("change", () => { root._dirty = true; });
+    if (trackDirty) {
+        dialog.addEventListener("input", () => { root._dirty = true; });
+        dialog.addEventListener("change", () => { root._dirty = true; });
+    }
     dialog.addEventListener("submit", () => { root._dirty = false; }, true);
     root.querySelector(".modal-backdrop").addEventListener("mousedown", (event) => { if (event.target.classList.contains("modal-backdrop")) closeModal(); });
     document.getElementById("close-modal").addEventListener("click", closeModal);
