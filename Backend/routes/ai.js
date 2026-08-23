@@ -21,7 +21,14 @@ router.post("/chat", async (req, res) => {
         return res.json({ reply });
     } catch (error) {
         const serviceError = error instanceof AiServiceError ? error : new AiServiceError("Intervium AI est temporairement indisponible.");
-        console.error("Échec Intervium AI", { entreprise_id: entrepriseId, user_id: req.user.id, code: serviceError.code, upstream_status: error?.status });
+        console.error("Échec Intervium AI", {
+            entreprise_id: entrepriseId,
+            user_id: req.user.id,
+            code: serviceError.code,
+            upstream_status: serviceError.upstreamStatus,
+            upstream_type: serviceError.upstreamType,
+            upstream_message: serviceError.upstreamMessage,
+        });
         return res.status(serviceError.status).json({ error: serviceError.message, code: serviceError.code });
     }
 });
