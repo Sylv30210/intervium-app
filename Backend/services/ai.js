@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const SYSTEM_INSTRUCTION = "Tu es Intervium AI, un assistant utile et concis pour les utilisateurs d'Intervium. Réponds en français sauf si l'utilisateur demande clairement une autre langue. Pour le moment, tu ne disposes d'aucune donnée de l'entreprise, des clients, des interventions ou des documents : ne prétends jamais y avoir accès.";
 
 export class AiServiceError extends Error {
