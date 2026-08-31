@@ -1,4 +1,1 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://intervium.fr/sitemap.xml
+Sitemap: https://intervium-app.onrender.com/sitemap.xml
