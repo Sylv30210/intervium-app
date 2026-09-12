@@ -39,6 +39,8 @@ let dashboardStats = { reports: 0, finished: 0, visible_clients: 0, visible_equi
 let appVersion = "2.2.0";
 let aiSessionMessages = [];
 let aiSessionUserId = null;
+let aiConversations = [];
+let activeAiConversation = null;
 const collectionPages = {
     interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
     clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
@@ -47,7 +49,7 @@ const collectionPages = {
 
 const app = document.getElementById("app");
 applyStoredTheme();
-const api = createApiClient({ onUnauthorized: () => { currentUser = null; aiSessionMessages = []; aiSessionUserId = null; showAuth(); } });
+const api = createApiClient({ onUnauthorized: () => { currentUser = null; aiSessionMessages = []; aiSessionUserId = null; aiConversations = []; activeAiConversation = null; showAuth(); } });
 
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -322,6 +324,8 @@ async function logout() {
     currentEntreprise = null;
     aiSessionMessages = [];
     aiSessionUserId = null;
+    aiConversations = [];
+    activeAiConversation = null;
     showAuth();
 }
 
@@ -1138,11 +1142,16 @@ function startOnboarding() {
     showOnboardingStep(0);
 }
 
-function openInterviumAi() {
+async function openInterviumAi({ interventionId = null } = {}) {
     if (aiSessionUserId !== currentUser.id) {
         aiSessionUserId = currentUser.id;
         aiSessionMessages = [];
+        aiConversations = [];
+        activeAiConversation = null;
     }
+    modal("Intervium AI", `<div class="ai-chat"><div class="empty"><span class="spinner"></span> Chargement des conversations…</div></div>`, { trackDirty: false });
+    try { aiConversations = (await api("/ai/conversations")).conversations; }
+    catch (error) { return document.querySelector(".ai-chat").innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
     const renderMessages = () => {
         const container = document.getElementById("ai-messages");
         if (!container) return;
@@ -1151,8 +1160,27 @@ function openInterviumAi() {
             : '<p class="muted ai-empty">Posez une question à Intervium AI. Cette première version n’accède à aucune donnée de votre entreprise.</p>';
         container.scrollTop = container.scrollHeight;
     };
-    modal("Intervium AI", `<div class="ai-chat"><div id="ai-messages" class="ai-messages" aria-live="polite"></div><form id="ai-chat-form" class="ai-chat-form"><label class="sr-only" for="ai-chat-input">Votre message</label><textarea id="ai-chat-input" name="message" rows="3" maxlength="4000" placeholder="Écrivez votre message…" required></textarea><div class="ai-chat-actions"><span class="muted">Aucune donnée métier n’est partagée.</span><button class="primary" type="submit">${icon("sparkles")} Envoyer</button></div></form></div>`, { trackDirty: false });
+    const contextLabel = interventionId ? `<div class="ai-context">Contexte : intervention #${interventionId}</div>` : "";
+    const suggestions = interventionId ? `<div class="ai-suggestions"><button class="secondary" data-ai-prompt="Résume cette intervention">Résumer</button><button class="secondary" data-ai-prompt="Quelles anomalies ont été constatées ?">Analyser</button><button class="secondary" data-ai-prompt="Rédige un compte-rendu professionnel">Compte-rendu</button><button class="secondary" data-ai-prompt="Rédige un email au client">Email client</button></div>` : "";
+    document.querySelector(".ai-chat").outerHTML = `<div class="ai-workspace"><aside class="ai-history"><button class="primary wide" id="ai-new-conversation" type="button">${icon("plus")} Nouvelle conversation</button><div id="ai-conversation-list"></div></aside><div class="ai-chat">${contextLabel}${suggestions}<div id="ai-messages" class="ai-messages" aria-live="polite"></div><form id="ai-chat-form" class="ai-chat-form"><label class="sr-only" for="ai-chat-input">Votre message</label><textarea id="ai-chat-input" name="message" rows="3" maxlength="4000" placeholder="Écrivez votre message…" required></textarea><div class="ai-chat-actions"><span class="muted">Les données sont consultées uniquement selon vos droits.</span><button class="primary" type="submit">${icon("sparkles")} Envoyer</button></div></form></div></div>`;
+    const renderConversations = () => {
+        const container = document.getElementById("ai-conversation-list");
+        if (!container) return;
+        container.innerHTML = aiConversations.length ? aiConversations.map((conversation) => `<div class="ai-conversation ${activeAiConversation?.id === conversation.id ? "active" : ""}"><button type="button" data-ai-conversation="${conversation.id}">${escapeHtml(conversation.titre)}</button><button type="button" class="icon-only" data-ai-delete="${conversation.id}" aria-label="Supprimer la conversation" title="Supprimer">${icon("trash")}</button></div>`).join("") : '<p class="muted">Aucune conversation.</p>';
+        container.querySelectorAll("[data-ai-conversation]").forEach((button) => button.addEventListener("click", async () => {
+            try { const data = await api(`/ai/conversations/${button.dataset.aiConversation}`); activeAiConversation = data.conversation; aiSessionMessages = data.messages; renderConversations(); renderMessages(); }
+            catch (error) { toast(error.message, true); }
+        }));
+        container.querySelectorAll("[data-ai-delete]").forEach((button) => button.addEventListener("click", async () => {
+            if (!confirm("Supprimer cette conversation ?")) return;
+            try { await api(`/ai/conversations/${button.dataset.aiDelete}`, { method: "DELETE" }); if (activeAiConversation?.id === Number(button.dataset.aiDelete)) { activeAiConversation = null; aiSessionMessages = []; } aiConversations = aiConversations.filter((entry) => entry.id !== Number(button.dataset.aiDelete)); renderConversations(); renderMessages(); }
+            catch (error) { toast(error.message, true); }
+        }));
+    };
+    document.getElementById("ai-new-conversation").addEventListener("click", () => { activeAiConversation = null; aiSessionMessages = []; renderConversations(); renderMessages(); document.getElementById("ai-chat-input")?.focus(); });
     renderMessages();
+    renderConversations();
+    document.querySelectorAll("[data-ai-prompt]").forEach((button) => button.addEventListener("click", () => { document.getElementById("ai-chat-input").value = button.dataset.aiPrompt; document.getElementById("ai-chat-input").focus(); }));
     const form = document.getElementById("ai-chat-form");
     const input = document.getElementById("ai-chat-input");
     form.addEventListener("submit", async (event) => {
@@ -1170,8 +1198,12 @@ function openInterviumAi() {
         document.getElementById("ai-messages")?.append(loading);
         await withBusy(submit, async () => {
             try {
-                const result = await api("/ai/chat", { method: "POST", body: JSON.stringify({ message }) });
+                const path = activeAiConversation ? `/ai/conversations/${activeAiConversation.id}/messages` : "/ai/chat";
+                const result = await api(path, { method: "POST", body: JSON.stringify({ message, ...(interventionId && !activeAiConversation ? { intervention_id: interventionId } : {}) }) });
+                activeAiConversation = result.conversation;
                 aiSessionMessages.push({ role: "assistant", text: result.reply });
+                aiConversations = [activeAiConversation, ...aiConversations.filter((entry) => entry.id !== activeAiConversation.id)];
+                renderConversations();
             } catch (error) {
                 aiSessionMessages.push({ role: "assistant", text: `Erreur : ${error.message}` });
             } finally {
