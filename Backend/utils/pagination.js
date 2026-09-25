@@ -1,8 +1,13 @@
 export function paginationFromRequest(req, { defaultLimit = 50, maxLimit = 100 } = {}) {
-    if (req.query.page === undefined && req.query.limit === undefined && req.query.q === undefined) return null;
+    if (req.query.page === undefined && req.query.limit === undefined && req.query.q === undefined && req.query.sort === undefined && req.query.direction === undefined) return null;
     const page = Math.max(1, Number.parseInt(req.query.page || "1", 10) || 1);
     const limit = Math.min(maxLimit, Math.max(1, Number.parseInt(req.query.limit || String(defaultLimit), 10) || defaultLimit));
-    return { page, limit, offset: (page - 1) * limit, q: String(req.query.q || "").trim().slice(0, 120) };
+    return {
+        page, limit, offset: (page - 1) * limit,
+        q: String(req.query.q || "").trim().slice(0, 120),
+        sort: String(req.query.sort || "").trim().slice(0, 40),
+        direction: req.query.direction === "desc" ? "desc" : "asc"
+    };
 }
 
 export function paginatedResponse(rows, total, pagination) {

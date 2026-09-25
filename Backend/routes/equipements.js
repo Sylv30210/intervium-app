@@ -45,6 +45,9 @@ router.get("/", async (req, res) => {
             values.push(`%${pagination.q}%`);
             accessFilter += ` AND (c.nom ILIKE $${values.length} OR e.type ILIKE $${values.length} OR e.marque ILIKE $${values.length} OR e.modele ILIKE $${values.length} OR e.numero_serie ILIKE $${values.length})`;
         }
+        const sortFields = { client: "c.nom", type: "e.type", marque: "COALESCE(e.marque, e.modele, '')", serie: "e.numero_serie" };
+        const sortField = sortFields[pagination?.sort] || sortFields.client;
+        const sortDirection = pagination?.direction === "desc" ? "DESC" : "ASC";
         const countValues = [...values];
         const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM equipements e JOIN clients c ON c.id=e.client_id AND c.entreprise_id=e.entreprise_id WHERE e.entreprise_id=$1 ${accessFilter}`, countValues) : null;
         let paginationSql = "";
@@ -60,7 +63,7 @@ router.get("/", async (req, res) => {
              JOIN clients c
                ON c.id = e.client_id AND c.entreprise_id = e.entreprise_id
              WHERE e.entreprise_id = $1 ${accessFilter}
-             ORDER BY c.nom ASC, e.type ASC NULLS LAST, e.id ASC ${paginationSql}`,
+             ORDER BY ${sortField} ${sortDirection} NULLS LAST, e.id ASC ${paginationSql}`,
             values
         );
         return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);

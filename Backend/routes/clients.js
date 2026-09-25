@@ -78,6 +78,9 @@ router.get("/", async (req, res) => {
             values.push(`%${pagination.q}%`);
             accessFilter += ` AND (c.nom ILIKE $${values.length} OR c.email ILIKE $${values.length} OR c.telephone ILIKE $${values.length})`;
         }
+        const sortFields = { nom: "c.nom", email: "c.email", telephone: "c.telephone", adresse: "c.adresse" };
+        const sortField = sortFields[pagination?.sort] || sortFields.nom;
+        const sortDirection = pagination?.direction === "desc" ? "DESC" : "ASC";
         const countValues = [...values];
         const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM clients c WHERE c.entreprise_id = $1 ${accessFilter}`, countValues) : null;
         let paginationSql = "";
@@ -96,7 +99,7 @@ router.get("/", async (req, res) => {
              LEFT JOIN utilisateurs u
                ON u.id = c.utilisateur_id AND u.entreprise_id = c.entreprise_id
              WHERE c.entreprise_id = $1 ${accessFilter}
-             ORDER BY c.nom ASC, c.id ASC ${paginationSql}`,
+             ORDER BY ${sortField} ${sortDirection} NULLS LAST, c.id ASC ${paginationSql}`,
             values
         );
         return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);

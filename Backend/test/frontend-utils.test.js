@@ -43,11 +43,15 @@ test("les aperçus de médias utilisent les sources authentifiées", () => {
     assert.equal(userSignatureSourceUrl(9), "/api/uploads/user-signature/9/source");
 });
 
-test("les listes gardent une pagination stable et transmettent la recherche au serveur", () => {
+test("les listes gardent une pagination stable et transmettent la recherche et le tri au serveur", () => {
     assert.equal(COLLECTION_PAGE_LIMIT, 20);
     assert.equal(
         collectionPageUrl("interventions", { page: 2, limit: COLLECTION_PAGE_LIMIT, query: " Provence " }),
         "/interventions?page=2&limit=20&q=Provence"
+    );
+    assert.equal(
+        collectionPageUrl("interventions", { page: 1, limit: COLLECTION_PAGE_LIMIT, sort: "date", direction: "desc" }),
+        "/interventions?page=1&limit=20&sort=date&direction=desc"
     );
 });
 

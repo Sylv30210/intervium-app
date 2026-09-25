@@ -188,8 +188,19 @@ router.get("/", async (req, res) => {
     try {
         if (pagination?.q) {
             values.push(`%${pagination.q}%`);
-            roleFilter += ` AND (i.titre ILIKE $${values.length} OR c.nom ILIKE $${values.length} OR i.numero_rapport ILIKE $${values.length})`;
+            roleFilter += ` AND (i.titre ILIKE $${values.length} OR c.nom ILIKE $${values.length} OR i.numero_rapport ILIKE $${values.length} OR i.statut ILIKE $${values.length} OR EXISTS (SELECT 1 FROM equipements search_eq WHERE search_eq.id = i.equipement_id AND (search_eq.type ILIKE $${values.length} OR search_eq.marque ILIKE $${values.length} OR search_eq.modele ILIKE $${values.length} OR search_eq.numero_serie ILIKE $${values.length})) OR EXISTS (SELECT 1 FROM utilisateurs search_u WHERE search_u.id = i.technicien_id AND search_u.nom ILIKE $${values.length}))`;
         }
+        const sortFields = {
+            date: "i.date_intervention",
+            client: "c.nom",
+            materiel: "COALESCE(eq.type, '')",
+            rapport: "COALESCE(i.numero_rapport, i.titre, '')",
+            technicien: "COALESCE(u.nom, '')",
+            statut: "i.statut"
+        };
+        const sortField = sortFields[pagination?.sort] || sortFields.date;
+        const sortDirection = pagination?.direction === "desc" ? "DESC" : "ASC";
+        const orderBy = `${sortField} ${sortDirection} NULLS LAST, i.date_intervention ASC NULLS LAST, i.heure ASC NULLS LAST, i.id ASC`;
         const countValues = [...values];
         const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM interventions i JOIN clients c ON c.id=i.client_id AND c.entreprise_id=i.entreprise_id WHERE i.entreprise_id=$1 ${roleFilter}`, countValues) : null;
         let paginationSql = "";
@@ -234,8 +245,7 @@ router.get("/", async (req, res) => {
                  GROUP BY entreprise_id, intervention_id
              ) p ON p.intervention_id = i.id AND p.entreprise_id = i.entreprise_id
              WHERE i.entreprise_id = $1 ${roleFilter}
-             ORDER BY i.date_intervention ASC NULLS LAST,
-                      i.heure ASC NULLS LAST, i.id ASC ${paginationSql}`,
+             ORDER BY ${orderBy} ${paginationSql}`,
             values
         );
         return res.json(pagination ? paginatedResponse(result.rows, countResult.rows[0].total, pagination) : result.rows);

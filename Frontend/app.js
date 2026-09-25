@@ -42,9 +42,9 @@ let aiSessionUserId = null;
 let aiConversations = [];
 let activeAiConversation = null;
 const collectionPages = {
-    interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
-    clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
-    equipements: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", requestId: 0 },
+    interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "date", direction: "asc", requestId: 0 },
+    clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "nom", direction: "asc", requestId: 0 },
+    equipements: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "client", direction: "asc", requestId: 0 },
 };
 
 const app = document.getElementById("app");
@@ -186,11 +186,11 @@ function showAuth(mode = "login") {
         ${registrationAvailable ? `<div class="tabs"><button data-auth-tab="login" class="${mode === "login" ? "active" : ""}">Connexion</button><button data-auth-tab="register" class="${mode === "register" ? "active" : ""}">Créer un compte</button></div>` : ""}
         <div id="auth-error" class="error hidden"></div>
         <form id="login-form" class="${mode === "login" ? "" : "hidden"}">
-          ${field("Email", "email", "email", true)}${field("Mot de passe", "password", "password", true)}${field("Code d’authentification (super-développeur uniquement)", "totp_code", "text", false)}
+          ${field("Email", "email", "email", true, "", "username")}${field("Mot de passe", "password", "password", true, "", "current-password")}${field("Code d’authentification (super-développeur uniquement)", "totp_code", "text", false)}
           <button class="primary wide" type="submit">Se connecter</button>
         </form>
         ${registrationAvailable ? `<form id="register-form" class="${mode === "register" ? "" : "hidden"}">
-          ${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true)}${field("Mot de passe (8 caractères minimum)", "password", "password", true)}
+          ${field("Nom de l’entreprise", "nom_entreprise", "text", true)}${field("Votre nom", "nom", "text", true)}${field("Email", "email", "email", true, "", "username")}${field("Mot de passe (8 caractères minimum)", "password", "password", true, "", "new-password")}
           <button class="primary wide" type="submit">Créer mon espace</button>
         </form>` : ""}
         <footer class="auth-footer">Conçu par Sylvain Lecoeuvre</footer>
@@ -199,12 +199,35 @@ function showAuth(mode = "login") {
     document.querySelectorAll("[data-auth-tab]").forEach((button) => {
         button.addEventListener("click", () => showAuth(button.dataset.authTab));
     });
-    document.getElementById("login-form").addEventListener("submit", handleLogin);
+    const loginForm = document.getElementById("login-form");
+    loginForm.addEventListener("submit", handleLogin);
+    enablePasswordManagerAutoLogin(loginForm);
     document.getElementById("register-form")?.addEventListener("submit", handleRegister);
 }
 
-function field(label, name, type = "text", required = false, value = "") {
-    return `<div class="field"><label for="${name}">${label}</label><input id="${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? "required" : ""}></div>`;
+function field(label, name, type = "text", required = false, value = "", autocomplete = "") {
+    return `<div class="field"><label for="${name}">${label}</label><input id="${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${autocomplete ? `autocomplete="${autocomplete}"` : ""} ${required ? "required" : ""}></div>`;
+}
+
+function enablePasswordManagerAutoLogin(form) {
+    const email = form.elements.email;
+    const password = form.elements.password;
+    let submitted = false;
+    const submitIfReady = () => {
+        if (submitted || form.classList.contains("hidden") || !email.value.trim() || !password.value || !form.checkValidity()) return;
+        submitted = true;
+        form.requestSubmit();
+    };
+    const checkAutofill = () => {
+        if (email.matches(":-webkit-autofill") || password.matches(":-webkit-autofill")) submitIfReady();
+    };
+    form.addEventListener("animationstart", (event) => {
+        if (event.animationName === "password-manager-autofill") queueMicrotask(checkAutofill);
+    });
+    [email, password].forEach((input) => input.addEventListener("input", (event) => {
+        if (event.inputType === "insertReplacementText" || event.data === null) queueMicrotask(submitIfReady);
+    }));
+    [0, 100, 350, 900, 1800].forEach((delay) => setTimeout(checkAutofill, delay));
 }
 
 
@@ -605,14 +628,19 @@ function serverPager(view) {
 function serverSearch(view) {
     const state = collectionPages[view];
     if (!state) return "";
-    return `<div class="table-tools"><label class="sr-only" for="server-search-${view}">Filtrer cette liste</label><input id="server-search-${view}" data-server-search="${view}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(state.query)}"><button class="secondary" data-server-search-reset="${view}" type="button">Réinitialiser</button></div>`;
+    const sortOptions = {
+        interventions: [["date", "Date"], ["client", "Client"], ["materiel", "Matériel"], ["rapport", "Rapport"], ["technicien", "Technicien"], ["statut", "Statut"]],
+        clients: [["nom", "Nom"], ["email", "E-mail"], ["telephone", "Téléphone"], ["adresse", "Adresse"]],
+        equipements: [["client", "Client"], ["type", "Type"], ["marque", "Marque / modèle"], ["serie", "N° série"]]
+    }[view] || [];
+    return `<div class="table-tools"><label class="sr-only" for="server-search-${view}">Filtrer cette liste</label><input id="server-search-${view}" data-server-search="${view}" type="search" placeholder="Filtrer cette liste…" value="${escapeHtml(state.query)}"><label class="sr-only" for="server-sort-${view}">Trier par</label><select id="server-sort-${view}" data-server-sort="${view}">${sortOptions.map(([value, label]) => `<option value="${value}" ${state.sort === value ? "selected" : ""}>Trier par ${label}</option>`).join("")}</select><label class="sr-only" for="server-direction-${view}">Ordre du tri</label><select id="server-direction-${view}" data-server-direction="${view}"><option value="asc" ${state.direction === "asc" ? "selected" : ""}>Ordre croissant</option><option value="desc" ${state.direction === "desc" ? "selected" : ""}>Ordre décroissant</option></select><button class="secondary" data-server-search-reset="${view}" type="button">Réinitialiser</button></div>`;
 }
 
 async function loadCollectionPage(view, page) {
     const state = collectionPages[view];
     if (!state) return;
     const requestId = ++state.requestId;
-    const result = await api(collectionPageUrl(view, { page, limit: state.limit, query: state.query }));
+    const result = await api(collectionPageUrl(view, { page, limit: state.limit, query: state.query, sort: state.sort, direction: state.direction }));
     if (requestId !== state.requestId) return;
     if (view === "interventions") interventions = result.items;
     if (view === "clients") clients = result.items;
@@ -640,11 +668,21 @@ function bindServerSearch() {
             }, 250);
         });
     });
+    document.querySelectorAll("[data-server-sort], [data-server-direction]").forEach((input) => input.addEventListener("change", () => {
+        const view = input.dataset.serverSort || input.dataset.serverDirection;
+        const state = collectionPages[view];
+        if (!state) return;
+        state.sort = document.querySelector(`[data-server-sort="${view}"]`).value;
+        state.direction = document.querySelector(`[data-server-direction="${view}"]`).value;
+        loadCollectionPage(view, 1).catch((error) => toast(error.message, true));
+    }));
     document.querySelectorAll("[data-server-search-reset]").forEach((button) => button.addEventListener("click", () => {
         const view = button.dataset.serverSearchReset;
         const state = collectionPages[view];
         if (!state) return;
         state.query = "";
+        state.sort = view === "interventions" ? "date" : view === "clients" ? "nom" : "client";
+        state.direction = "asc";
         loadCollectionPage(view, 1).catch((error) => toast(error.message, true));
     }));
 }
@@ -735,19 +773,23 @@ function enhanceBusinessTables(view) {
         let saved = {}; try { saved = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch {}
         let page = 1; const pageSize = serverBacked ? Number.MAX_SAFE_INTEGER : 10; let sortIndex = Number.isInteger(saved.sortIndex) ? saved.sortIndex : -1; let direction = saved.direction || "asc";
         if (serverBacked) {
-            const renderServerRows = () => {
-                const ordered = [...rows];
-                if (sortIndex >= 0) ordered.sort((a, b) => a.cells[sortIndex].textContent.trim().localeCompare(b.cells[sortIndex].textContent.trim(), "fr", { numeric: true }) * (direction === "asc" ? 1 : -1));
-                ordered.forEach((row) => { row.hidden = false; row.parentElement.append(row); });
-                try { sessionStorage.setItem(storageKey, JSON.stringify({ sortIndex, direction })); } catch {}
-            };
+            const sortKeys = {
+                interventions: ["date", "client", "materiel", "rapport", "technicien", "statut"],
+                clients: ["nom", "email", "telephone", "adresse"],
+                equipements: ["client", "type", "marque", "serie"]
+            }[view] || [];
             [...table.tHead?.rows?.[0]?.cells || []].forEach((header, index) => {
-                if (/actions?/i.test(header.textContent)) return;
+                const sortKey = sortKeys[index];
+                if (!sortKey) return;
                 header.tabIndex = 0; header.title = "Trier cette colonne";
-                header.addEventListener("click", () => { direction = sortIndex === index && direction === "asc" ? "desc" : "asc"; sortIndex = index; renderServerRows(); });
+                header.addEventListener("click", () => {
+                    const state = collectionPages[view];
+                    state.direction = state.sort === sortKey && state.direction === "asc" ? "desc" : "asc";
+                    state.sort = sortKey;
+                    loadCollectionPage(view, 1).catch((error) => toast(error.message, true));
+                });
                 header.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); header.click(); } });
             });
-            renderServerRows();
             return;
         }
         const tools = document.createElement("div"); tools.className = "table-tools";
