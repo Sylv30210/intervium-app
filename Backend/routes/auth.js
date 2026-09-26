@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
@@ -20,7 +20,7 @@ const authRateLimit = createPersistentRateLimiter({
     name: "auth",
     windowMs: 15 * 60 * 1000,
     max: 12,
-    message: "Trop de tentatives. Réessayez dans quelques minutes.",
+    message: "Trop de tentatives. RÃ©essayez dans quelques minutes.",
 });
 const publicRegistrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED === "true";
 
@@ -96,18 +96,18 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     }
 
     if (password.length < 8) {
-        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères." });
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractÃ¨res." });
     }
 
     const createsEntreprise = Boolean(nomEntreprise);
 
     if (createsEntreprise && !publicRegistrationEnabled) {
-        return res.status(403).json({ error: "La création publique d'entreprise est désactivée." });
+        return res.status(403).json({ error: "La crÃ©ation publique d'entreprise est dÃ©sactivÃ©e." });
     }
 
     if (!createsEntreprise && (!req.user || req.user.role !== "ADMIN")) {
         return res.status(403).json({
-            error: "Seul un ADMIN connecté peut ajouter un utilisateur à son entreprise.",
+            error: "Seul un ADMIN connectÃ© peut ajouter un utilisateur Ã  son entreprise.",
         });
     }
 
@@ -115,7 +115,7 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
     if (!createsEntreprise) {
         role = typeof req.body.role === "string" ? req.body.role.toUpperCase() : "TECHNICIEN";
         if (!ROLES.has(role)) {
-            return res.status(400).json({ error: "Rôle invalide." });
+            return res.status(400).json({ error: "RÃ´le invalide." });
         }
     }
 
@@ -147,19 +147,19 @@ router.post("/register", authRateLimit, optionalAuth, async (req, res) => {
         await client.query("COMMIT");
         return res.status(201).json({
             message: createsEntreprise
-                ? "Entreprise et compte administrateur créés."
-                : "Utilisateur créé.",
+                ? "Entreprise et compte administrateur crÃ©Ã©s."
+                : "Utilisateur crÃ©Ã©.",
             user: publicUser(userResult.rows[0]),
         });
     } catch (error) {
         if (client) await client.query("ROLLBACK");
 
         if (error.code === "23505") {
-            return res.status(409).json({ error: "Cet email est déjà utilisé." });
+            return res.status(409).json({ error: "Cet email est dÃ©jÃ  utilisÃ©." });
         }
 
-        console.error("Échec de l'inscription", error);
-        return res.status(500).json({ error: "Impossible de créer le compte." });
+        console.error("Ã‰chec de l'inscription", error);
+        return res.status(500).json({ error: "Impossible de crÃ©er le compte." });
     } finally {
         client?.release();
     }
@@ -175,7 +175,7 @@ router.post("/login", authRateLimit, async (req, res) => {
     }
 
     if (!process.env.JWT_SECRET) {
-        console.error("JWT_SECRET n'est pas configuré.");
+        console.error("JWT_SECRET n'est pas configurÃ©.");
         return res.status(500).json({ error: "Erreur de configuration serveur." });
     }
 
@@ -194,7 +194,7 @@ router.post("/login", authRateLimit, async (req, res) => {
             return res.status(401).json({ error: "Identifiants incorrects." });
         }
         if (user.role === "SUPER_DEVELOPPEUR") {
-            if (!user.totp_active || !user.totp_secret_chiffre) return res.status(403).json({ error: "La double authentification du super-développeur doit être configurée." });
+            if (!user.totp_active || !user.totp_secret_chiffre) return res.status(403).json({ error: "La double authentification du super-dÃ©veloppeur doit Ãªtre configurÃ©e." });
             const verification = await verifyTotp({ secret: decryptSecret(user.totp_secret_chiffre), token: totpCode, epochTolerance: 30 });
             if (!verification.valid) return res.status(401).json({ error: "Code d'authentification incorrect." });
         }
@@ -204,7 +204,7 @@ router.post("/login", authRateLimit, async (req, res) => {
         res.cookie(COOKIE_NAME, token, sessionCookieOptions());
         return res.json({ user: publicUser(user) });
     } catch (error) {
-        console.error("Échec de la connexion", error);
+        console.error("Ã‰chec de la connexion", error);
         return res.status(500).json({ error: "Impossible de se connecter." });
     }
 });
@@ -236,7 +236,7 @@ router.get("/me", verifyToken, async (req, res) => {
             entreprise: companyPayload(user),
         });
     } catch (error) {
-        console.error("Échec de la lecture du profil", error);
+        console.error("Ã‰chec de la lecture du profil", error);
         return res.status(500).json({ error: "Impossible de charger le profil." });
     }
 });
@@ -245,10 +245,10 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
     const currentPassword = typeof req.body.current_password === "string" ? req.body.current_password : "";
     const newPassword = typeof req.body.new_password === "string" ? req.body.new_password : "";
     if (!currentPassword || newPassword.length < 8) {
-        return res.status(400).json({ error: "Le mot de passe actuel et un nouveau mot de passe de 8 caractères minimum sont requis." });
+        return res.status(400).json({ error: "Le mot de passe actuel et un nouveau mot de passe de 8 caractÃ¨res minimum sont requis." });
     }
     if (currentPassword === newPassword) {
-        return res.status(400).json({ error: "Le nouveau mot de passe doit être différent de l’ancien." });
+        return res.status(400).json({ error: "Le nouveau mot de passe doit Ãªtre diffÃ©rent de lâ€™ancien." });
     }
     try {
         const result = await pool.query(
@@ -263,10 +263,10 @@ router.put("/password", verifyToken, authRateLimit, async (req, res) => {
             "UPDATE utilisateurs SET password = $1, doit_changer_mot_de_passe = FALSE, updated_at = NOW() WHERE id = $2 AND (entreprise_id = $3 OR role = 'SUPER_DEVELOPPEUR')",
             [hashedPassword, req.user.id, req.user.home_entreprise_id]
         );
-        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Mot de passe modifié." });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: req.user.id, summary: "Mot de passe modifiÃ©." });
         return res.status(204).send();
     } catch (error) {
-        console.error("Échec de la modification du mot de passe", error);
+        console.error("Ã‰chec de la modification du mot de passe", error);
         return res.status(500).json({ error: "Impossible de modifier le mot de passe." });
     }
 });
@@ -278,7 +278,7 @@ router.delete("/account", verifyToken, authRateLimit, async (req, res) => {
         return res.status(400).json({ error: "Mot de passe et confirmation SUPPRIMER requis." });
     }
     if (req.user.role === "SUPER_DEVELOPPEUR" || req.user.impersonated_company_id) {
-        return res.status(403).json({ error: "Ce compte ne peut pas être supprimé depuis une session d’assistance." });
+        return res.status(403).json({ error: "Ce compte ne peut pas Ãªtre supprimÃ© depuis une session dâ€™assistance." });
     }
 
     const client = await pool.connect();
@@ -337,7 +337,7 @@ router.delete("/account", verifyToken, authRateLimit, async (req, res) => {
             const replacementAdminId = replacement.rows[0]?.id;
             if (!replacementAdminId) {
                 await client.query("ROLLBACK");
-                return res.status(409).json({ error: "Impossible de supprimer ce compte sans administrateur actif dans l’entreprise." });
+                return res.status(409).json({ error: "Impossible de supprimer ce compte sans administrateur actif dans lâ€™entreprise." });
             }
             await client.query("UPDATE interventions SET technicien_id = NULL, updated_at = NOW() WHERE technicien_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
             await client.query("UPDATE clients SET utilisateur_id = NULL, updated_at = NOW() WHERE utilisateur_id = $1 AND entreprise_id = $2", [user.id, user.entreprise_id]);
@@ -354,7 +354,7 @@ router.delete("/account", verifyToken, authRateLimit, async (req, res) => {
         return res.json({ deleted: true });
     } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
-        console.error("Échec de la suppression du compte", error);
+        console.error("Ã‰chec de la suppression du compte", error);
         return res.status(500).json({ error: "Impossible de supprimer le compte." });
     } finally {
         client.release();
@@ -385,19 +385,19 @@ router.put("/onboarding", verifyToken, async (req, res) => {
         if (!result.rowCount) return res.status(404).json({ error: "Compte introuvable." });
         return res.json({ onboarding_completed: result.rows[0].onboarding_completed });
     } catch (error) {
-        console.error("Échec de l'enregistrement du tutoriel", error);
-        return res.status(500).json({ error: "Impossible d'enregistrer l'état du tutoriel." });
+        console.error("Ã‰chec de l'enregistrement du tutoriel", error);
+        return res.status(500).json({ error: "Impossible d'enregistrer l'Ã©tat du tutoriel." });
     }
 });
 
 router.get("/companies", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
-    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "AccÃ¨s rÃ©servÃ© au super-dÃ©veloppeur." });
     const result = await pool.query("SELECT id, nom, created_at FROM entreprises ORDER BY nom ASC, id ASC");
     return res.json(result.rows);
 });
 
 router.post("/support-session", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
-    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "AccÃ¨s rÃ©servÃ© au super-dÃ©veloppeur." });
     const entrepriseId = Number(req.body.entreprise_id);
     if (!Number.isSafeInteger(entrepriseId) || entrepriseId <= 0) return res.status(400).json({ error: "Entreprise invalide." });
     const company = await pool.query("SELECT id, nom FROM entreprises WHERE id=$1", [entrepriseId]);
@@ -429,12 +429,12 @@ router.post("/support-session/elevate", verifyToken, authRateLimit, async (req, 
         support_write_until: Math.min(now + SUPPORT_WRITE_SECONDS, req.user.support_expires_at),
     });
     res.cookie(COOKIE_NAME, token, sessionCookieOptions());
-    await logActivity({ user: req.user, action: "SUPPORT_ELEVATE", resourceType: "entreprise", resourceId: req.user.entreprise_id, summary: "Élévation d'assistance en écriture pour 10 minutes." });
+    await logActivity({ user: req.user, action: "SUPPORT_ELEVATE", resourceType: "entreprise", resourceId: req.user.entreprise_id, summary: "Ã‰lÃ©vation d'assistance en Ã©criture pour 10 minutes." });
     return res.status(204).send();
 });
 
 router.delete("/support-session", verifyToken, async (req, res) => {
-    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "Accès réservé au super-développeur." });
+    if (req.user.role !== "SUPER_DEVELOPPEUR") return res.status(403).json({ error: "AccÃ¨s rÃ©servÃ© au super-dÃ©veloppeur." });
     res.cookie(COOKIE_NAME, signSession(req.user), sessionCookieOptions());
     return res.status(204).send();
 });
@@ -456,13 +456,13 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
             ? previous.accent_color || "#1d4ed8"
             : limitedText(source.accent_color, 7).toLowerCase();
         if (!/^#[0-9a-f]{6}$/.test(accentColor)) {
-            return res.status(400).json({ error: "La couleur d'accent doit être au format #RRGGBB." });
+            return res.status(400).json({ error: "La couleur d'accent doit Ãªtre au format #RRGGBB." });
         }
         const headerStyle = source.header_style === undefined
             ? previous.header_style || "minimal"
             : source.header_style;
         if (!REPORT_HEADER_STYLES.has(headerStyle)) {
-            return res.status(400).json({ error: "Style d'en-tête invalide." });
+            return res.status(400).json({ error: "Style d'en-tÃªte invalide." });
         }
 
         const settings = {
@@ -490,7 +490,7 @@ router.put("/company", verifyToken, requireRole(["ADMIN"]), async (req, res) => 
         );
         return res.json({ entreprise: companyPayload(result.rows[0]) });
     } catch (error) {
-        console.error("Échec de la personnalisation de l'entreprise", error);
+        console.error("Ã‰chec de la personnalisation de l'entreprise", error);
         return res.status(500).json({ error: "Impossible d'enregistrer la personnalisation du PDF." });
     }
 });
@@ -506,7 +506,7 @@ router.get("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
         );
         return res.json(result.rows);
     } catch (error) {
-        console.error("Échec de la liste des techniciens", error);
+        console.error("Ã‰chec de la liste des techniciens", error);
         return res.status(500).json({ error: "Impossible de charger les techniciens." });
     }
 });
@@ -519,11 +519,11 @@ router.post("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
     if (!nom || !email || !password) {
         return res.status(400).json({ error: "Nom, email et mot de passe sont requis." });
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: "Adresse email invalide." });
     }
     if (password.length < 8) {
-        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractères." });
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caractÃ¨res." });
     }
 
     try {
@@ -535,14 +535,14 @@ router.post("/users", verifyToken, requireRole(["ADMIN"]), async (req, res) => {
              RETURNING id, entreprise_id, nom, email, role, actif, signature_url, created_at, updated_at`,
             [req.user.entreprise_id, nom, email, hashedPassword]
         );
-        await logActivity({ user: req.user, action: "CREATE", resourceType: "utilisateur", resourceId: result.rows[0].id, summary: `Technicien « ${result.rows[0].nom} » ajouté.` });
+        await logActivity({ user: req.user, action: "CREATE", resourceType: "utilisateur", resourceId: result.rows[0].id, summary: `Technicien Â« ${result.rows[0].nom} Â» ajoutÃ©.` });
         return res.status(201).json({ user: result.rows[0] });
     } catch (error) {
         if (error.code === "23505") {
-            return res.status(409).json({ error: "Cette adresse email est déjà utilisée." });
+            return res.status(409).json({ error: "Cette adresse email est dÃ©jÃ  utilisÃ©e." });
         }
-        console.error("Échec de la création du technicien", error);
-        return res.status(500).json({ error: "Impossible de créer le technicien." });
+        console.error("Ã‰chec de la crÃ©ation du technicien", error);
+        return res.status(500).json({ error: "Impossible de crÃ©er le technicien." });
     }
 });
 
@@ -565,7 +565,7 @@ router.patch("/users/:id/status", verifyToken, requireRole(["ADMIN"]), async (re
         }
         return res.json({ user: result.rows[0] });
     } catch (error) {
-        console.error("Échec du changement de statut du technicien", error);
+        console.error("Ã‰chec du changement de statut du technicien", error);
         return res.status(500).json({ error: "Impossible de modifier le technicien." });
     }
 });
@@ -577,7 +577,7 @@ router.patch("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res)
     if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: "Identifiant technicien invalide." });
     if (nom !== undefined && !nom) return res.status(400).json({ error: "Le nom du technicien est requis." });
     if (password !== undefined && password !== "" && password.length < 8) {
-        return res.status(400).json({ error: "Le nouveau mot de passe doit contenir au moins 8 caractères." });
+        return res.status(400).json({ error: "Le nouveau mot de passe doit contenir au moins 8 caractÃ¨res." });
     }
     if (nom === undefined && !password) return res.status(400).json({ error: "Aucune modification fournie." });
 
@@ -601,10 +601,10 @@ router.patch("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res)
             values
         );
         if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });
-        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Compte technicien « ${result.rows[0].nom} » modifié.` });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Compte technicien Â« ${result.rows[0].nom} Â» modifiÃ©.` });
         return res.json({ user: result.rows[0] });
     } catch (error) {
-        console.error("Échec de la modification du compte technicien", error);
+        console.error("Ã‰chec de la modification du compte technicien", error);
         return res.status(500).json({ error: "Impossible de modifier le compte technicien." });
     }
 });
@@ -621,11 +621,11 @@ router.patch("/users/:id/email", verifyToken, requireRole(["ADMIN"]), async (req
             [email, id, req.user.entreprise_id]
         );
         if (!result.rowCount) return res.status(404).json({ error: "Technicien introuvable." });
-        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Adresse de connexion de « ${result.rows[0].nom} » modifiée.` });
+        await logActivity({ user: req.user, action: "UPDATE", resourceType: "utilisateur", resourceId: id, summary: `Adresse de connexion de Â« ${result.rows[0].nom} Â» modifiÃ©e.` });
         return res.json({ user: result.rows[0] });
     } catch (error) {
-        if (error.code === "23505") return res.status(409).json({ error: "Cette adresse email est déjà utilisée." });
-        return res.status(500).json({ error: "Impossible de modifier l’adresse email." });
+        if (error.code === "23505") return res.status(409).json({ error: "Cette adresse email est dÃ©jÃ  utilisÃ©e." });
+        return res.status(500).json({ error: "Impossible de modifier lâ€™adresse email." });
     }
 });
 
@@ -657,8 +657,8 @@ router.delete("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res
             [id, req.user.entreprise_id]
         );
 
-        // Ces ressources sont normalement créées par un ADMIN. La réattribution
-        // protège néanmoins les anciennes données avant la suppression définitive.
+        // Ces ressources sont normalement crÃ©Ã©es par un ADMIN. La rÃ©attribution
+        // protÃ¨ge nÃ©anmoins les anciennes donnÃ©es avant la suppression dÃ©finitive.
         const templates = await client.query(
             `UPDATE modeles_rapport
              SET createur_id = $1, updated_at = NOW()
@@ -679,10 +679,10 @@ router.delete("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res
             [id, req.user.entreprise_id]
         );
         if (deleted.rowCount !== 1) {
-            throw new Error("La suppression du technicien n'a pas été confirmée.");
+            throw new Error("La suppression du technicien n'a pas Ã©tÃ© confirmÃ©e.");
         }
 
-        await logActivity({ user: req.user, action: "DELETE", resourceType: "utilisateur", resourceId: id, summary: `Technicien « ${deleted.rows[0].nom} » supprimé définitivement.`, client });
+        await logActivity({ user: req.user, action: "DELETE", resourceType: "utilisateur", resourceId: id, summary: `Technicien Â« ${deleted.rows[0].nom} Â» supprimÃ© dÃ©finitivement.`, client });
         await client.query("COMMIT");
         return res.json({
             deleted: true,
@@ -693,9 +693,9 @@ router.delete("/users/:id", verifyToken, requireRole(["ADMIN"]), async (req, res
         });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Échec de la suppression définitive du technicien", error);
+        console.error("Ã‰chec de la suppression dÃ©finitive du technicien", error);
         return res.status(500).json({
-            error: "Impossible de supprimer définitivement le technicien.",
+            error: "Impossible de supprimer dÃ©finitivement le technicien.",
         });
     } finally {
         client.release();
@@ -709,3 +709,4 @@ router.post("/logout", (_req, res) => {
 });
 
 export default router;
+
