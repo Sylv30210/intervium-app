@@ -1,4 +1,4 @@
-const CACHE_VERSION = "intervium-shell-v25-table-display-modes";
+const CACHE_VERSION = "intervium-shell-v26-netlify-render-hybrid";
 const SHELL_RESOURCES = [
   "/",
   "/index.html",

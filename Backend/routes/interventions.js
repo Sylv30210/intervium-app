@@ -194,12 +194,18 @@ router.get("/", async (req, res) => {
             date: "i.date_intervention",
             client: "c.nom",
             materiel: "COALESCE(eq.type, '')",
-            rapport: "COALESCE(i.numero_rapport, i.titre, '')",
+            rapport: "NULLIF(regexp_replace(COALESCE(i.numero_rapport, ''), '[^0-9]', '', 'g'), '')::bigint",
             technicien: "COALESCE(u.nom, '')",
             statut: "i.statut"
         };
-        const sortField = sortFields[pagination?.sort] || sortFields.date;
-        const sortDirection = pagination?.direction === "desc" ? "DESC" : "ASC";
+        // The reports list must have one stable default order, including calls that
+        // do not explicitly send sort parameters (dashboard, exports and API users).
+        const hasRequestedSort = Boolean(sortFields[pagination?.sort]);
+        const requestedSort = hasRequestedSort ? pagination.sort : "rapport";
+        const sortField = sortFields[requestedSort];
+        const sortDirection = hasRequestedSort
+            ? (pagination.direction === "desc" ? "DESC" : "ASC")
+            : "DESC";
         const orderBy = `${sortField} ${sortDirection} NULLS LAST, i.date_intervention ASC NULLS LAST, i.heure ASC NULLS LAST, i.id ASC`;
         const countValues = [...values];
         const countResult = pagination ? await pool.query(`SELECT COUNT(*)::INTEGER AS total FROM interventions i JOIN clients c ON c.id=i.client_id AND c.entreprise_id=i.entreprise_id WHERE i.entreprise_id=$1 ${roleFilter}`, countValues) : null;
@@ -252,6 +258,42 @@ router.get("/", async (req, res) => {
     } catch (error) {
         console.error("Échec de la liste des interventions", error);
         return res.status(500).json({ error: "Impossible de charger les interventions." });
+    }
+});
+
+router.get("/planning", async (req, res) => {
+    const start = String(req.query.start || "");
+    const end = String(req.query.end || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start >= end) {
+        return res.status(400).json({ error: "Période de planning invalide." });
+    }
+    const values = [req.user.entreprise_id];
+    let roleFilter = "";
+    if (req.user.role === "TECHNICIEN") {
+        values.push(req.user.id);
+        roleFilter = `AND i.technicien_id = $${values.length}`;
+    } else if (req.user.role === "CLIENT") {
+        values.push(req.user.id);
+        roleFilter = `AND c.utilisateur_id = $${values.length}`;
+    }
+    values.push(start, end);
+    try {
+        const result = await pool.query(
+            `SELECT i.id, i.titre, i.adresse_chantier, i.date_intervention, i.heure, i.creation_type, i.numero_rapport,
+                    c.nom AS client_nom
+             FROM interventions i
+             JOIN clients c ON c.id = i.client_id AND c.entreprise_id = i.entreprise_id
+             WHERE i.entreprise_id = $1 ${roleFilter}
+               AND i.creation_type <> 'RAPPORT_DIRECT'
+               AND i.date_intervention >= $${values.length - 1}::date
+               AND i.date_intervention < $${values.length}::date
+             ORDER BY i.date_intervention ASC, i.heure ASC NULLS LAST, i.id ASC`,
+            values
+        );
+        return res.json({ items: result.rows });
+    } catch (error) {
+        console.error("Échec du chargement du planning", error);
+        return res.status(500).json({ error: "Impossible de charger le planning." });
     }
 });
 

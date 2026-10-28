@@ -6,6 +6,7 @@ import { emailEncryptionStatus } from "../services/email-crypto.js";
 import { listConnections, ownedConnection, publicConnection, saveSmtpConnection, testSmtpConnection } from "../services/email-connections.js";
 import { connectMicrosoftAccount, microsoftAuthorizationUrl, microsoftConfigurationStatus, microsoftAccessToken, revokeMicrosoft, verifyMicrosoftState } from "../services/microsoft.js";
 import { accessTokenFor, disconnectGoogle, googleAuthorizationUrl, googleConfigurationStatus, googleConnection } from "../services/google.js";
+import { frontendOriginForRequest, safeFrontendRedirect } from "../utils/frontend-origin.js";
 
 const router = express.Router();
 function appUrl() { return String(process.env.APP_URL || "http://localhost:5000").replace(/\/$/, ""); }
@@ -24,11 +25,11 @@ router.get("/", verifyToken, async (req, res) => {
     } catch { return res.status(500).json({ error: "Impossible de charger les comptes e-mail." }); }
 });
 
-router.get("/google/authorize", verifyToken, (req,res) => { try { res.json({ url: googleAuthorizationUrl(req.user) }); } catch { res.status(503).json({ error: "La connexion Google n’est pas configurée." }); } });
-router.get("/microsoft/authorize", verifyToken, (req,res) => { try { res.json({ url: microsoftAuthorizationUrl(req.user) }); } catch { res.status(503).json({ error: "La connexion Microsoft n’est pas configurée." }); } });
+router.get("/google/authorize", verifyToken, (req,res) => { try { res.json({ url: googleAuthorizationUrl(req.user, frontendOriginForRequest(req)) }); } catch { res.status(503).json({ error: "La connexion Google n’est pas configurée." }); } });
+router.get("/microsoft/authorize", verifyToken, (req,res) => { try { res.json({ url: microsoftAuthorizationUrl(req.user, frontendOriginForRequest(req)) }); } catch { res.status(503).json({ error: "La connexion Microsoft n’est pas configurée." }); } });
 router.get("/microsoft/callback", async (req,res) => {
     if (req.query.error) return res.redirect(`${appUrl()}/?email=microsoft-denied`);
-    try { const state=verifyMicrosoftState(String(req.query.state||"")); await connectMicrosoftAccount({ code:String(req.query.code||""),userId:Number(state.userId),entrepriseId:Number(state.entrepriseId) }); return res.redirect(`${appUrl()}/?email=microsoft-connected`); }
+    try { const state=verifyMicrosoftState(String(req.query.state||"")); await connectMicrosoftAccount({ code:String(req.query.code||""),userId:Number(state.userId),entrepriseId:Number(state.entrepriseId) }); return res.redirect(`${safeFrontendRedirect(state.returnUrl, appUrl())}/?email=microsoft-connected`); }
     catch (error) { console.error("Échec callback Microsoft", { code: String(error?.message||"").slice(0,80) }); return res.redirect(`${appUrl()}/?email=microsoft-error`); }
 });
 

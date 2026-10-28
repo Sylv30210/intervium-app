@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const [rootPackage, backendPackage, migration, server, render, frontend, workflow, reportModule, clientModule, documentModule] = await Promise.all([
+const [rootPackage, backendPackage, migration, server, render, frontend, workflow, reportModule, clientModule, documentModule, netlify] = await Promise.all([
     readFile("package.json", "utf8").then(JSON.parse),
     readFile("Backend/package.json", "utf8").then(JSON.parse),
     readFile("Backend/database/migrations/015_super_developer.sql", "utf8"),
@@ -11,6 +11,7 @@ const [rootPackage, backendPackage, migration, server, render, frontend, workflo
     readFile("Frontend/reports/signature-canvas.js", "utf8"),
     readFile("Frontend/clients/forms.js", "utf8"),
     readFile("Frontend/documents/totals.js", "utf8"),
+    readFile("netlify.toml", "utf8"),
 ]);
 
 const checks = [
@@ -19,6 +20,7 @@ const checks = [
     [!server.includes("unsafe-inline"), "CSP sans unsafe-inline"],
     [/name: intervium[\s\S]*?autoDeployTrigger: off/.test(render), "déploiement production manuel"],
     [render.includes("name: intervium-staging") && render.includes("autoDeployTrigger: checksPass"), "staging après contrôles réussis"],
+    [netlify.includes('publish = "Frontend"') && netlify.includes('from = "/api/*"') && netlify.includes("intervium-app.onrender.com/api/:splat"), "proxy Netlify vers l’API Render"],
     [frontend.includes('/auth/consent') && frontend.includes('/conditions.html'), "consentement aux conditions avant accès"],
     [workflow.includes("postgres:16") && workflow.includes("RUN_INTEGRATION_TESTS"), "tests PostgreSQL actifs dans la CI"],
     [reportModule.includes("bindSignatureCanvas") && clientModule.includes("parseEmailList") && documentModule.includes("calculateDocumentTotals"), "modules rapports/clients/documents séparés"],

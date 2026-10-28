@@ -41,6 +41,10 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # URL publique Netlify (ou domaine frontal canonique), sans chemin.
+      # L'API, OAuth, IA, PDF, e-mails et Neon restent exécutés par Render.
+      - key: FRONTEND_ORIGIN
+        sync: false
       - key: GMAIL_SENDING_ENABLED
         value: "true"
       - key: PUBLIC_REGISTRATION_ENABLED
@@ -82,6 +86,8 @@ services:
       - key: TOTP_ENCRYPTION_KEY
         sync: false
       - key: APP_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false

@@ -14,9 +14,9 @@ export function microsoftConfigurationStatus() {
     return { enabled: missing.length === 0, missing };
 }
 
-export function microsoftAuthorizationUrl(user) {
+export function microsoftAuthorizationUrl(user, returnUrl = "") {
     if (!microsoftConfigurationStatus().enabled) throw new Error("MICROSOFT_NOT_CONFIGURED");
-    const state = jwt.sign({ purpose: "microsoft_oauth", userId: user.id, entrepriseId: user.entreprise_id }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "10m" });
+    const state = jwt.sign({ purpose: "microsoft_oauth", userId: user.id, entrepriseId: user.entreprise_id, returnUrl }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "10m" });
     const params = new URLSearchParams({ client_id: env("MICROSOFT_CLIENT_ID"), response_type: "code", redirect_uri: redirectUri(), response_mode: "query", scope: SCOPES, state, prompt: "select_account" });
     return `${AUTHORITY}/authorize?${params}`;
 }

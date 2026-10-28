@@ -1,6 +1,10 @@
 [build]
   publish = "Frontend"
 
+# Netlify distribue le frontend et ses fichiers statiques au CDN. Toutes les
+# opérations métier restent sur Render derrière des réécritures same-origin :
+# aucun secret, cookie ou accès Neon n'est déplacé dans Netlify.
+
 [[redirects]]
   from = "/api/*"
   to = "https://intervium-app.onrender.com/api/:splat"

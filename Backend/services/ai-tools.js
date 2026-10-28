@@ -53,7 +53,7 @@ async function searchInterventions(args, user) {
          FROM interventions i JOIN clients c ON c.id=i.client_id AND c.entreprise_id=i.entreprise_id
          LEFT JOIN equipements e ON e.id=i.equipement_id AND e.entreprise_id=i.entreprise_id
          WHERE i.entreprise_id=$1 AND (i.titre ILIKE $2 OR i.numero_rapport ILIKE $2 OR c.nom ILIKE $2) ${access.sql}
-         ORDER BY i.date_intervention DESC NULLS LAST, i.id DESC LIMIT ${MAX_RESULTS}`,
+         ORDER BY NULLIF(regexp_replace(COALESCE(i.numero_rapport, ''), '[^0-9]', '', 'g'), '')::bigint DESC NULLS LAST, i.id DESC LIMIT ${MAX_RESULTS}`,
         [user.entreprise_id, `%${term}%`, ...access.values]
     );
     return { interventions: result.rows };

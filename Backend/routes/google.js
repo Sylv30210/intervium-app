@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyToken } from "../middleware/auth.js";
 import { connectGoogleAccount, disconnectGoogle, googleAuthorizationUrl, googleConfigurationStatus, googleConnection, verifyGoogleState } from "../services/google.js";
+import { frontendOriginForRequest, safeFrontendRedirect } from "../utils/frontend-origin.js";
 
 const router = express.Router();
 
@@ -16,19 +17,19 @@ router.get("/status", verifyToken, async (req, res) => {
 
 router.get("/authorize", verifyToken, (req, res) => {
     try {
-        return res.json({ url: googleAuthorizationUrl(req.user) });
+        return res.json({ url: googleAuthorizationUrl(req.user, frontendOriginForRequest(req)) });
     } catch {
         return res.status(503).json({ error: "La connexion Google n’est pas configurée." });
     }
 });
 
 router.get("/callback", async (req, res) => {
-    const appUrl = process.env.APP_URL || new URL(process.env.GOOGLE_REDIRECT_URI || "http://localhost").origin;
+    const appUrl = String(process.env.APP_URL || new URL(process.env.GOOGLE_REDIRECT_URI || "http://localhost").origin).replace(/\/$/, "");
     try {
         if (req.query.error) return res.redirect(`${appUrl}/?google=denied`);
         const payload = verifyGoogleState(String(req.query.state || ""));
         await connectGoogleAccount({ code: String(req.query.code || ""), userId: Number(payload.userId), entrepriseId: Number(payload.entrepriseId) });
-        return res.redirect(`${appUrl}/?google=connected`);
+        return res.redirect(`${safeFrontendRedirect(payload.returnUrl, appUrl)}/?google=connected`);
     } catch (error) {
         console.error("Échec du callback Google", { message: error.message });
         return res.redirect(`${appUrl}/?google=error`);

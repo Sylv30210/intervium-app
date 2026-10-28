@@ -17,8 +17,8 @@ process.env.DB_NAME ||= "test";
 
 const { encryptCredential, decryptCredential } = await import("../services/email-crypto.js");
 const { publicConnection, safeEmailError, ownedConnection } = await import("../services/email-connections.js");
-const { googleAuthorizationUrl } = await import("../services/google.js");
-const { microsoftAuthorizationUrl, microsoftAccessToken } = await import("../services/microsoft.js");
+const { googleAuthorizationUrl, verifyGoogleState } = await import("../services/google.js");
+const { microsoftAuthorizationUrl, microsoftAccessToken, verifyMicrosoftState } = await import("../services/microsoft.js");
 const { default: pool } = await import("../config/database.js");
 
 test("AES-256-GCM chiffre avec un nonce, un tag et une version", () => {
@@ -42,6 +42,14 @@ test("Google conserve le seul scope Gmail nécessaire", () => {
     const scope = url.searchParams.get("scope");
     assert.match(scope, /gmail\.send/);
     assert.doesNotMatch(scope, /gmail\.read|gmail\.modify|mail\.google\.com/);
+});
+
+test("les flux OAuth conservent l'origine frontend validée dans leur état signé", () => {
+    const user = { id: 1, entreprise_id: 2 };
+    const google = new URL(googleAuthorizationUrl(user, "https://app.example.test"));
+    const microsoft = new URL(microsoftAuthorizationUrl(user, "https://app.example.test"));
+    assert.equal(verifyGoogleState(google.searchParams.get("state")).returnUrl, "https://app.example.test");
+    assert.equal(verifyMicrosoftState(microsoft.searchParams.get("state")).returnUrl, "https://app.example.test");
 });
 
 test("Microsoft demande Mail.Send et offline_access, sans lecture de boîte", () => {

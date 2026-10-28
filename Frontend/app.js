@@ -13,6 +13,8 @@ import { COLLECTION_PAGE_LIMIT, collectionPageUrl } from "./utils/collections.js
 let currentUser = null;
 let currentEntreprise = null;
 let interventions = [];
+let planningEvents = [];
+let planningRequestId = 0;
 let clients = [];
 let equipements = [];
 let technicians = [];
@@ -42,7 +44,7 @@ let aiSessionUserId = null;
 let aiConversations = [];
 let activeAiConversation = null;
 const collectionPages = {
-    interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "date", direction: "asc", requestId: 0 },
+    interventions: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "rapport", direction: "desc", requestId: 0 },
     clients: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "nom", direction: "asc", requestId: 0 },
     equipements: { page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "client", direction: "asc", requestId: 0 },
 };
@@ -128,6 +130,7 @@ function navigateTo(view, replace = false) {
     const method = replace ? "replaceState" : "pushState";
     history[method]({ view }, "", `#${view}`);
     renderMain(view);
+    if (view === "planning") loadPlanningMonth().catch((error) => toast(error.message, true));
 }
 
 function showOfflineScreen(message = "Les données sécurisées nécessitent une connexion au serveur.") {
@@ -355,11 +358,12 @@ async function logout() {
 async function loadAllData() {
     const collectionLimit = COLLECTION_PAGE_LIMIT;
     Object.values(collectionPages).forEach((state) => { state.limit = collectionLimit; });
+    const initialInterventionsUrl = collectionPageUrl("interventions", collectionPages.interventions);
     appVersion = (await api("/version").catch(() => ({ version: appVersion }))).version;
     emailMailStatus = await api("/email-connections").catch(() => ({ connections: [], providers: [], configuration: {} }));
     platformCompanies = currentUser.is_super_developer ? await api("/auth/companies") : [];
     if (currentUser.role === "CLIENT") {
-        const page = await api(`/interventions?page=1&limit=${collectionLimit}`);
+        const page = await api(initialInterventionsUrl);
         interventions = page.items;
         Object.assign(collectionPages.interventions, page);
         dashboardStats = await api("/interventions/stats");
@@ -373,7 +377,7 @@ async function loadAllData() {
         return;
     }
     const results = await Promise.allSettled([
-        api(`/interventions?page=1&limit=${collectionLimit}`),
+        api(initialInterventionsUrl),
         api(`/clients?page=1&limit=${collectionLimit}`),
         api(`/equipements?page=1&limit=${collectionLimit}`),
         currentUser.role === "ADMIN" ? api("/auth/users") : Promise.resolve([]),
@@ -681,8 +685,8 @@ function bindServerSearch() {
         const state = collectionPages[view];
         if (!state) return;
         state.query = "";
-        state.sort = view === "interventions" ? "date" : view === "clients" ? "nom" : "client";
-        state.direction = "asc";
+        state.sort = view === "interventions" ? "rapport" : view === "clients" ? "nom" : "client";
+        state.direction = view === "interventions" ? "desc" : "asc";
         loadCollectionPage(view, 1).catch((error) => toast(error.message, true));
     }));
 }
@@ -698,11 +702,22 @@ function renderPlanning() {
     const cells = Array.from({ length: 42 }, (_, index) => {
         const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
         const key = localDateKey(date);
-        const events = interventions.filter((item) => item.creation_type !== "RAPPORT_DIRECT" && String(item.date_intervention || "").slice(0, 10) === key);
+        const events = planningEvents.filter((item) => String(item.date_intervention || "").slice(0, 10) === key);
         return `<div class="calendar-day ${date.getMonth() === month ? "" : "outside"} ${key === todayKey ? "today" : ""}"><span class="calendar-number">${date.getDate()}</span>${events.map((event) => `<button class="calendar-event" data-edit-intervention="${event.id}" title="${escapeHtml(event.titre)} — ${escapeHtml(event.client_nom)}${event.adresse_chantier ? ` — ${escapeHtml(event.adresse_chantier)}` : ""}">${escapeHtml(event.heure?.slice(0,5) || "")} ${escapeHtml(event.titre)}</button>`).join("")}</div>`;
     }).join("");
     const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(planningCursor);
     return `<section class="panel"><div class="calendar-head"><button class="secondary" id="planning-prev" aria-label="Mois précédent">‹</button><h2>${capitalize(monthLabel)}</h2><button class="secondary" id="planning-next" aria-label="Mois suivant">›</button></div><div class="calendar-grid">${["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}${cells}</div></section>`;
+}
+
+async function loadPlanningMonth() {
+    const requestId = ++planningRequestId;
+    const start = new Date(planningCursor.getFullYear(), planningCursor.getMonth(), 1);
+    const end = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1);
+    const format = (date) => localDateKey(date);
+    const result = await api(`/interventions/planning?start=${encodeURIComponent(format(start))}&end=${encodeURIComponent(format(end))}`);
+    if (requestId !== planningRequestId) return;
+    planningEvents = result.items;
+    if (currentView === "planning") renderMain("planning");
 }
 
 function renderTemplates() {
@@ -743,8 +758,8 @@ function bindMainActions(view) {
     });
     document.querySelectorAll("[data-quick-view]").forEach((button) => button.addEventListener("click", () => navigateTo(button.dataset.quickView)));
     document.querySelector("[data-quick-action='intervention']")?.addEventListener("click", () => openNewIntervention());
-    document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); });
-    document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); });
+    document.getElementById("planning-prev")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() - 1, 1); renderMain("planning"); loadPlanningMonth().catch((error) => toast(error.message, true)); });
+    document.getElementById("planning-next")?.addEventListener("click", () => { planningCursor = new Date(planningCursor.getFullYear(), planningCursor.getMonth() + 1, 1); renderMain("planning"); loadPlanningMonth().catch((error) => toast(error.message, true)); });
     document.querySelectorAll("[data-edit-intervention]").forEach((b) => b.addEventListener("click", () => openIntervention(b.dataset.editIntervention)));
     document.querySelectorAll("[data-edit-template]").forEach((button) => button.addEventListener("click", () => openTemplateEditor(button.dataset.editTemplate)));
     document.querySelectorAll("[data-duplicate-template]").forEach((button) => button.addEventListener("click", () => duplicateTemplate(button.dataset.duplicateTemplate, button)));
@@ -1389,6 +1404,7 @@ function openSettings() {
         ${accountDeletionSettings}
         <section class="settings-intro" aria-labelledby="about-intervium"><strong id="about-intervium">À propos</strong><p>Intervium — gestion des interventions, rapports et documents métier.</p><p class="muted">Version ${escapeHtml(appVersion)} · Conçu par Sylvain Lecoeuvre</p></section>
     `);
+    organizeSettingsModal();
 
     document.querySelectorAll('input[name="visual-theme"]').forEach((input) => input.addEventListener("change", (event) => {
         const theme = setTheme(event.target.value);
@@ -1528,6 +1544,58 @@ function openSettings() {
             openSettings();
             toast("Logo supprimé des rapports.");
         } catch (error) { toast(error.message, true); }
+    }));
+}
+
+function organizeSettingsModal() {
+    const dialog = document.querySelector("#modal-root .modal");
+    if (!dialog) return;
+    const elements = [...dialog.children].filter((element) => !element.matches(".modal-head"));
+    const claimed = new Set();
+    const take = (selector, text = "") => {
+        const element = elements.find((candidate) => !claimed.has(candidate) && candidate.matches(selector) && (!text || candidate.textContent.includes(text)));
+        if (element) claimed.add(element);
+        return element;
+    };
+    const takeAfter = (element) => {
+        const index = elements.indexOf(element);
+        const sibling = index >= 0 ? elements[index + 1] : null;
+        if (sibling && !claimed.has(sibling)) claimed.add(sibling);
+        return sibling;
+    };
+    const appearance = take(".settings-intro", "Personnalisez Intervium");
+    const theme = take(".theme-options");
+    const themeHelp = theme ? takeAfter(theme) : null;
+    const groups = [
+        { id: "appearance", label: "Apparence", items: [appearance, theme, themeHelp] },
+        { id: "security", label: "Sécurité", items: [take("#password-settings"), take("#delete-account-settings")] },
+        { id: "signature", label: "Signature", items: [take(".settings-intro", "Signature technicien")] },
+        { id: "emails", label: "E-mails", items: [take(".settings-intro", "Comptes e-mail connectés")] },
+        { id: "navigation", label: "Navigation & aide", items: [take(".settings-intro", "Navigation mobile"), take(".settings-intro", "Aide et prise en main"), take(".pwa-help")] },
+        { id: "company", label: "Entreprise", items: [take("#company-report-settings")] },
+        { id: "system", label: "Système", items: [take(".settings-intro", "Super-développeur"), take(".settings-intro", "État du service"), take(".settings-intro", "À propos")] },
+    ].filter((group) => group.items.some(Boolean));
+    if (!groups.length) return;
+    const layout = document.createElement("div");
+    layout.className = "settings-layout";
+    layout.innerHTML = `<nav class="settings-sidebar" aria-label="Sections des paramètres" role="tablist">${groups.map((group, index) => `<button class="${index === 0 ? "active" : ""}" type="button" role="tab" aria-selected="${index === 0}" aria-controls="pane-${group.id}" data-settings-pane="${group.id}">${escapeHtml(group.label)}</button>`).join("")}</nav><div class="settings-content-area"></div>`;
+    const content = layout.querySelector(".settings-content-area");
+    groups.forEach((group, index) => {
+        const pane = document.createElement("section");
+        pane.id = `pane-${group.id}`;
+        pane.className = `settings-pane${index === 0 ? " active" : ""}`;
+        pane.setAttribute("role", "tabpanel");
+        pane.hidden = index !== 0;
+        group.items.filter(Boolean).forEach((item) => pane.append(item));
+        content.append(pane);
+    });
+    elements.filter((element) => !claimed.has(element)).forEach((element) => content.querySelector(".settings-pane.active").append(element));
+    dialog.append(layout);
+    layout.querySelectorAll("[data-settings-pane]").forEach((button) => button.addEventListener("click", () => {
+        const paneId = button.dataset.settingsPane;
+        layout.querySelectorAll("[data-settings-pane]").forEach((item) => { const active = item === button; item.classList.toggle("active", active); item.setAttribute("aria-selected", String(active)); });
+        layout.querySelectorAll(".settings-pane").forEach((pane) => { const active = pane.id === `pane-${paneId}`; pane.classList.toggle("active", active); pane.hidden = !active; });
+        content.scrollTo({ top: 0, behavior: "smooth" });
     }));
 }
 

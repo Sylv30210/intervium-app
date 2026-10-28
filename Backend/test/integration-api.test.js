@@ -46,6 +46,33 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
         donnees_rapport: {},
     }).expect(201);
     assert.equal(intervention.body.numero_rapport, `${reportYear}-0121`);
+    const laterReports = [];
+    for (let index = 0; index < 20; index += 1) {
+        laterReports.push((await agent.post("/api/interventions").send({
+            client_id: created.body.id,
+            equipement_id: equipment.body.id,
+            creation_type: "PLANIFIEE",
+            statut: "PLANIFIEE",
+            titre: `Rapport paginé ${index + 1}`,
+            date_intervention: today.rows[0].date,
+            heure: "09:00",
+            donnees_rapport: {},
+        }).expect(201)).body);
+    }
+    const laterReport = laterReports.at(-1);
+    const firstPage = await agent.get("/api/interventions?page=1&limit=20").expect(200);
+    const secondPage = await agent.get("/api/interventions?page=2&limit=20").expect(200);
+    const reportNumber = (report) => Number(report.numero_rapport.replace(/\D/g, ""));
+    assert.equal(firstPage.body.items.length, 20);
+    assert.ok(firstPage.body.items.every((report, index, reports) => index === 0 || reportNumber(reports[index - 1]) >= reportNumber(report)));
+    assert.ok(reportNumber(firstPage.body.items.at(-1)) > reportNumber(secondPage.body.items[0]));
+    const searched = await agent.get(`/api/interventions?page=1&limit=20&q=${encodeURIComponent(laterReport.numero_rapport)}&sort=rapport&direction=desc`).expect(200);
+    assert.equal(searched.body.total, 1);
+    assert.equal(searched.body.items[0].id, laterReport.id);
+    const nextDay = new Date(`${today.rows[0].date}T00:00:00Z`);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const planning = await agent.get(`/api/interventions/planning?start=${today.rows[0].date}&end=${nextDay.toISOString().slice(0, 10)}`).expect(200);
+    assert.ok(planning.body.items.some((item) => item.id === laterReport.id));
     const notifications = await agent.get("/api/notifications").expect(200);
     assert.equal(notifications.body.items[0].type, "INTERVENTION_SOON");
     assert.equal(notifications.body.pagination.total, 1);
@@ -97,6 +124,7 @@ test("API CRUD et isolation multi-tenant sur PostgreSQL", { skip: process.env.RU
     const pdf = await agent.get(`/api/interventions/${intervention.body.id}/pdf`).expect(200);
     assert.equal(pdf.headers["content-disposition"], `attachment; filename="rapport-${intervention.body.numero_rapport}.pdf"`);
     await agent.delete(`/api/interventions/${intervention.body.id}`).expect(204);
+    for (const report of laterReports) await agent.delete(`/api/interventions/${report.id}`).expect(204);
     await agent.delete("/api/uploads/company-logo").expect(200);
     const tenantBClient = await pool.query("INSERT INTO clients(entreprise_id,nom) VALUES($1,'Secret B') RETURNING id", [secondCompany.rows[0].id]);
     await agent.get(`/api/clients/${tenantBClient.rows[0].id}`).expect(404);

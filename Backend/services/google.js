@@ -53,10 +53,10 @@ function decrypt(value) {
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
 }
 
-export function googleAuthorizationUrl(user) {
+export function googleAuthorizationUrl(user, returnUrl = "") {
     const cfg = config();
     if (!cfg || !googleEnabled()) throw new Error("GOOGLE_NOT_CONFIGURED");
-    const state = jwt.sign({ purpose: "google_oauth", userId: user.id, entrepriseId: user.entreprise_id }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "10m" });
+    const state = jwt.sign({ purpose: "google_oauth", userId: user.id, entrepriseId: user.entreprise_id, returnUrl }, process.env.JWT_SECRET, { algorithm: "HS256", expiresIn: "10m" });
     const params = new URLSearchParams({ client_id: cfg.clientId, redirect_uri: cfg.redirectUri, response_type: "code", scope: `openid email ${GMAIL_SEND_SCOPE}`, access_type: "offline", include_granted_scopes: "true", prompt: "consent", state });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }

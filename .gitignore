@@ -9,3 +9,6 @@ backups/
 .DS_Store
 Thumbs.db
 .aider*
+
+# Local Netlify folder
+.netlify

@@ -53,6 +53,28 @@ test("les listes gardent une pagination stable et transmettent la recherche et l
         collectionPageUrl("interventions", { page: 1, limit: COLLECTION_PAGE_LIMIT, sort: "date", direction: "desc" }),
         "/interventions?page=1&limit=20&sort=date&direction=desc"
     );
+    assert.equal(
+        collectionPageUrl("interventions", { page: 1, limit: COLLECTION_PAGE_LIMIT, sort: "rapport", direction: "desc" }),
+        "/interventions?page=1&limit=20&sort=rapport&direction=desc"
+    );
+});
+
+test("les rapports démarrent avec leur numéro numérique décroissant", async () => {
+    const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const interventions = await readFile(new URL("../routes/interventions.js", import.meta.url), "utf8");
+    assert.match(app, /interventions: \{ page: 1, limit: COLLECTION_PAGE_LIMIT, total: 0, query: "", sort: "rapport", direction: "desc"/);
+    assert.match(app, /const initialInterventionsUrl = collectionPageUrl\("interventions", collectionPages\.interventions\)/);
+    assert.match(interventions, /regexp_replace\(COALESCE\(i\.numero_rapport, ''\), '\[\^0-9\]', '', 'g'\), ''\)::bigint/);
+    assert.match(interventions, /requestedSort = hasRequestedSort \? pagination\.sort : "rapport"/);
+});
+
+test("le planning charge sa période séparément de la page de rapports affichée", async () => {
+    const app = await readFile(new URL("../../Frontend/app.js", import.meta.url), "utf8");
+    const interventions = await readFile(new URL("../routes/interventions.js", import.meta.url), "utf8");
+    assert.match(app, /\/interventions\/planning\?start=/);
+    assert.match(app, /const events = planningEvents\.filter/);
+    assert.match(interventions, /router\.get\("\/planning"/);
+    assert.match(interventions, /i\.creation_type <> 'RAPPORT_DIRECT'/);
 });
 
 test("le sélecteur de photos de rapport laisse le choix entre caméra et photothèque", async () => {
